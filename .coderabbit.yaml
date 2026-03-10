@@ -1,0 +1,12 @@
+reviews:
+auto_review: true
+auto_summarize: true
+high_level_summary: true
+final_sanity_check: true
+poem: false
+
+chat:
+auto_reply: true
+
+knowledge_base:
+enabled: true
