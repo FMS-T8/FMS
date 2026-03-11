@@ -27,7 +27,7 @@ final class LiveVehicleViewModel {
         } else {
             let search = searchText.lowercased()
             return liveVehicles.filter { vehicle in
-                let plate = vehicle.plateNumber?.lowercased() ?? ""
+                let plate = vehicle.plateNumber.lowercased()
                 let make = vehicle.manufacturer?.lowercased() ?? ""
                 let model = vehicle.model?.lowercased() ?? ""
                 return plate.contains(search) || make.contains(search) || model.contains(search)
@@ -44,10 +44,69 @@ final class LiveVehicleViewModel {
             
             // Mock data strictly matching your standard
             self.vehicles = [
-                Vehicle(id: UUID().uuidString, plateNumber: "KA 09 MA 1234", manufacturer: "Volvo", model: "FH16", status: "active"),
-                Vehicle(id: UUID().uuidString, plateNumber: "KA 09 MA 5678", manufacturer: "Tata", model: "Prima", status: "active"),
-                Vehicle(id: UUID().uuidString, plateNumber: "KA 09 MA 9012", manufacturer: "Ashok Leyland", model: "Boss", status: "inactive"),
-                Vehicle(id: UUID().uuidString, plateNumber: "KA 09 MA 3344", manufacturer: "Eicher", model: "Pro", status: "maintenance") // This will be filtered out automatically
+                Vehicle(
+                    id: UUID().uuidString,
+                    plateNumber: "KA 09 MA 1234",
+                    chassisNumber: "CH1234",
+                    manufacturer: "Volvo",
+                    model: "FH16",
+                    fuelType: "Diesel",
+                    fuelTankCapacity: 400,
+                    carryingCapacity: nil,
+                    purchaseDate: nil,
+                    odometer: nil,
+                    status: "active",
+                    createdBy: nil,
+                    createdAt: Date()
+                ),
+                
+                Vehicle(
+                    id: UUID().uuidString,
+                    plateNumber: "KA 09 MA 5678",
+                    chassisNumber: "CH5678",
+                    manufacturer: "Tata",
+                    model: "Prima",
+                    fuelType: "Diesel",
+                    fuelTankCapacity: 350,
+                    carryingCapacity: nil,
+                    purchaseDate: nil,
+                    odometer: nil,
+                    status: "active",
+                    createdBy: nil,
+                    createdAt: Date()
+                ),
+                
+                Vehicle(
+                    id: UUID().uuidString,
+                    plateNumber: "KA 09 MA 9012",
+                    chassisNumber: "CH9012",
+                    manufacturer: "Ashok Leyland",
+                    model: "Boss",
+                    fuelType: "Diesel",
+                    fuelTankCapacity: 300,
+                    carryingCapacity: nil,
+                    purchaseDate: nil,
+                    odometer: nil,
+                    status: "inactive",
+                    createdBy: nil,
+                    createdAt: Date()
+                ),
+                
+                Vehicle(
+                    id: UUID().uuidString,
+                    plateNumber: "KA 09 MA 3344",
+                    chassisNumber: "CH3344",
+                    manufacturer: "Eicher",
+                    model: "Pro",
+                    fuelType: "Diesel",
+                    fuelTankCapacity: 250,
+                    carryingCapacity: nil,
+                    purchaseDate: nil,
+                    odometer: nil,
+                    status: "maintenance",
+                    createdBy: nil,
+                    createdAt: Date()
+                )
             ]
         } catch {
             self.errorMessage = error.localizedDescription

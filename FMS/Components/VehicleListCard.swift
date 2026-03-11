@@ -36,7 +36,7 @@ struct VehicleListCard: View {
                     .foregroundColor(.primary)
                     .lineLimit(1)
                 
-                Text(vehicle.plateNumber ?? "Unknown Plate")
+                Text(vehicle.plateNumber)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

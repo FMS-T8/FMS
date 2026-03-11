@@ -17,6 +17,7 @@ xcuserdata/
 # --- Swift Package Manager ---
 # Ignore the build directory used by SPM
 .build/
+build_errors.log
 
 # --- Dependency Managers ---
 Pods/
