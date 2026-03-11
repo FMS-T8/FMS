@@ -9,8 +9,9 @@
 /* Begin PBXBuildFile section */
 		295A75E32F603DE7004385EC /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 295A75E22F603DE7004385EC /* Auth */; };
 		295A75E52F603DE7004385EC /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 295A75E42F603DE7004385EC /* Functions */; };
-		295A75E72F603DE7004385EC /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 295A75E62F603DE7004385EC /* PostgREST */; };
 		295A75E92F603DE7004385EC /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 295A75E82F603DE7004385EC /* Storage */; };
+		295A76062F612B35004385EC /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 295A76052F612B35004385EC /* PostgREST */; };
+		295A76082F612B39004385EC /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 295A76072F612B39004385EC /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,8 +31,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				295A76082F612B39004385EC /* Supabase in Frameworks */,
+				295A76062F612B35004385EC /* PostgREST in Frameworks */,
 				295A75E92F603DE7004385EC /* Storage in Frameworks */,
-				295A75E72F603DE7004385EC /* PostgREST in Frameworks */,
 				295A75E52F603DE7004385EC /* Functions in Frameworks */,
 				295A75E32F603DE7004385EC /* Auth in Frameworks */,
 			);
@@ -44,6 +46,7 @@
 			isa = PBXGroup;
 			children = (
 				295A759C2F601FE2004385EC /* FMS */,
+				295A76042F612B35004385EC /* Frameworks */,
 				295A759B2F601FE2004385EC /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +57,13 @@
 				295A759A2F601FE2004385EC /* FMS.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		295A76042F612B35004385EC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -78,8 +88,9 @@
 			packageProductDependencies = (
 				295A75E22F603DE7004385EC /* Auth */,
 				295A75E42F603DE7004385EC /* Functions */,
-				295A75E62F603DE7004385EC /* PostgREST */,
 				295A75E82F603DE7004385EC /* Storage */,
+				295A76052F612B35004385EC /* PostgREST */,
+				295A76072F612B39004385EC /* Supabase */,
 			);
 			productName = FMS;
 			productReference = 295A759A2F601FE2004385EC /* FMS.app */;
@@ -381,15 +392,20 @@
 			package = 295A75E12F603DE7004385EC /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Functions;
 		};
-		295A75E62F603DE7004385EC /* PostgREST */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 295A75E12F603DE7004385EC /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = PostgREST;
-		};
 		295A75E82F603DE7004385EC /* Storage */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 295A75E12F603DE7004385EC /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Storage;
+		};
+		295A76052F612B35004385EC /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 295A75E12F603DE7004385EC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		295A76072F612B39004385EC /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 295A75E12F603DE7004385EC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
