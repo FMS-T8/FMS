@@ -2,18 +2,18 @@ import Foundation
 
 public struct Vehicle: Codable, Identifiable {
     public var id: String
-    public var plateNumber: String?
-    public var chassisNumber: String?
+    public var plateNumber: String
+    public var chassisNumber: String
     public var manufacturer: String?
     public var model: String?
-    public var fuelType: String?
-    public var fuelTankCapacity: Double?
+    public var fuelType: String
+    public var fuelTankCapacity: Double
     public var carryingCapacity: Double?
     public var purchaseDate: Date?
     public var odometer: Double?
     public var status: String?
     public var createdBy: String?
-    public var createdAt: Date?
+    public var createdAt: Date
     
     enum CodingKeys: String, CodingKey {
         case id

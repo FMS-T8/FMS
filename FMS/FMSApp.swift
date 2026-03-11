@@ -14,10 +14,8 @@ struct FMSApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if authViewModel.selectedRole == nil {
-                    RoleSelectionView()
-                } else if authViewModel.selectedRole == .fleetManager && !authViewModel.isAuthenticated {
-                    FleetManagerLoginView()
+                if !authViewModel.isAuthenticated {
+                    LoginView()
                 } else {
                     MainDashboardView()
                 }
