@@ -1,3 +1,10 @@
+//
+//  AuthViewModel.swift
+//  FMS
+//
+//  Created by Anish on 11/03/26.
+//
+
 import SwiftUI
 import Observation
 import Supabase
@@ -8,6 +15,7 @@ public enum Role: String, CaseIterable, Codable {
     case maintenance = "Maintenance"
 }
 
+@MainActor
 @Observable
 public class AuthViewModel {
     public var selectedRole: Role?
@@ -19,30 +27,27 @@ public class AuthViewModel {
     }
     
     public func login(email: String, password: String, bannerManager: BannerManager) async {
-        // Input validation
         guard !email.trimmingCharacters(in: .whitespaces).isEmpty else {
-            await bannerManager.show(type: .error, message: "Please enter your email address.")
+            bannerManager.show(type: .error, message: "Please enter your email address.")
             return
         }
         
         guard email.contains("@") && email.contains(".") else {
-            await bannerManager.show(type: .error, message: "Please enter a valid email address.")
+            bannerManager.show(type: .error, message: "Please enter a valid email address.")
             return
         }
         
         guard !password.isEmpty else {
-            await bannerManager.show(type: .error, message: "Please enter your password.")
+            bannerManager.show(type: .error, message: "Please enter your password.")
             return
         }
         
         do {
-            // Authenticate via Supabase Auth to validate password
             try await SupabaseService.shared.client.auth.signIn(
                 email: email,
                 password: password
             )
             
-            // Fetch role from public.users table
             struct UserRoleQuery: Decodable {
                 let role: String
             }
@@ -55,25 +60,23 @@ public class AuthViewModel {
                 .value
             
             if let userRecord = query.first {
-                await MainActor.run {
-                    switch userRecord.role {
-                    case "manager":
-                        self.selectedRole = .fleetManager
-                    case "driver":
-                        self.selectedRole = .driver
-                    case "maintenance":
-                        self.selectedRole = .maintenance
-                    default:
-                        print("Unknown role: \(userRecord.role)")
-                        return
-                    }
-                    self.isAuthenticated = true
+                switch userRecord.role {
+                case "manager":
+                    self.selectedRole = .fleetManager
+                case "driver":
+                    self.selectedRole = .driver
+                case "maintenance":
+                    self.selectedRole = .maintenance
+                default:
+                    print("Unknown role: \(userRecord.role)")
+                    return
                 }
+                self.isAuthenticated = true
             } else {
-                await bannerManager.show(type: .error, message: "Account not configured. Please contact admin.")
+                bannerManager.show(type: .error, message: "Account not configured. Please contact admin.")
             }
         } catch {
-            await bannerManager.show(type: .error, message: "Invalid email or password. Please try again.")
+            bannerManager.show(type: .error, message: "Invalid email or password. Please try again.")
         }
     }
     
