@@ -19,6 +19,8 @@ public struct FMSTheme {
     public static let alertAmber = Color(red: 246/255, green: 201/255, blue: 68/255)
     public static let alertYellow = Color(red: 255/255, green: 220/255, blue: 100/255)
     public static let alertRed = Color(red: 230/255, green: 80/255, blue: 80/255)
+    public static let alertGreen = Color(red: 50/255, green: 190/255, blue: 100/255)
+    public static let alertOrange = Color(red: 240/255, green: 150/255, blue: 50/255)
     
     // Border
     public static let borderLight = Color(red: 235/255, green: 235/255, blue: 240/255)

@@ -2,15 +2,15 @@ import Foundation
 
 public struct User: Codable, Identifiable {
     public var id: String
-    public var name: String?
-    public var email: String?
-    public var phone: String?
-    public var role: String?
-    public var status: String?
+    public var name: String
+    public var email: String
+    public var phone: String
+    public var role: String
+    public var status: String
     public var licenseNumber: String?
     public var licenseExpiry: Date?
     public var createdBy: String?
-    public var createdAt: Date?
+    public var createdAt: Date
     public var lastLogin: Date?
     
     enum CodingKeys: String, CodingKey {

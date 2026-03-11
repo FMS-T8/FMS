@@ -10,19 +10,22 @@ import SwiftUI
 @main
 struct FMSApp: App {
     @State private var authViewModel = AuthViewModel()
+    @State private var bannerManager = BannerManager()
     
     var body: some Scene {
         WindowGroup {
             Group {
-                if authViewModel.selectedRole == nil {
-                    RoleSelectionView()
-                } else if authViewModel.selectedRole == .fleetManager && !authViewModel.isAuthenticated {
-                    FleetManagerLoginView()
+                if !authViewModel.isAuthenticated {
+                    LoginView()
                 } else {
                     MainDashboardView()
                 }
             }
+            .overlay(alignment: .top) {
+                FMSBanner()
+            }
             .environment(authViewModel)
+            .environment(bannerManager)
         }
     }
 }

@@ -11,10 +11,24 @@ public struct FMSTextField: View {
     
     @State private var isPasswordVisible: Bool = false
     
-    private let textFieldBackground = Color.white
-    private let labelColor = Color(red: 130/255, green: 130/255, blue: 140/255)
-    private let placeholderColor = Color(red: 180/255, green: 180/255, blue: 190/255)
-    private let borderColor = Color(red: 230/255, green: 230/255, blue: 235/255)
+    @Environment(\.colorScheme) private var colorScheme
+    
+    // Adaptive colors
+    private var textFieldBackground: Color {
+        colorScheme == .dark ? Color(red: 20/255, green: 20/255, blue: 25/255) : .white
+    }
+    private var labelColor: Color {
+        colorScheme == .dark ? Color(red: 170/255, green: 170/255, blue: 180/255) : Color(red: 130/255, green: 130/255, blue: 140/255)
+    }
+    private var placeholderColor: Color {
+        colorScheme == .dark ? Color(red: 160/255, green: 160/255, blue: 170/255) : Color(red: 130/255, green: 130/255, blue: 140/255)
+    }
+    private var borderColor: Color {
+        colorScheme == .dark ? Color(red: 40/255, green: 40/255, blue: 45/255) : Color(red: 230/255, green: 230/255, blue: 235/255)
+    }
+    private var textColor: Color {
+        colorScheme == .dark ? Color(red: 230/255, green: 230/255, blue: 235/255) : .black
+    }
     
     public init(
         label: String,
@@ -66,7 +80,7 @@ public struct FMSTextField: View {
                     }
                 }
                 .font(.system(size: 15))
-                .foregroundColor(.black)
+                .foregroundColor(textColor)
                 .autocorrectionDisabled()
                 
                 if isSecure {
