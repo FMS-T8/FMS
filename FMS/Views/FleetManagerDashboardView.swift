@@ -18,7 +18,7 @@ public struct FleetManagerDashboardView: View {
             
             // Drivers Tab
             FMSTabItem(id: "drivers", title: "Drivers", icon: "person.2.fill") {
-                Text("Drivers")
+                DriversView()
             }
             // Maintenance Tab
             FMSTabItem(id: "maintenance", title: "Maintenance", icon: "wrench.and.screwdriver.fill") {
