@@ -72,9 +72,6 @@ public final class ShiftAssignmentViewModel {
   /// Assigns the shift asynchronously.
   /// - Throws: An error if the assignment fails.
   public func assignShift() async throws {
-    isLoading = true
-    defer { isLoading = false }
-
     // TODO: Submit to service/repository
     // Simulate async operation
     try await Task.sleep(for: .seconds(1))

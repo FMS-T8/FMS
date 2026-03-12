@@ -61,7 +61,12 @@ struct ShiftAssignmentView: View {
       // MARK: Assign Button
       Section {
         Button {
+          guard !vm.isLoading && vm.isFormValid else { return }
+
           Task {
+            vm.isLoading = true
+            defer { vm.isLoading = false }
+
             do {
               try await vm.assignShift()
               dismiss()
