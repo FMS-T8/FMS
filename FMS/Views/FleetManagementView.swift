@@ -84,7 +84,7 @@ public struct FleetManagementView: View {
             }
             .sheet(isPresented: $showingAddVehicle) {
                 AddVehicleView { newVehicle in
-                    return await viewModel.addVehicle(newVehicle)
+                    try await viewModel.addVehicle(newVehicle)
                 }
             }
             .navigationDestination(item: $selectedVehicle) { vehicle in

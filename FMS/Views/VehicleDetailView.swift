@@ -91,7 +91,9 @@ public struct VehicleDetailView: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(FMSTheme.textPrimary)
             
-            if let trip = activeOrLatestTrip {
+            if let error = viewModel.tripsErrorMessage {
+                errorCard(text: "Unable to load trip status.\n\(error)")
+            } else if let trip = activeOrLatestTrip {
                 HStack {
                     Text(tripRoute(trip))
                         .font(.system(size: 14, weight: .semibold))
@@ -139,6 +141,8 @@ public struct VehicleDetailView: View {
             
             if viewModel.isLoadingTrips {
                 loadingCard(text: "Loading current trip...")
+            } else if let error = viewModel.tripsErrorMessage {
+                errorCard(text: "Unable to load current trip.\n\(error)")
             } else if let trip = currentTrip {
                 tripCard(trip)
             } else {
@@ -153,7 +157,9 @@ public struct VehicleDetailView: View {
             
             if viewModel.isLoadingTrips {
                 loadingCard(text: "Loading trips...")
-            } else if viewModel.trips.isEmpty {
+            } else if let error = viewModel.tripsErrorMessage {
+                errorCard(text: "Unable to load past trips.\n\(error)")
+            } else if pastTrips.isEmpty {
                 emptyCard(text: "No past trips found.")
             } else {
                 VStack(spacing: 10) {
@@ -171,6 +177,8 @@ public struct VehicleDetailView: View {
             
             if viewModel.isLoadingWorkOrders {
                 loadingCard(text: "Loading service history...")
+            } else if let error = viewModel.workOrdersErrorMessage {
+                errorCard(text: "Unable to load service history.\n\(error)")
             } else if viewModel.workOrders.isEmpty {
                 emptyCard(text: "No service history found.")
             } else {
@@ -189,6 +197,8 @@ public struct VehicleDetailView: View {
             
             if viewModel.isLoadingEvents {
                 loadingCard(text: "Loading incidents...")
+            } else if let error = viewModel.eventsErrorMessage {
+                errorCard(text: "Unable to load incidents.\n\(error)")
             } else if viewModel.events.isEmpty {
                 emptyCard(text: "No incidents reported.")
             } else {
@@ -398,6 +408,21 @@ public struct VehicleDetailView: View {
             Text(text)
                 .font(.system(size: 14))
                 .foregroundColor(FMSTheme.textTertiary)
+            Spacer()
+        }
+        .padding(14)
+        .background(FMSTheme.cardBackground)
+        .cornerRadius(14)
+    }
+    
+    private func errorCard(text: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(FMSTheme.alertOrange)
+            Text(text)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(FMSTheme.textSecondary)
             Spacer()
         }
         .padding(14)

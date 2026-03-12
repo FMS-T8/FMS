@@ -3,7 +3,7 @@ import SwiftUI
 public struct AddVehicleView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(BannerManager.self) private var bannerManager
-    var onAdd: @MainActor (Vehicle) async -> Bool
+    var onAdd: @MainActor (Vehicle) async throws -> Void
     
     @State private var plateNumber = ""
     @State private var chassisNumber = ""
@@ -17,7 +17,7 @@ public struct AddVehicleView: View {
     
     private let fuelOptions = ["Diesel", "Petrol", "CNG", "Electric"]
     
-    public init(onAdd: @escaping @MainActor (Vehicle) async -> Bool) {
+    public init(onAdd: @escaping @MainActor (Vehicle) async throws -> Void) {
         self.onAdd = onAdd
     }
     
@@ -295,14 +295,30 @@ public struct AddVehicleView: View {
         )
         
         Task {
-            let success = await onAdd(vehicle)
-            
-            await MainActor.run {
-                isSubmitting = false
-                if success {
+            do {
+                try await onAdd(vehicle)
+                await MainActor.run {
+                    isSubmitting = false
                     dismiss()
-                } else {
-                    showValidationError("Plate Number or Chassis Number already exists.")
+                }
+            } catch let error as AddVehicleError {
+                await MainActor.run {
+                    isSubmitting = false
+                    switch error {
+                    case .duplicatePlate:
+                        showValidationError("Plate Number already exists.")
+                    case .duplicateChassis:
+                        showValidationError("Chassis Number already exists.")
+                    case .networkError:
+                        showValidationError("Network error. Please try again.")
+                    case .unknown:
+                        showValidationError("Failed to add vehicle. Please try again.")
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    showValidationError("Failed to add vehicle. Please try again.")
                 }
             }
         }
@@ -315,6 +331,6 @@ public struct AddVehicleView: View {
 }
 
 #Preview {
-    AddVehicleView { _ in return true }
+    AddVehicleView { _ in }
         .environment(BannerManager())
 }

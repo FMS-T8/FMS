@@ -10,6 +10,9 @@ public class VehicleDetailViewModel {
     public var isLoadingTrips = false
     public var isLoadingWorkOrders = false
     public var isLoadingEvents = false
+    public var tripsErrorMessage: String? = nil
+    public var workOrdersErrorMessage: String? = nil
+    public var eventsErrorMessage: String? = nil
     
     public init() {}
     
@@ -42,7 +45,9 @@ public class VehicleDetailViewModel {
                 .execute()
                 .value
             trips = fetched
+            tripsErrorMessage = nil
         } catch {
+            tripsErrorMessage = error.localizedDescription
             print("Error fetching trips: \(error)")
         }
     }
@@ -61,7 +66,9 @@ public class VehicleDetailViewModel {
                 .execute()
                 .value
             workOrders = fetched
+            workOrdersErrorMessage = nil
         } catch {
+            workOrdersErrorMessage = error.localizedDescription
             print("Error fetching work orders: \(error)")
         }
     }
@@ -80,7 +87,9 @@ public class VehicleDetailViewModel {
                 .execute()
                 .value
             events = fetched
+            eventsErrorMessage = nil
         } catch {
+            eventsErrorMessage = error.localizedDescription
             print("Error fetching vehicle events: \(error)")
         }
     }

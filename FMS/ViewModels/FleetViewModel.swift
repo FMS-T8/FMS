@@ -64,7 +64,7 @@ public class FleetViewModel {
     }
     
     @MainActor
-    public func addVehicle(_ vehicle: Vehicle) async -> Bool {
+    public func addVehicle(_ vehicle: Vehicle) async throws {
         do {
             // DEBUG: Print the raw JSON payload before Supabase attempts to encode it
             let encoder = JSONEncoder()
@@ -81,11 +81,35 @@ public class FleetViewModel {
             
             // Re-fetch or optimistically add. We'll simply re-fetch to ensure sync
             await fetchVehicles()
-            return true
         } catch {
             self.errorMessage = error.localizedDescription
             print("Error adding vehicle: \(error)")
-            return false
+            throw mapAddVehicleError(error)
         }
+    }
+    
+    private func mapAddVehicleError(_ error: Error) -> AddVehicleError {
+        let message = error.localizedDescription.lowercased()
+        
+        if message.contains("duplicate")
+            || message.contains("unique")
+            || message.contains("already exists") {
+            if message.contains("plate") {
+                return .duplicatePlate
+            }
+            if message.contains("chassis") || message.contains("vin") {
+                return .duplicateChassis
+            }
+        }
+        
+        if message.contains("network")
+            || message.contains("offline")
+            || message.contains("timed out")
+            || message.contains("timeout")
+            || message.contains("connection") {
+            return .networkError
+        }
+        
+        return .unknown
     }
 }
