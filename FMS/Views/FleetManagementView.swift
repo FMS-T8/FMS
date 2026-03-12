@@ -279,4 +279,5 @@ struct FilterPill: View {
 
 #Preview {
     FleetManagementView()
+        .environment(BannerManager())
 }

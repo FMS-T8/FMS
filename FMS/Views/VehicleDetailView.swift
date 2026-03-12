@@ -57,7 +57,7 @@ public struct VehicleDetailView: View {
                 
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(statusColor(for: vehicle.status?.lowercased() ?? ""))
+                        .fill(FMSTheme.statusColor(for: vehicle.status ?? ""))
                         .frame(width: 8, height: 8)
                     Text((vehicle.status ?? "Unknown").uppercased())
                         .font(.system(size: 11, weight: .bold))
@@ -193,18 +193,18 @@ public struct VehicleDetailView: View {
     
     private var incidentsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader(title: "Incidents", count: viewModel.events.count, isLoading: viewModel.isLoadingEvents)
+            sectionHeader(title: "Incidents", count: viewModel.incidents.count, isLoading: viewModel.isLoadingEvents)
             
             if viewModel.isLoadingEvents {
                 loadingCard(text: "Loading incidents...")
-            } else if let error = viewModel.eventsErrorMessage {
+            } else if let error = viewModel.incidentsErrorMessage {
                 errorCard(text: "Unable to load incidents.\n\(error)")
-            } else if viewModel.events.isEmpty {
+            } else if viewModel.incidents.isEmpty {
                 emptyCard(text: "No incidents reported.")
             } else {
                 VStack(spacing: 10) {
-                    ForEach(viewModel.events) { event in
-                        incidentCard(event)
+                    ForEach(viewModel.incidents) { incident in
+                        incidentCard(incident)
                     }
                 }
             }
@@ -273,14 +273,14 @@ public struct VehicleDetailView: View {
         .shadow(color: FMSTheme.shadowSmall, radius: 4, x: 0, y: 3)
     }
     
-    private func incidentCard(_ event: VehicleEvent) -> some View {
+    private func incidentCard(_ incident: Incident) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(incidentTitle(event))
+                Text(incidentTitle(incident))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(FMSTheme.textPrimary)
                 Spacer()
-                Text(event.eventType.rawValue.uppercased())
+                Text((incident.severity ?? "Unknown").uppercased())
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(FMSTheme.textSecondary)
                     .padding(.horizontal, 8)
@@ -289,7 +289,7 @@ public struct VehicleDetailView: View {
                     .cornerRadius(6)
             }
             
-            Text(incidentTimeText(event))
+            Text(incidentTimeText(incident))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(FMSTheme.textTertiary)
         }
@@ -499,48 +499,35 @@ public struct VehicleDetailView: View {
         return "INR \(Int(cost))"
     }
     
-    private func incidentTitle(_ event: VehicleEvent) -> String {
-        switch event.eventType {
-        case .harshBraking:
-            return "Harsh Braking"
-        case .rapidAcceleration:
-            return "Rapid Acceleration"
-        case .maintenanceAlert:
-            return "Maintenance Alert"
-        case .highGImpact:
-            return "High-G Impact"
-        }
+    private func incidentTitle(_ incident: Incident) -> String {
+        let severity = incident.severity?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return severity?.isEmpty == false ? severity! : "Incident"
     }
     
-    private func incidentTimeText(_ event: VehicleEvent) -> String {
-        formatDate(event.timestamp) ?? "Unknown"
+    private func incidentTimeText(_ incident: Incident) -> String {
+        formatDate(incident.createdAt) ?? "Unknown"
     }
+    
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM yyyy"
+        return formatter
+    }()
+    
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
     
     private func formatDate(_ date: Date?) -> String? {
         guard let date else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM yyyy"
-        return formatter.string(from: date)
+        return Self.dateFormatter.string(from: date)
     }
     
     private func formatTime(_ date: Date?) -> String? {
         guard let date else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: date)
-    }
-    
-    private func statusColor(for status: String) -> Color {
-        switch status {
-        case "active":
-            return FMSTheme.alertGreen
-        case "maintenance":
-            return FMSTheme.alertAmber
-        case "inactive":
-            return FMSTheme.textTertiary
-        default:
-            return FMSTheme.textTertiary
-        }
+        return Self.timeFormatter.string(from: date)
     }
     
     private var currentTrip: Trip? {

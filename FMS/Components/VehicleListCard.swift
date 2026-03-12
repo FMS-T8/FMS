@@ -20,7 +20,7 @@ struct VehicleListCard: View {
                     // Plate Number Pill
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(statusColor(for: vehicle.status?.lowercased() ?? ""))
+                            .fill(FMSTheme.statusColor(for: vehicle.status ?? ""))
                             .frame(width: 8, height: 8)
                         
                         Text(vehicle.plateNumber)
@@ -102,16 +102,5 @@ struct VehicleListCard: View {
         return fullName.isEmpty ? "Unknown Vehicle" : fullName
     }
     
-    private func statusColor(for status: String) -> Color {
-        switch status {
-        case "active":
-            return FMSTheme.alertGreen
-        case "maintenance":
-            return FMSTheme.alertAmber
-        case "inactive":
-            return FMSTheme.textTertiary
-        default:
-            return FMSTheme.textTertiary
-        }
-    }
+    
 }

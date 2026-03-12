@@ -89,4 +89,17 @@ public struct FMSTheme {
         light: Color.black.opacity(0.12),
         dark: Color.black.opacity(0.4)
     )
+    
+    public static func statusColor(for status: String) -> Color {
+        switch status.lowercased() {
+        case "active":
+            return alertGreen
+        case "maintenance":
+            return alertAmber
+        case "inactive":
+            return textTertiary
+        default:
+            return textTertiary
+        }
+    }
 }

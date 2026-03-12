@@ -10,9 +10,9 @@ public struct AddVehicleView: View {
     @State private var manufacturer = ""
     @State private var model = ""
     @State private var fuelType = "Diesel"
-    @State private var tankCapacity = ""
-    @State private var carryingCapacity = ""
-    @State private var odometer = ""
+    @State private var tankCapacity: Int? = nil
+    @State private var carryingCapacity: Int? = nil
+    @State private var odometer: Int? = nil
     @State private var isSubmitting = false
     
     private let fuelOptions = ["Diesel", "Petrol", "CNG", "Electric"]
@@ -102,45 +102,33 @@ public struct AddVehicleView: View {
                             formSection(title: "Capacities") {
                                 VStack(spacing: 16) {
                                     HStack(spacing: 16) {
-                                        FMSTextField(
+                                        numericField(
                                             label: "Fuel Tank (L)",
                                             placeholder: "Liters",
                                             icon: "fuelpump.fill",
-                                            text: Binding(
-                                                get: { tankCapacity },
-                                                set: { newValue in
-                                                    tankCapacity = sanitizeDecimalInput(newValue)
-                                                }
-                                            )
+                                            value: $tankCapacity,
+                                            format: .number,
+                                            keyboard: .numberPad
                                         )
-                                        .keyboardType(.decimalPad)
                                         
-                                        FMSTextField(
+                                        numericField(
                                             label: "Carrying (KG)",
                                             placeholder: "Kilograms",
                                             icon: "shippingbox.fill",
-                                            text: Binding(
-                                                get: { carryingCapacity },
-                                                set: { newValue in
-                                                    carryingCapacity = sanitizeDecimalInput(newValue)
-                                                }
-                                            )
+                                            value: $carryingCapacity,
+                                            format: .number,
+                                            keyboard: .numberPad
                                         )
-                                        .keyboardType(.decimalPad)
                                     }
                                     
-                                    FMSTextField(
+                                    numericField(
                                         label: "Odometer (KM)",
                                         placeholder: "Kilometers",
                                         icon: "gauge.with.dots.needle.50percent",
-                                        text: Binding(
-                                            get: { odometer },
-                                            set: { newValue in
-                                                odometer = newValue.filter { "0123456789.".contains($0) }
-                                            }
-                                        )
+                                        value: $odometer,
+                                        format: .number,
+                                        keyboard: .numberPad
                                     )
-                                    .keyboardType(.decimalPad)
                                 }
                             }
                         }
@@ -213,20 +201,86 @@ public struct AddVehicleView: View {
         value.uppercased().filter { $0.isLetter || $0.isNumber }
     }
     
-    private func sanitizeDecimalInput(_ value: String) -> String {
-        var result = ""
-        var hasDecimal = false
-        
-        for char in value {
-            if char.isNumber {
-                result.append(char)
-            } else if char == "." && !hasDecimal {
-                result.append(char)
-                hasDecimal = true
+    private func numericField<Value: BinaryFloatingPoint>(
+        label: String,
+        placeholder: String,
+        icon: String,
+        value: Binding<Value?>,
+        format: FloatingPointFormatStyle<Value>,
+        keyboard: UIKeyboardType
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label.uppercased())
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(FMSTheme.textSecondary)
+                .tracking(0.5)
+            
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(FMSTheme.textTertiary)
+                
+                TextField(
+                    "",
+                    value: value,
+                    format: format,
+                    prompt: Text(placeholder).foregroundColor(FMSTheme.textTertiary)
+                )
+                .font(.system(size: 15))
+                .foregroundColor(FMSTheme.textPrimary)
+                .autocorrectionDisabled()
+                .keyboardType(keyboard)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(FMSTheme.cardBackground)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(FMSTheme.borderLight, lineWidth: 1)
+            )
         }
-        
-        return result
+    }
+    
+    private func numericField<Value: BinaryInteger>(
+        label: String,
+        placeholder: String,
+        icon: String,
+        value: Binding<Value?>,
+        format: IntegerFormatStyle<Value>,
+        keyboard: UIKeyboardType
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label.uppercased())
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(FMSTheme.textSecondary)
+                .tracking(0.5)
+            
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(FMSTheme.textTertiary)
+                
+                TextField(
+                    "",
+                    value: value,
+                    format: format,
+                    prompt: Text(placeholder).foregroundColor(FMSTheme.textTertiary)
+                )
+                .font(.system(size: 15))
+                .foregroundColor(FMSTheme.textPrimary)
+                .autocorrectionDisabled()
+                .keyboardType(keyboard)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(FMSTheme.cardBackground)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(FMSTheme.borderLight, lineWidth: 1)
+            )
+        }
     }
     
     @MainActor
@@ -256,17 +310,17 @@ public struct AddVehicleView: View {
             return
         }
         
-        guard let validatedTankCapacity = Double(tankCapacity), validatedTankCapacity > 0 else {
+        guard let validatedTankCapacity = tankCapacity, validatedTankCapacity > 0 else {
             showValidationError("Please enter a valid Fuel Tank Capacity greater than 0.")
             return
         }
         
-        guard let validatedCarryingCapacity = Double(carryingCapacity), validatedCarryingCapacity > 0 else {
+        guard let validatedCarryingCapacity = carryingCapacity, validatedCarryingCapacity > 0 else {
             showValidationError("Please enter a valid Carrying Capacity greater than 0.")
             return
         }
         
-        guard let validatedOdometer = Double(odometer), validatedOdometer >= 0 else {
+        guard let validatedOdometer = odometer, validatedOdometer >= 0 else {
             showValidationError("Please enter a valid Odometer reading.")
             return
         }
@@ -287,10 +341,10 @@ public struct AddVehicleView: View {
             manufacturer: trimmedManufacturer,
             model: trimmedModel,
             fuelType: fuelType.lowercased(),
-            fuelTankCapacity: validatedTankCapacity,
-            carryingCapacity: validatedCarryingCapacity,
+            fuelTankCapacity: Double(validatedTankCapacity),
+            carryingCapacity: Double(validatedCarryingCapacity),
             purchaseDateString: todayString,
-            odometer: validatedOdometer,
+            odometer: Double(validatedOdometer),
             status: "inactive",
             createdBy: nil, 
             createdAt: nil

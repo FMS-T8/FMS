@@ -66,6 +66,7 @@ public class FleetViewModel {
     @MainActor
     public func addVehicle(_ vehicle: Vehicle) async throws {
         do {
+            #if DEBUG
             // DEBUG: Print the raw JSON payload before Supabase attempts to encode it
             let encoder = JSONEncoder()
             if let data = try? encoder.encode(vehicle), let jsonString = String(data: data, encoding: .utf8) {
@@ -73,6 +74,7 @@ public class FleetViewModel {
             } else {
                 print("DEBUG JSON PAYLOAD FAILED TO ENCODE LOCALLY!")
             }
+            #endif
             
             try await SupabaseService.shared.client
                 .from("vehicles")

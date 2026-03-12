@@ -6,13 +6,13 @@ import Supabase
 public class VehicleDetailViewModel {
     public var trips: [Trip] = []
     public var workOrders: [MaintenanceWorkOrder] = []
-    public var events: [VehicleEvent] = []
+    public var incidents: [Incident] = []
     public var isLoadingTrips = false
     public var isLoadingWorkOrders = false
     public var isLoadingEvents = false
     public var tripsErrorMessage: String? = nil
     public var workOrdersErrorMessage: String? = nil
-    public var eventsErrorMessage: String? = nil
+    public var incidentsErrorMessage: String? = nil
     
     public init() {}
     
@@ -26,7 +26,7 @@ public class VehicleDetailViewModel {
                 await self?.fetchWorkOrders(vehicleId: vehicleId)
             }
             group.addTask { [weak self] in
-                await self?.fetchEvents(vehicleId: vehicleId)
+                await self?.fetchIncidents(vehicleId: vehicleId)
             }
         }
     }
@@ -74,23 +74,23 @@ public class VehicleDetailViewModel {
     }
     
     @MainActor
-    private func fetchEvents(vehicleId: String) async {
+    private func fetchIncidents(vehicleId: String) async {
         isLoadingEvents = true
         defer { isLoadingEvents = false }
         
         do {
-            let fetched: [VehicleEvent] = try await SupabaseService.shared.client
-                .from("vehicle_events")
+            let fetched: [Incident] = try await SupabaseService.shared.client
+                .from("incidents")
                 .select()
                 .eq("vehicle_id", value: vehicleId)
-                .order("timestamp", ascending: false)
+                .order("created_at", ascending: false)
                 .execute()
                 .value
-            events = fetched
-            eventsErrorMessage = nil
+            incidents = fetched
+            incidentsErrorMessage = nil
         } catch {
-            eventsErrorMessage = error.localizedDescription
-            print("Error fetching vehicle events: \(error)")
+            incidentsErrorMessage = error.localizedDescription
+            print("Error fetching incidents: \(error)")
         }
     }
 }
