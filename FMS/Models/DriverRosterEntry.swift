@@ -26,7 +26,7 @@ public enum DriverAvailabilityStatus: String, Codable, CaseIterable {
 ///
 /// Does **not** duplicate data — each field maps 1-to-1 to an existing model
 /// field so the integration layer can populate it directly from API responses.
-public struct DriverDisplayItem: Identifiable, Hashable {
+public struct DriverDisplayItem: Codable, Identifiable, Hashable {
 
     // MARK: Identity — from Driver
     public var id: String
@@ -122,4 +122,5 @@ public struct DriverDisplayItem: Identifiable, Hashable {
         self.shiftEnd = shiftEnd
         self.activeTripId = activeTripId
     }
+}
 }
