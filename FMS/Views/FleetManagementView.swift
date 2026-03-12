@@ -3,6 +3,7 @@ import SwiftUI
 public struct FleetManagementView: View {
     @State private var viewModel = FleetViewModel()
     @State private var showingAddVehicle = false
+    @State private var selectedVehicle: Vehicle? = nil
     
     public init() {}
     
@@ -39,6 +40,10 @@ public struct FleetManagementView: View {
                             LazyVStack(spacing: 12) {
                                 ForEach(viewModel.filteredVehicles) { vehicle in
                                     VehicleListCard(vehicle: vehicle)
+                                        .contentShape(RoundedRectangle(cornerRadius: 14))
+                                        .onTapGesture {
+                                            selectedVehicle = vehicle
+                                        }
                                 }
                             }
                             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.filteredVehicles)
@@ -56,6 +61,9 @@ public struct FleetManagementView: View {
                 AddVehicleView { newVehicle in
                     return await viewModel.addVehicle(newVehicle)
                 }
+            }
+            .navigationDestination(item: $selectedVehicle) { vehicle in
+                VehicleDetailView(vehicle: vehicle)
             }
         }
     }
@@ -105,6 +113,7 @@ public struct FleetManagementView: View {
                 .foregroundColor(FMSTheme.textPrimary)
                 .autocorrectionDisabled()
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.searchText)
+            
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
@@ -129,12 +138,15 @@ public struct FleetManagementView: View {
         .padding(.bottom, 12)
     }
     
+    
     private var filterSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(viewModel.statusOptions, id: \.self) { status in
+                    let count = status == "All" ? viewModel.vehicles.count : countForStatus(status)
                     FilterPill(
-                        title: status,
+                        title: status == "All" ? "All (\(count))" : "\(statusLabel(status)) (\(count))",
+                        statusKey: status,
                         isSelected: viewModel.selectedStatus == status,
                         action: {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -149,15 +161,47 @@ public struct FleetManagementView: View {
     }
 }
 
+// MARK: - Summary Helpers
+private extension FleetManagementView {
+    func countForStatus(_ status: String) -> Int {
+        let normalizedStatus = normalizeStatus(status)
+        return viewModel.vehicles.filter { normalizeStatus($0.status ?? "") == normalizedStatus }.count
+    }
+    
+    func statusLabel(_ status: String) -> String {
+        switch status.lowercased() {
+        case "active": return "On Trip"
+        case "maintenance": return "Maintenance"
+        case "inactive": return "In Yard"
+        default: return status
+        }
+    }
+    
+    func normalizeStatus(_ status: String) -> String {
+        let value = status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch value {
+        case "active", "on trip", "moving", "in transit":
+            return "active"
+        case "maintenance", "in service", "service":
+            return "maintenance"
+        case "inactive", "idle", "stopped", "in yard":
+            return "inactive"
+        default:
+            return value
+        }
+    }
+}
+
 // MARK: - Subviews
 struct FilterPill: View {
     let title: String
+    let statusKey: String
     let isSelected: Bool
     let action: () -> Void
     
     // Status color mapping for filters
     private var statusColor: Color {
-        let normalized = title.lowercased()
+        let normalized = statusKey.lowercased()
         switch normalized {
         case "active": return FMSTheme.alertGreen
         case "maintenance": return FMSTheme.alertAmber
@@ -170,9 +214,9 @@ struct FilterPill: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                if title.lowercased() != "all" || isSelected {
+                if statusKey.lowercased() != "all" || isSelected {
                      Circle()
-                         .fill(isSelected && title.lowercased() == "all" ? FMSTheme.obsidian : statusColor)
+                         .fill(isSelected && statusKey.lowercased() == "all" ? FMSTheme.obsidian : statusColor)
                          .frame(width: 8, height: 8)
                 }
                 

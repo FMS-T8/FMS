@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Vehicle: Codable, Identifiable, Equatable {
+public struct Vehicle: Codable, Identifiable, Equatable, Hashable {
     public var id: String
     public var plateNumber: String
     public var chassisNumber: String

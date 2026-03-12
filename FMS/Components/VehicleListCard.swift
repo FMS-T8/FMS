@@ -82,25 +82,6 @@ struct VehicleListCard: View {
                         .background(FMSTheme.amber)
                         .cornerRadius(10)
                     }
-                    
-                    Button {
-                        // Details Action
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("View Details")
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12))
-                        }
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(FMSTheme.textSecondary)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 16)
-                        .background(Color.clear)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(FMSTheme.borderLight, lineWidth: 1)
-                        )
-                    }
                 }
                 .padding(.top, 4)
             }

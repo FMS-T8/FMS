@@ -21,4 +21,12 @@ public struct VehicleEvent: Codable, Identifiable {
         self.eventType = eventType
         self.timestamp = timestamp
     }
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case vehicleID = "vehicle_id"
+        case tripID = "trip_id"
+        case eventType = "event_type"
+        case timestamp
+    }
 }

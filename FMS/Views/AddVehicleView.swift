@@ -12,6 +12,7 @@ public struct AddVehicleView: View {
     @State private var fuelType = "Diesel"
     @State private var tankCapacity = ""
     @State private var carryingCapacity = ""
+    @State private var odometer = ""
     @State private var isSubmitting = false
     
     private let fuelOptions = ["Diesel", "Petrol", "CNG", "Electric"]
@@ -36,7 +37,7 @@ public struct AddVehicleView: View {
                                     icon: "tag.fill",
                                     text: $plateNumber
                                 )
-                                .onChange(of: plateNumber) { newValue in
+                                .onChange(of: plateNumber) { _, newValue in
                                     let normalized = normalizePlate(newValue)
                                     if normalized != newValue {
                                         plateNumber = normalized
@@ -49,7 +50,7 @@ public struct AddVehicleView: View {
                                     icon: "number",
                                     text: $chassisNumber
                                 )
-                                .onChange(of: chassisNumber) { newValue in
+                                .onChange(of: chassisNumber) { _, newValue in
                                     let normalized = normalizeChassis(newValue)
                                     if normalized != newValue {
                                         chassisNumber = normalized
@@ -99,28 +100,43 @@ public struct AddVehicleView: View {
                             
                             // Section: Capacities
                             formSection(title: "Capacities") {
-                                HStack(spacing: 16) {
-                                    FMSTextField(
-                                        label: "Fuel Tank (L)",
-                                        placeholder: "Liters",
-                                        icon: "fuelpump.fill",
-                                        text: Binding(
-                                            get: { tankCapacity },
-                                            set: { newValue in
-                                                tankCapacity = newValue.filter { "0123456789.".contains($0) }
-                                            }
+                                VStack(spacing: 16) {
+                                    HStack(spacing: 16) {
+                                        FMSTextField(
+                                            label: "Fuel Tank (L)",
+                                            placeholder: "Liters",
+                                            icon: "fuelpump.fill",
+                                            text: Binding(
+                                                get: { tankCapacity },
+                                                set: { newValue in
+                                                    tankCapacity = newValue.filter { "0123456789.".contains($0) }
+                                                }
+                                            )
                                         )
-                                    )
-                                    .keyboardType(.decimalPad)
+                                        .keyboardType(.decimalPad)
+                                        
+                                        FMSTextField(
+                                            label: "Carrying (KG)",
+                                            placeholder: "Kilograms",
+                                            icon: "shippingbox.fill",
+                                            text: Binding(
+                                                get: { carryingCapacity },
+                                                set: { newValue in
+                                                    carryingCapacity = newValue.filter { "0123456789.".contains($0) }
+                                                }
+                                            )
+                                        )
+                                        .keyboardType(.decimalPad)
+                                    }
                                     
                                     FMSTextField(
-                                        label: "Carrying (KG)",
-                                        placeholder: "Kilograms",
-                                        icon: "shippingbox.fill",
+                                        label: "Odometer (KM)",
+                                        placeholder: "Kilometers",
+                                        icon: "gauge.with.dots.needle.50percent",
                                         text: Binding(
-                                            get: { carryingCapacity },
+                                            get: { odometer },
                                             set: { newValue in
-                                                carryingCapacity = newValue.filter { "0123456789.".contains($0) }
+                                                odometer = newValue.filter { "0123456789.".contains($0) }
                                             }
                                         )
                                     )
@@ -234,6 +250,11 @@ public struct AddVehicleView: View {
             return
         }
         
+        guard let validatedOdometer = Double(odometer), validatedOdometer >= 0 else {
+            showValidationError("Please enter a valid Odometer reading.")
+            return
+        }
+        
         // Disable interactions
         isSubmitting = true
         
@@ -251,8 +272,8 @@ public struct AddVehicleView: View {
             fuelTankCapacity: validatedTankCapacity,
             carryingCapacity: validatedCarryingCapacity,
             purchaseDateString: todayString,
-            odometer: 0.0,
-            status: "active",
+            odometer: validatedOdometer,
+            status: "inactive",
             createdBy: nil, 
             createdAt: nil
         )
