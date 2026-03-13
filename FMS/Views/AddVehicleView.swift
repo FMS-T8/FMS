@@ -398,13 +398,13 @@ public struct AddVehicleView: View {
                     case .networkError:
                         showValidationError("Network error. Please try again.")
                     case .unknown:
-                        showValidationError("Failed to add vehicle. Please try again.")
+                        showValidationError(submitFailureMessage)
                     }
                 }
             } catch {
                 await MainActor.run {
                     isSubmitting = false
-                    showValidationError("Failed to add vehicle. Please try again.")
+                    showValidationError(submitFailureMessage)
                 }
             }
         }
@@ -417,6 +417,10 @@ public struct AddVehicleView: View {
 
     private var primaryActionTitle: String {
         mode == .add ? "Add Vehicle to Fleet" : "Save Changes"
+    }
+
+    private var submitFailureMessage: String {
+        mode == .edit ? "Failed to update vehicle. Please try again." : "Failed to add vehicle. Please try again."
     }
 }
 

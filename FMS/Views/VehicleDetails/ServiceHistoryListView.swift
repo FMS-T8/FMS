@@ -76,7 +76,8 @@ public struct ServiceHistoryListView: View {
     
     private func workOrderCostText(_ order: MaintenanceWorkOrder) -> String {
         guard let cost = order.estimatedCost else { return "--" }
-        return "INR \(Int(cost))"
+        let formatter = Self.currencyFormatter
+        return formatter.string(from: NSNumber(value: cost)) ?? "--"
     }
     
     private func infoPill(icon: String, text: String) -> some View {
@@ -95,54 +96,25 @@ public struct ServiceHistoryListView: View {
     }
     
     private func loadingRow(text: String) -> some View {
-        HStack(spacing: 10) {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: FMSTheme.textSecondary))
-            Text(text)
-                .font(.system(size: 14))
-                .foregroundColor(FMSTheme.textSecondary)
-            Spacer()
-        }
-        .padding(14)
-        .background(FMSTheme.cardBackground)
-        .cornerRadius(14)
+        FMSListRow(text: text, textColor: FMSTheme.textSecondary, isLoading: true)
     }
     
     private func emptyRow(text: String) -> some View {
-        HStack {
-            Text(text)
-                .font(.system(size: 14))
-                .foregroundColor(FMSTheme.textTertiary)
-            Spacer()
-        }
-        .padding(14)
-        .background(FMSTheme.cardBackground)
-        .cornerRadius(14)
+        FMSListRow(text: text, textColor: FMSTheme.textTertiary)
     }
     
     private func errorRow(text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(FMSTheme.alertOrange)
-            Text(text)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(FMSTheme.textSecondary)
-            Spacer()
-        }
-        .padding(14)
-        .background(FMSTheme.cardBackground)
-        .cornerRadius(14)
+        FMSListRow(systemImage: "exclamationmark.triangle.fill", text: text, textColor: FMSTheme.textSecondary)
     }
     
     private func formatDate(_ date: Date?) -> String? {
-        guard let date else { return nil }
-        return Self.dateFormatter.string(from: date)
+        SharedFormatting.formatDate(date)
     }
     
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM yyyy"
+    private static let currencyFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = Locale.current.currency?.identifier
         return formatter
     }()
 }

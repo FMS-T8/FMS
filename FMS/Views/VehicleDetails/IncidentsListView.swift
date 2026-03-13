@@ -47,10 +47,10 @@ public struct IncidentsListView: View {
                 Spacer()
                 Text(humanize(incident.severity ?? "Unknown").uppercased())
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(FMSTheme.textSecondary)
+                    .foregroundColor(FMSTheme.obsidian)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(FMSTheme.backgroundPrimary)
+                    .background(FMSTheme.statusColor(for: incident.severity ?? "Unknown"))
                     .cornerRadius(6)
             }
             
@@ -74,63 +74,22 @@ public struct IncidentsListView: View {
     }
     
     private func loadingRow(text: String) -> some View {
-        HStack(spacing: 10) {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: FMSTheme.textSecondary))
-            Text(text)
-                .font(.system(size: 14))
-                .foregroundColor(FMSTheme.textSecondary)
-            Spacer()
-        }
-        .padding(14)
-        .background(FMSTheme.cardBackground)
-        .cornerRadius(14)
+        FMSListRow(text: text, textColor: FMSTheme.textSecondary, isLoading: true)
     }
     
     private func emptyRow(text: String) -> some View {
-        HStack {
-            Text(text)
-                .font(.system(size: 14))
-                .foregroundColor(FMSTheme.textTertiary)
-            Spacer()
-        }
-        .padding(14)
-        .background(FMSTheme.cardBackground)
-        .cornerRadius(14)
+        FMSListRow(text: text, textColor: FMSTheme.textTertiary)
     }
     
     private func errorRow(text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(FMSTheme.alertOrange)
-            Text(text)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(FMSTheme.textSecondary)
-            Spacer()
-        }
-        .padding(14)
-        .background(FMSTheme.cardBackground)
-        .cornerRadius(14)
+        FMSListRow(systemImage: "exclamationmark.triangle.fill", text: text, textColor: FMSTheme.textSecondary)
     }
     
     private func formatDate(_ date: Date?) -> String? {
-        guard let date else { return nil }
-        return Self.dateFormatter.string(from: date)
+        SharedFormatting.formatDate(date)
     }
     
     private func humanize(_ value: String) -> String {
-        let cleaned = value
-            .replacingOccurrences(of: "_", with: " ")
-            .replacingOccurrences(of: "-", with: " ")
-        let parts = cleaned.split(separator: " ")
-        if parts.isEmpty { return value }
-        return parts.map { $0.capitalized }.joined(separator: " ")
+        SharedFormatting.humanize(value)
     }
-    
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM yyyy"
-        return formatter
-    }()
 }

@@ -60,19 +60,14 @@ public struct PastTripsListView: View {
     }
     
     private func tripTitleText(_ trip: Trip) -> String {
-        let shipment = trip.shipmentDescription?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !shipment.isEmpty { return shipment }
-        return tripRouteText(trip)
+        trip.displayTitle
     }
     
     private func tripRouteRow(_ trip: Trip) -> some View {
-        let start = trip.startName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let end = trip.endName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let startText = start.isEmpty ? "Start" : start
-        let endText = end.isEmpty ? "End" : end
+        let texts = trip.routeTexts
         
         return HStack(spacing: 8) {
-            Text(startText)
+            Text(texts.startText)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(FMSTheme.textSecondary)
                 .lineLimit(1)
@@ -86,7 +81,7 @@ public struct PastTripsListView: View {
             
             Spacer(minLength: 8)
             
-            Text(endText)
+            Text(texts.endText)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(FMSTheme.textSecondary)
                 .lineLimit(1)
@@ -95,14 +90,7 @@ public struct PastTripsListView: View {
     }
     
     private func tripRouteText(_ trip: Trip) -> String {
-        let start = trip.startName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let end = trip.endName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !start.isEmpty || !end.isEmpty {
-            let startText = start.isEmpty ? "Start" : start
-            let endText = end.isEmpty ? "End" : end
-            return "\(startText) to \(endText)"
-        }
-        return "Trip"
+        trip.displayRoute
     }
     
     private func tripDateText(_ trip: Trip) -> String {
@@ -182,13 +170,6 @@ public struct PastTripsListView: View {
     }
     
     private func formatDate(_ date: Date?) -> String? {
-        guard let date else { return nil }
-        return Self.dateFormatter.string(from: date)
+        SharedFormatting.formatDate(date)
     }
-    
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM yyyy"
-        return formatter
-    }()
 }

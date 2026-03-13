@@ -230,7 +230,7 @@ public struct VehicleDetailView: View {
     private func tripCardContent(_ trip: Trip) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(tripTitleText(trip))
+                Text(trip.displayTitle)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(FMSTheme.textPrimary)
                     .lineLimit(1)
@@ -520,30 +520,18 @@ public struct VehicleDetailView: View {
     }
     
     private func tripTitleText(_ trip: Trip) -> String {
-        let shipment = trip.shipmentDescription?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !shipment.isEmpty { return shipment }
-        return tripRoute(trip)
+        trip.displayTitle
     }
     
     private func tripRoute(_ trip: Trip) -> String {
-        let start = trip.startName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let end = trip.endName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !start.isEmpty || !end.isEmpty {
-            let startText = start.isEmpty ? "Start" : start
-            let endText = end.isEmpty ? "End" : end
-            return "\(startText) to \(endText)"
-        }
-        return "Trip"
+        trip.displayRoute
     }
 
     private func tripRouteRow(_ trip: Trip) -> some View {
-        let start = trip.startName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let end = trip.endName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let startText = start.isEmpty ? "Start" : start
-        let endText = end.isEmpty ? "End" : end
+        let texts = trip.routeTexts
 
         return HStack(spacing: 8) {
-            Text(startText)
+            Text(texts.startText)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(FMSTheme.textSecondary)
                 .lineLimit(1)
@@ -557,7 +545,7 @@ public struct VehicleDetailView: View {
 
             Spacer(minLength: 8)
 
-            Text(endText)
+            Text(texts.endText)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(FMSTheme.textSecondary)
                 .lineLimit(1)
@@ -621,12 +609,6 @@ public struct VehicleDetailView: View {
         formatDate(incident.createdAt) ?? "Unknown"
     }
     
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM yyyy"
-        return formatter
-    }()
-    
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
@@ -634,8 +616,7 @@ public struct VehicleDetailView: View {
     }()
     
     private func formatDate(_ date: Date?) -> String? {
-        guard let date else { return nil }
-        return Self.dateFormatter.string(from: date)
+        SharedFormatting.formatDate(date)
     }
     
     private func formatTime(_ date: Date?) -> String? {
@@ -660,12 +641,7 @@ public struct VehicleDetailView: View {
     
 
     private func humanize(_ value: String) -> String {
-        let cleaned = value
-            .replacingOccurrences(of: "_", with: " ")
-            .replacingOccurrences(of: "-", with: " ")
-        let parts = cleaned.split(separator: " ")
-        if parts.isEmpty { return value }
-        return parts.map { $0.capitalized }.joined(separator: " ")
+        SharedFormatting.humanize(value)
     }
 
     @MainActor
@@ -673,13 +649,13 @@ public struct VehicleDetailView: View {
         guard !isDeleting else { return }
         guard let onDelete else { return }
         isDeleting = true
+        defer { isDeleting = false }
         do {
             try await onDelete(currentVehicle.id)
             dismiss()
         } catch {
             bannerManager.show(type: .error, message: "Failed to delete vehicle. Please try again.")
         }
-        isDeleting = false
     }
 }
 

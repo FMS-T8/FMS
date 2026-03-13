@@ -91,6 +91,9 @@ struct VehicleListCard: View {
                         .cornerRadius(10)
                     }
                     .buttonStyle(.plain)
+                    .disabled(true)
+                    .opacity(0.6)
+                    .accessibilityHint("Tracking is unavailable.")
                 }
                 .padding(.top, 4)
             }
@@ -112,18 +115,21 @@ struct VehicleListCard: View {
     }
 
     private var statusLabel: String {
-        let normalized = VehicleStatus.normalize(vehicle.status ?? "")
-        switch normalized {
+        switch normalizedStatus {
         case "active": return "On Trip"
         case "maintenance": return "Maintenance"
         case "inactive": return "In Yard"
-        default: return (vehicle.status ?? "Unknown").capitalized
+        default:
+            let raw = vehicle.status ?? "Unknown"
+            let readable = raw
+                .replacingOccurrences(of: "_", with: " ")
+                .replacingOccurrences(of: "-", with: " ")
+            return readable.capitalized
         }
     }
     
     private var statusPillBackground: Color {
-        let normalized = VehicleStatus.normalize(vehicle.status ?? "")
-        switch normalized {
+        switch normalizedStatus {
         case "active": return FMSTheme.alertGreen.opacity(0.15)
         case "maintenance": return FMSTheme.alertAmber.opacity(0.2)
         case "inactive": return FMSTheme.textTertiary.opacity(0.15)
@@ -132,8 +138,7 @@ struct VehicleListCard: View {
     }
     
     private var statusTextColor: Color {
-        let normalized = VehicleStatus.normalize(vehicle.status ?? "")
-        switch normalized {
+        switch normalizedStatus {
         case "active": return FMSTheme.alertGreen
         case "maintenance": return FMSTheme.alertAmber
         case "inactive": return FMSTheme.textSecondary
@@ -142,13 +147,16 @@ struct VehicleListCard: View {
     }
     
     private var statusDotColor: Color {
-        let normalized = VehicleStatus.normalize(vehicle.status ?? "")
-        switch normalized {
+        switch normalizedStatus {
         case "active": return FMSTheme.alertGreen
         case "maintenance": return FMSTheme.alertAmber
         case "inactive": return FMSTheme.textSecondary
         default: return FMSTheme.statusColor(for: vehicle.status ?? "")
         }
+    }
+
+    private var normalizedStatus: String {
+        VehicleStatus.normalize(vehicle.status ?? "")
     }
     
     

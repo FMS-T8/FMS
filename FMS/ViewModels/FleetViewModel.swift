@@ -90,7 +90,7 @@ public class FleetViewModel {
         } catch {
             self.errorMessage = error.localizedDescription
             print("Error adding vehicle: \(error)")
-            throw mapAddVehicleError(error)
+            throw mapVehicleMutationError(error)
         }
     }
 
@@ -107,7 +107,7 @@ public class FleetViewModel {
         } catch {
             self.errorMessage = error.localizedDescription
             print("Error updating vehicle: \(error)")
-            throw mapAddVehicleError(error)
+            throw mapVehicleMutationError(error)
         }
     }
 
@@ -128,7 +128,7 @@ public class FleetViewModel {
         }
     }
     
-    private func mapAddVehicleError(_ error: Error) -> AddVehicleError {
+    private func mapVehicleMutationError(_ error: Error) -> AddVehicleError {
         let message = error.localizedDescription.lowercased()
         
         if message.contains("duplicate")
