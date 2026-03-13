@@ -9,6 +9,8 @@ public class InspectionViewModel {
     public var showingCamera: Bool = false
     public var expandedItemId: String?
     public var showingExportSheet: Bool = false
+    public var exportURL: URL?
+    public var exportErrorMessage: String?
 
     public init(vehicleId: String = "VH-001", driverId: String = "DR-001", type: InspectionType = .preTrip) {
         self.checklist = InspectionChecklist(vehicleId: vehicleId, driverId: driverId, type: type)
@@ -55,6 +57,32 @@ public class InspectionViewModel {
 
     public var vehicleStatus: String {
         checklist.allPassed ? "Ready" : "Needs Attention"
+    }
+
+    // MARK: - Export
+
+    public func prepareExport(includeTimestamp: Bool) {
+        let data = generateReport()
+
+        guard let url = saveReportToTemp(data: data, checklist: checklist, includeTimestamp: includeTimestamp) else {
+            exportURL = nil
+            showingExportSheet = false
+            exportErrorMessage = "Unable to create an inspection report to share. Please try again."
+            return
+        }
+
+        exportURL = url
+        exportErrorMessage = nil
+        showingExportSheet = true
+    }
+
+    public func clearExportState() {
+        showingExportSheet = false
+        exportURL = nil
+    }
+
+    public func clearExportError() {
+        exportErrorMessage = nil
     }
 
     // MARK: - PDF Report Generation
@@ -135,6 +163,29 @@ public class InspectionViewModel {
         """
 
         return Data(report.utf8)
+    }
+
+    private func saveReportToTemp(data: Data, checklist: InspectionChecklist, includeTimestamp: Bool) -> URL? {
+        var components = ["FMS_Inspection", checklist.inspectionType.rawValue, checklist.vehicleId]
+        if includeTimestamp {
+            components.append(formatFileDate())
+        }
+
+        let fileName = components.joined(separator: "_") + ".txt"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+
+        do {
+            try data.write(to: url)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    private func formatFileDate() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmm"
+        return formatter.string(from: Date())
     }
 
     private func formattedDate(_ date: Date) -> String {

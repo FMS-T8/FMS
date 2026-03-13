@@ -8,6 +8,7 @@ struct DriverProfileTab: View {
     @State private var showDocumentPicker = false
     @State private var selectedDocType: DocumentType = .drivingLicense
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var documentLoadErrorMessage: String?
     @State private var uploadedDocuments: [UploadedDocument] = [
         UploadedDocument(type: .drivingLicense, name: "Driving License", subtitle: "Expires Oct 24, 2025", status: .active),
         UploadedDocument(type: .governmentId, name: "Government ID Proof", subtitle: "Verified - SSN Attached", status: .verified),
@@ -42,18 +43,38 @@ struct DriverProfileTab: View {
             }
             .onChange(of: selectedPhoto) { _, newValue in
                 guard let item = newValue else { return }
+                let selectedType = selectedDocType
                 Task {
-                    if let _ = try? await item.loadTransferable(type: Data.self) {
+                    do {
+                        guard try await item.loadTransferable(type: Data.self) != nil else {
+                            await MainActor.run {
+                                documentLoadErrorMessage = "The selected document could not be loaded. Please choose another file."
+                                selectedPhoto = nil
+                                showDocumentPicker = true
+                            }
+                            return
+                        }
+
                         let doc = UploadedDocument(
-                            type: selectedDocType,
-                            name: selectedDocType.displayName,
+                            type: selectedType,
+                            name: selectedType.displayName,
                             subtitle: "Uploaded just now",
                             status: .pending
                         )
-                        uploadedDocuments.append(doc)
+
+                        await MainActor.run {
+                            uploadedDocuments.append(doc)
+                            documentLoadErrorMessage = nil
+                            selectedPhoto = nil
+                            showDocumentPicker = false
+                        }
+                    } catch {
+                        await MainActor.run {
+                            documentLoadErrorMessage = "Failed to load the selected document. Please try again."
+                            selectedPhoto = nil
+                            showDocumentPicker = true
+                        }
                     }
-                    selectedPhoto = nil
-                    showDocumentPicker = false
                 }
             }
         }
@@ -275,6 +296,13 @@ struct DriverProfileTab: View {
             }
         }
         .presentationDetents([.medium])
+        .alert("Unable to Upload Document", isPresented: documentLoadErrorPresented) {
+            Button("OK", role: .cancel) {
+                documentLoadErrorMessage = nil
+            }
+        } message: {
+            Text(documentLoadErrorMessage ?? "Please try again.")
+        }
     }
 
     // MARK: - Vehicle Card
@@ -404,8 +432,21 @@ enum DocumentStatus: String, Codable {
     }
 }
 
-struct UploadedDocument: Identifiable {
-    let id = UUID().uuidString
+private extension DriverProfileTab {
+    var documentLoadErrorPresented: Binding<Bool> {
+        Binding(
+            get: { documentLoadErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    documentLoadErrorMessage = nil
+                }
+            }
+        )
+    }
+}
+
+struct UploadedDocument: Identifiable, Codable {
+    var id: String = UUID().uuidString
     var type: DocumentType
     var name: String
     var subtitle: String

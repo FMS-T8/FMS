@@ -4,6 +4,7 @@ struct DriverHomeTab: View {
     @Bindable var viewModel: DriverDashboardViewModel
     @State private var showPreTripInspection = false
     @State private var showPostTripInspection = false
+    @State private var postTripInspectionCompleted = false
     @State private var showIssueReport = false
     @State private var showProfile = false
     @State private var selectedTrip: Trip?
@@ -37,7 +38,10 @@ struct DriverHomeTab: View {
                 InspectionChecklistView(
                     type: .postTrip,
                     vehicleId: viewModel.assignedVehicle?.id ?? "VH-001",
-                    driverId: viewModel.driver.id
+                    driverId: viewModel.driver.id,
+                    onCompletion: {
+                        postTripInspectionCompleted = true
+                    }
                 )
             }
             .sheet(isPresented: $showIssueReport) {
@@ -57,9 +61,12 @@ struct DriverHomeTab: View {
                 }
             }
             .onChange(of: showPostTripInspection) { _, isShowing in
-                // When post-trip inspection is dismissed, end the trip
+                // Only end the trip if the post-trip inspection was actually completed.
                 if !isShowing {
-                    viewModel.endTrip()
+                    if postTripInspectionCompleted {
+                        viewModel.endTrip()
+                    }
+                    postTripInspectionCompleted = false
                 }
             }
         }
@@ -132,6 +139,7 @@ struct DriverHomeTab: View {
                     onDetails: { selectedTrip = job },
                     onEndTrip: {
                         // Show post-trip inspection first, then end trip
+                        postTripInspectionCompleted = false
                         showPostTripInspection = true
                     }
                 )

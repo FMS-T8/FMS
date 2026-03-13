@@ -124,7 +124,7 @@ public struct InspectionCompleteView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button {
-                            viewModel.showingExportSheet = true
+                            viewModel.prepareExport(includeTimestamp: true)
                         } label: {
                             Label("Export Report", systemImage: "square.and.arrow.up")
                         }
@@ -138,11 +138,17 @@ public struct InspectionCompleteView: View {
             .sheet(isPresented: $showSummary) {
                 InspectionSummaryView(viewModel: viewModel)
             }
-            .sheet(isPresented: $viewModel.showingExportSheet) {
-                let data = viewModel.generateReport()
-                if let url = saveReportToTemp(data: data, checklist: viewModel.checklist) {
+            .sheet(isPresented: exportSheetPresented) {
+                if let url = viewModel.exportURL {
                     ShareSheet(items: [url])
                 }
+            }
+            .alert("Export Failed", isPresented: exportErrorPresented) {
+                Button("OK", role: .cancel) {
+                    viewModel.clearExportError()
+                }
+            } message: {
+                Text(viewModel.exportErrorMessage ?? "Unable to create an inspection report.")
             }
             .onAppear {
                 withAnimation(.spring(response: 0.6, dampingFraction: 0.7).delay(0.2)) {
@@ -152,17 +158,26 @@ public struct InspectionCompleteView: View {
         }
     }
 
-    private func saveReportToTemp(data: Data, checklist: InspectionChecklist) -> URL? {
-        let fileName = "FMS_Inspection_\(checklist.inspectionType.rawValue)_\(checklist.vehicleId)_\(formatFileDate()).txt"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        try? data.write(to: url)
-        return url
+    private var exportSheetPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel.showingExportSheet && viewModel.exportURL != nil },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.clearExportState()
+                }
+            }
+        )
     }
 
-    private func formatFileDate() -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyyMMdd_HHmm"
-        return f.string(from: Date())
+    private var exportErrorPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel.exportErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.clearExportError()
+                }
+            }
+        )
     }
 }
 

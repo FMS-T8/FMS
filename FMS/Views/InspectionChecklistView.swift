@@ -6,9 +6,16 @@ import PhotosUI
 public struct InspectionChecklistView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: InspectionViewModel
+    private let onCompletion: (() -> Void)?
 
-    public init(type: InspectionType = .preTrip, vehicleId: String = "VH-001", driverId: String = "DR-001") {
+    public init(
+        type: InspectionType = .preTrip,
+        vehicleId: String = "VH-001",
+        driverId: String = "DR-001",
+        onCompletion: (() -> Void)? = nil
+    ) {
         _viewModel = State(initialValue: InspectionViewModel(vehicleId: vehicleId, driverId: driverId, type: type))
+        self.onCompletion = onCompletion
     }
 
     public var body: some View {
@@ -105,6 +112,7 @@ public struct InspectionChecklistView: View {
     private var continueButton: some View {
         Button {
             viewModel.completeInspection()
+            onCompletion?()
         } label: {
             HStack(spacing: 8) {
                 Text("Continue")

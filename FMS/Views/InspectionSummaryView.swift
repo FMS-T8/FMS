@@ -33,11 +33,17 @@ public struct InspectionSummaryView: View {
                         .foregroundStyle(FMSTheme.amber)
                 }
             }
-            .sheet(isPresented: $viewModel.showingExportSheet) {
-                let data = viewModel.generateReport()
-                if let url = saveReportToTemp(data: data) {
+            .sheet(isPresented: exportSheetPresented) {
+                if let url = viewModel.exportURL {
                     ShareSheet(items: [url])
                 }
+            }
+            .alert("Export Failed", isPresented: exportErrorPresented) {
+                Button("OK", role: .cancel) {
+                    viewModel.clearExportError()
+                }
+            } message: {
+                Text(viewModel.exportErrorMessage ?? "Unable to create an inspection report.")
             }
         }
     }
@@ -184,7 +190,7 @@ public struct InspectionSummaryView: View {
 
     private var exportButton: some View {
         Button {
-            viewModel.showingExportSheet = true
+            viewModel.prepareExport(includeTimestamp: false)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "square.and.arrow.up")
@@ -217,11 +223,25 @@ public struct InspectionSummaryView: View {
         return f.string(from: date)
     }
 
-    private func saveReportToTemp(data: Data) -> URL? {
-        let c = viewModel.checklist
-        let fileName = "FMS_Inspection_\(c.inspectionType.rawValue)_\(c.vehicleId).txt"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        try? data.write(to: url)
-        return url
+    private var exportSheetPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel.showingExportSheet && viewModel.exportURL != nil },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.clearExportState()
+                }
+            }
+        )
+    }
+
+    private var exportErrorPresented: Binding<Bool> {
+        Binding(
+            get: { viewModel.exportErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.clearExportError()
+                }
+            }
+        )
     }
 }

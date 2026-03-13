@@ -24,7 +24,7 @@ public struct TripHistoryCard: View {
 
                     Spacer()
 
-                    Text(statusLabel)
+                    Text(trip.statusLabel)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(statusColor)
                         .padding(.horizontal, 8)
@@ -78,16 +78,6 @@ public struct TripHistoryCard: View {
         let from = trip.startName ?? "Origin"
         let to = trip.endName ?? "Destination"
         return "\(from) → \(to)"
-    }
-
-    private var statusLabel: String {
-        switch trip.status?.lowercased() {
-        case "completed": return "Completed"
-        case "active": return "In Progress"
-        case "scheduled": return "Scheduled"
-        case "cancelled": return "Cancelled"
-        default: return trip.status?.capitalized ?? "Unknown"
-        }
     }
 
     private var statusColor: Color {

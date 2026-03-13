@@ -7,6 +7,8 @@ struct DriverTripDetailView: View {
     @State private var showIssueReport = false
     @State private var showPreTripInspection = false
     @State private var showPostTripInspection = false
+    @State private var preTripInspectionCompleted = false
+    @State private var postTripInspectionCompleted = false
 
     var body: some View {
         ScrollView {
@@ -32,26 +34,38 @@ struct DriverTripDetailView: View {
             InspectionChecklistView(
                 type: .preTrip,
                 vehicleId: viewModel.assignedVehicle?.id ?? "VH-001",
-                driverId: viewModel.driver.id
+                driverId: viewModel.driver.id,
+                onCompletion: {
+                    preTripInspectionCompleted = true
+                }
             )
         }
         .fullScreenCover(isPresented: $showPostTripInspection) {
             InspectionChecklistView(
                 type: .postTrip,
                 vehicleId: viewModel.assignedVehicle?.id ?? "VH-001",
-                driverId: viewModel.driver.id
+                driverId: viewModel.driver.id,
+                onCompletion: {
+                    postTripInspectionCompleted = true
+                }
             )
         }
         .onChange(of: showPreTripInspection) { _, isShowing in
             if !isShowing {
-                viewModel.startTrip(trip)
-                dismiss()
+                if preTripInspectionCompleted {
+                    viewModel.startTrip(trip)
+                    dismiss()
+                }
+                preTripInspectionCompleted = false
             }
         }
         .onChange(of: showPostTripInspection) { _, isShowing in
             if !isShowing {
-                viewModel.endTrip()
-                dismiss()
+                if postTripInspectionCompleted {
+                    viewModel.endTrip()
+                    dismiss()
+                }
+                postTripInspectionCompleted = false
             }
         }
     }
@@ -203,6 +217,7 @@ struct DriverTripDetailView: View {
     private var actionButtons: some View {
         if trip.status?.lowercased() == "scheduled" {
             Button {
+                preTripInspectionCompleted = false
                 showPreTripInspection = true
             } label: {
                 HStack(spacing: 8) {
@@ -218,6 +233,7 @@ struct DriverTripDetailView: View {
         if trip.status?.lowercased() == "active" {
             VStack(spacing: 10) {
                 Button {
+                    postTripInspectionCompleted = false
                     showPostTripInspection = true
                 } label: {
                     HStack(spacing: 8) {
@@ -268,13 +284,7 @@ struct DriverTripDetailView: View {
     }
 
     private var statusLabel: String {
-        switch trip.status?.lowercased() {
-        case "completed": return "Completed"
-        case "active": return "In Progress"
-        case "scheduled": return "Scheduled"
-        case "cancelled": return "Cancelled"
-        default: return trip.status?.capitalized ?? "Unknown"
-        }
+        trip.statusLabel
     }
 
     private var statusColor: Color {

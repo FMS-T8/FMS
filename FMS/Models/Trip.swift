@@ -52,4 +52,14 @@ public struct Trip: Codable, Identifiable {
         case startTime = "start_time"
         case endTime = "end_time"
     }
+
+    public var statusLabel: String {
+        switch status?.lowercased() {
+        case "completed": return "Completed"
+        case "active": return "In Progress"
+        case "scheduled": return "Scheduled"
+        case "cancelled": return "Cancelled"
+        default: return status?.capitalized ?? "Unknown"
+        }
+    }
 }
