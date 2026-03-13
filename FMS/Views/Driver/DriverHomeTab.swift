@@ -4,6 +4,7 @@ struct DriverHomeTab: View {
     @Bindable var viewModel: DriverDashboardViewModel
     @State private var showPreTripInspection = false
     @State private var showPostTripInspection = false
+    @State private var preTripInspectionCompleted = false
     @State private var postTripInspectionCompleted = false
     @State private var showIssueReport = false
     @State private var showProfile = false
@@ -31,7 +32,10 @@ struct DriverHomeTab: View {
                 InspectionChecklistView(
                     type: .preTrip,
                     vehicleId: viewModel.assignedVehicle?.id ?? "VH-001",
-                    driverId: viewModel.driver.id
+                    driverId: viewModel.driver.id,
+                    onCompletion: {
+                        preTripInspectionCompleted = true
+                    }
                 )
             }
             .fullScreenCover(isPresented: $showPostTripInspection) {
@@ -54,10 +58,12 @@ struct DriverHomeTab: View {
                 DriverTripDetailView(trip: trip, viewModel: viewModel)
             }
             .onChange(of: showPreTripInspection) { _, isShowing in
-                // When pre-trip inspection is dismissed, start the pending trip
-                if !isShowing, let trip = pendingStartTrip {
-                    viewModel.startTrip(trip)
+                if !isShowing {
+                    if preTripInspectionCompleted, let trip = pendingStartTrip {
+                        viewModel.startTrip(trip)
+                    }
                     pendingStartTrip = nil
+                    preTripInspectionCompleted = false
                 }
             }
             .onChange(of: showPostTripInspection) { _, isShowing in
@@ -134,6 +140,7 @@ struct DriverHomeTab: View {
                     onStartJob: {
                         // Show pre-trip inspection first, then start trip
                         pendingStartTrip = job
+                        preTripInspectionCompleted = false
                         showPreTripInspection = true
                     },
                     onDetails: { selectedTrip = job },

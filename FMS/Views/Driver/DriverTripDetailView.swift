@@ -144,7 +144,7 @@ struct DriverTripDetailView: View {
 
             if let duration = trip.actualDurationMin ?? trip.estimatedDurationMin {
                 let label = trip.actualDurationMin != nil ? "Duration" : "Est. Duration"
-                infoRow(label: label, value: formatDuration(duration))
+                infoRow(label: label, value: duration.formattedDuration)
             }
         }
         .padding(16)
@@ -297,9 +297,4 @@ struct DriverTripDetailView: View {
         return formatter.string(from: date)
     }
 
-    private func formatDuration(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let mins = minutes % 60
-        return "\(hours)h \(mins)m"
-    }
 }

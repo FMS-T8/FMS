@@ -54,7 +54,7 @@ public struct TripHistoryCard: View {
                     }
 
                     if let duration = trip.actualDurationMin ?? trip.estimatedDurationMin {
-                        Label(formatDuration(duration), systemImage: "clock")
+                        Label(duration.formattedDuration, systemImage: "clock")
                             .font(.system(size: 12))
                             .foregroundStyle(FMSTheme.textSecondary)
                     }
@@ -98,9 +98,4 @@ public struct TripHistoryCard: View {
         return formatter.string(from: date)
     }
 
-    private func formatDuration(_ minutes: Int) -> String {
-        let hours = minutes / 60
-        let mins = minutes % 60
-        return "\(hours)h \(mins)m"
-    }
 }

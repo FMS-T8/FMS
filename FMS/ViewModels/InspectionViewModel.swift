@@ -4,6 +4,20 @@ import Observation
 @MainActor
 @Observable
 public class InspectionViewModel {
+    private static let reportDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM yyyy, HH:mm"
+        return formatter
+    }()
+
+    private static let exportTimestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmm"
+        return formatter
+    }()
+
+    private static let invalidFileNameCharacters = CharacterSet(charactersIn: "/:\\?%*|\"<>")
+
     public var checklist: InspectionChecklist
     public var isCompleted: Bool = false
     public var showingCamera: Bool = false
@@ -171,7 +185,9 @@ public class InspectionViewModel {
             components.append(formatFileDate())
         }
 
-        let fileName = components.joined(separator: "_") + ".txt"
+        let fileName = components
+            .map(sanitizedFileComponent)
+            .joined(separator: "_") + ".txt"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
 
         do {
@@ -183,14 +199,29 @@ public class InspectionViewModel {
     }
 
     private func formatFileDate() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmm"
-        return formatter.string(from: Date())
+        Self.exportTimestampFormatter.string(from: Date())
     }
 
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM yyyy, HH:mm"
-        return formatter.string(from: date)
+    func formattedDate(_ date: Date) -> String {
+        Self.reportDateFormatter.string(from: date)
+    }
+
+    private func sanitizedFileComponent(_ component: String) -> String {
+        let trimmed = component.trimmingCharacters(in: .whitespacesAndNewlines)
+        let replacedInvalidCharacters = String(trimmed.unicodeScalars.map { scalar in
+            Self.invalidFileNameCharacters.contains(scalar) ? "_" : Character(scalar)
+        })
+        let collapsedWhitespace = replacedInvalidCharacters.replacingOccurrences(
+            of: "\\s+",
+            with: "_",
+            options: .regularExpression
+        )
+        let collapsedUnderscores = collapsedWhitespace.replacingOccurrences(
+            of: "_+",
+            with: "_",
+            options: .regularExpression
+        )
+        let sanitized = collapsedUnderscores.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return sanitized.isEmpty ? "unknown" : sanitized
     }
 }

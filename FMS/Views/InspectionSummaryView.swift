@@ -64,9 +64,9 @@ public struct InspectionSummaryView: View {
             VStack(alignment: .leading, spacing: 4) {
                 detailRow(label: "Vehicle", value: viewModel.checklist.vehicleId)
                 detailRow(label: "Driver", value: viewModel.checklist.driverId)
-                detailRow(label: "Date", value: formattedDate(viewModel.checklist.createdAt))
+                detailRow(label: "Date", value: viewModel.formattedDate(viewModel.checklist.createdAt))
                 if let completed = viewModel.checklist.completedAt {
-                    detailRow(label: "Completed", value: formattedDate(completed))
+                    detailRow(label: "Completed", value: viewModel.formattedDate(completed))
                 }
             }
             .padding(14)
@@ -215,12 +215,6 @@ public struct InspectionSummaryView: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(FMSTheme.textPrimary)
         }
-    }
-
-    private func formattedDate(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "dd MMM yyyy, HH:mm"
-        return f.string(from: date)
     }
 
     private var exportSheetPresented: Binding<Bool> {
