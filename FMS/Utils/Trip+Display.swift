@@ -11,7 +11,9 @@ extension Trip {
     
     var displayRoute: String {
         let texts = routeTexts
-        if texts.startText != "Start" || texts.endText != "End" {
+        let start = texts.startText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let end = texts.endText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !start.isEmpty && !end.isEmpty {
             return "\(texts.startText) to \(texts.endText)"
         }
         return "Trip"

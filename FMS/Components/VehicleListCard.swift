@@ -118,7 +118,8 @@ struct VehicleListCard: View {
         case "maintenance": return "Maintenance"
         case "inactive": return "In Yard"
         default:
-            let raw = vehicle.status ?? "Unknown"
+            let trimmed = vehicle.status?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let raw = trimmed.isEmpty ? "Unknown" : trimmed
             let readable = raw
                 .replacingOccurrences(of: "_", with: " ")
                 .replacingOccurrences(of: "-", with: " ")
