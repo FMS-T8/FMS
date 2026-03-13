@@ -20,10 +20,12 @@ public enum Role: String, CaseIterable, Codable {
 public class AuthViewModel {
     public var selectedRole: Role?
     public var isAuthenticated: Bool = false
+    public var currentUser: User?
     
-    public init(selectedRole: Role? = nil, isAuthenticated: Bool = false) {
+    public init(selectedRole: Role? = nil, isAuthenticated: Bool = false, currentUser: User? = nil) {
         self.selectedRole = selectedRole
         self.isAuthenticated = isAuthenticated
+        self.currentUser = currentUser
     }
     
     public func login(email: String, password: String, bannerManager: BannerManager) async {
@@ -48,18 +50,36 @@ public class AuthViewModel {
                 password: password
             )
             
-            struct UserRoleQuery: Decodable {
-                let role: String
-            }
-            
-            let query: [UserRoleQuery] = try await SupabaseService.shared.client
+            let response = try await SupabaseService.shared.client
                 .from("users")
-                .select("role")
+                .select()
                 .eq("email", value: email)
                 .execute()
-                .value
+                
+            let decoder = JSONDecoder()
+            let dateFormatter = DateFormatter()
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateStr = try container.decode(String.self)
+                
+                dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+                if let date = dateFormatter.date(from: dateStr) { return date }
+                
+                dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+                if let date = dateFormatter.date(from: dateStr) { return date }
+                
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                if let date = dateFormatter.date(from: dateStr) { return date }
+                
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date format: \(dateStr)")
+            }
+                
+            let query = try decoder.decode([User].self, from: response.data)
             
             if let userRecord = query.first {
+                self.currentUser = userRecord
                 switch userRecord.role {
                 case "manager":
                     self.selectedRole = .fleetManager
@@ -83,5 +103,6 @@ public class AuthViewModel {
     public func logout() {
         selectedRole = nil
         isAuthenticated = false
+        currentUser = nil
     }
 }

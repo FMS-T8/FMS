@@ -1,7 +1,7 @@
 import Foundation
 
 public struct PartsInventory: Codable, Identifiable {
-    public var id: String
+    public var id: UUID?
     public var name: String?
     public var stock: Int?
     public var threshold: Int?
