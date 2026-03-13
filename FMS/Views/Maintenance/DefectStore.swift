@@ -16,9 +16,11 @@ struct DefectItem: Identifiable {
 
     var reportedAgo: String {
         let diff = Int(Date().timeIntervalSince(reportedAt))
-        if diff < 3600  { return "\(diff / 60)m ago" }
+        if diff < 3600 { return "\(diff / 60)m ago" }
         if diff < 86400 { return "\(diff / 3600)h ago" }
-        return "Yesterday"
+        let days = diff / 86400
+        if days == 1 { return "Yesterday" }
+        return "\(days)d ago"
     }
 
     var imageName: String {
@@ -118,61 +120,71 @@ class DefectStore {
         defer { isLoading = false }
 
         do {
-            let records: [Defect] = try await SupabaseService.shared.client
+            async let fetchedDefectsTask: [Defect] = try SupabaseService.shared.client
                 .from("defects")
                 .select()
                 .order("reported_at", ascending: false)
                 .execute()
                 .value
+                
+            async let fetchedVehiclesTask: [Vehicle] = try SupabaseService.shared.client
+                .from("vehicles")
+                .select()
+                .execute()
+                .value
+                
+            let (fetchedDefects, fetchedVehicles) = try await (fetchedDefectsTask, fetchedVehiclesTask)
+
+            var mappedItems = fetchedDefects.map { DefectItem(from: $0) }
+            
+            for i in mappedItems.indices {
+                // Map the vehicle UUID to a readable name matching WorkOrderStore
+                let originalId = mappedItems[i].vehicle
+                if let matchedVehicle = fetchedVehicles.first(where: { $0.id == originalId }) {
+                    let make = matchedVehicle.manufacturer ?? "Unknown"
+                    let model = matchedVehicle.model ?? "Vehicle"
+                    let plate = matchedVehicle.plateNumber
+                    
+                    mappedItems[i].vehicle = "\(make) \(model) · \(plate)".trimmingCharacters(in: .whitespaces)
+                }
+            }
 
             await MainActor.run {
-                self.defects = records.map { DefectItem(from: $0) }
+                self.defects = mappedItems
             }
         } catch {
-            print("Error fetching defects: \(error)")
+            print("Error fetching defects or vehicles: \(error)")
         }
     }
 
-    func addDefect(_ item: DefectItem) {
+    func addDefect(_ item: DefectItem) async throws {
         let db = item.toDefect()
-        Task {
-            do {
-                let inserted: [Defect] = try await SupabaseService.shared.client
-                    .from("defects")
-                    .insert(db)
-                    .select()
-                    .execute()
-                    .value
+        let inserted: [Defect] = try await SupabaseService.shared.client
+            .from("defects")
+            .insert(db)
+            .select()
+            .execute()
+            .value
 
-                await MainActor.run {
-                    if let first = inserted.first {
-                        let newItem = DefectItem(from: first)
-                        self.defects.insert(newItem, at: 0)
-                    }
-                }
-            } catch {
-                print("Error saving defect: \(error)")
+        await MainActor.run {
+            if let first = inserted.first {
+                let newItem = DefectItem(from: first)
+                self.defects.insert(newItem, at: 0)
             }
         }
     }
 
-    func updateDefect(_ item: DefectItem) {
+    func updateDefect(_ item: DefectItem) async throws {
         let db = item.toDefect()
-        Task {
-            do {
-                try await SupabaseService.shared.client
-                    .from("defects")
-                    .update(db)
-                    .eq("id", value: item.id.uuidString)
-                    .execute()
+        try await SupabaseService.shared.client
+            .from("defects")
+            .update(db)
+            .eq("id", value: item.id.uuidString)
+            .execute()
 
-                await MainActor.run {
-                    if let idx = self.defects.firstIndex(where: { $0.id == item.id }) {
-                        self.defects[idx] = item
-                    }
-                }
-            } catch {
-                print("Error updating defect: \(error)")
+        await MainActor.run {
+            if let idx = self.defects.firstIndex(where: { $0.id == item.id }) {
+                self.defects[idx] = item
             }
         }
     }
@@ -212,7 +224,7 @@ class DefectStore {
                 await MainActor.run {
                     if let idx = self.defects.firstIndex(where: { $0.id == defectId }) {
                         self.defects[idx].linkedWorkOrderId = workOrderId
-                        self.defects[idx].status            = "wo_created"
+                        self.defects[idx].status            = "in_progress"
                     }
                 }
             } catch {
@@ -222,7 +234,9 @@ class DefectStore {
     }
 
     // Legacy helpers
-    func add(_ defect: DefectItem) { addDefect(defect) }
-    func update(_ defect: DefectItem) { updateDefect(defect) }
+    func add(_ defect: DefectItem) async throws {
+        try await addDefect(defect)
+    };
+    func update(_ defect: DefectItem) async throws { try await updateDefect(defect) }
     func delete(id: UUID) { deleteDefect(id: id) }
 }

@@ -50,94 +50,182 @@ public struct ProfileTabView: View {
             ZStack {
                 (colorScheme == .dark ? FMSTheme.obsidian : FMSTheme.backgroundPrimary).ignoresSafeArea()
 
-                VStack(spacing: 28) {
-                    Spacer()
+                VStack(spacing: 0) {
+                    FMSTitleRow(title: "My Profile")
+                    Divider().opacity(0.35)
 
-                    // Avatar
-                    ZStack {
-                        Circle()
-                            .fill(FMSTheme.amber.opacity(0.15))
-                            .frame(width: 100, height: 100)
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(FMSTheme.amberDark)
-                    }
-
-                    VStack(spacing: 6) {
-                        Text(authViewModel.currentUser?.name ?? "Maintenance Tech")
-                            .font(.title2.weight(.bold))
-                            .foregroundColor(colorScheme == .dark ? .white : FMSTheme.textPrimary)
-                        Text(authViewModel.currentUser?.role.capitalized ?? "Fleet Maintenance Division")
-                            .font(.subheadline)
-                            .foregroundColor(FMSTheme.textSecondary)
-                    }
-
-                    // Info Rows
-                    VStack(spacing: 1) {
-                        ProfileRow(icon: "envelope", label: "Email", value: authViewModel.currentUser?.email ?? "tech@fleetms.com")
-                        ProfileRow(icon: "phone", label: "Phone", value: authViewModel.currentUser?.phone ?? "Not Provided")
-                        ProfileRow(icon: "building.2", label: "Department", value: authViewModel.currentUser?.role.capitalized ?? "Maintenance")
-                        ProfileRow(icon: "tag", label: "Account ID", value: String((authViewModel.currentUser?.id ?? "N/A").prefix(8).uppercased()))
-                    }
-                    .cornerRadius(14)
-                    .padding(.horizontal)
-
-                    Spacer()
-
-                    Button(role: .destructive) {
-                        withAnimation { authViewModel.logout() }
-                    } label: {
-                        HStack {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                            Text("Logout")
-                                .fontWeight(.semibold)
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 20) {
+                            profileHeaderCard
+                            basicInfoCard
+                            preferencesCard
+                            logoutButton
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(FMSTheme.alertRed.opacity(0.1))
-                        .foregroundColor(FMSTheme.alertRed)
-                        .cornerRadius(14)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                        .padding(.bottom, 32)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 24)
                 }
             }
-            .navigationTitle("Profile")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarHidden(true)
         }
+    }
+
+    private var profileHeaderCard: some View {
+        MaintProfileCard {
+            VStack(spacing: 12) {
+                // Avatar
+                ZStack {
+                    Circle()
+                        .fill(FMSTheme.amber.opacity(0.18))
+                        .frame(width: 84, height: 84)
+                    Text(avatarInitials)
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundStyle(FMSTheme.amber)
+                }
+
+                VStack(spacing: 4) {
+                    Text(authViewModel.currentUser?.name ?? "Maintenance Tech")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(FMSTheme.textPrimary)
+
+                    Text(authViewModel.currentUser?.role.capitalized ?? "Fleet Maintenance")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(FMSTheme.amber)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3)
+                        .background(FMSTheme.amber.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+
+                Text("ID · \((authViewModel.currentUser?.id ?? "N/A").prefix(8).uppercased())")
+                    .font(.system(size: 13))
+                    .foregroundStyle(FMSTheme.textSecondary)
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var basicInfoCard: some View {
+        MaintProfileCard {
+            VStack(alignment: .leading, spacing: 14) {
+                MaintProfileSectionHeader(title: "Basic Information")
+                Divider().background(FMSTheme.borderLight)
+                MaintProfileInfoRow(icon: "envelope.fill", label: "Email", value: authViewModel.currentUser?.email ?? "tech@fleetms.com")
+                MaintProfileInfoRow(icon: "phone.fill",    label: "Phone", value: authViewModel.currentUser?.phone ?? "Not Provided")
+                MaintProfileInfoRow(icon: "building.2.fill", label: "Department", value: authViewModel.currentUser?.role.capitalized ?? "Maintenance")
+            }
+        }
+    }
+
+    private var preferencesCard: some View {
+        MaintProfileCard {
+            VStack(alignment: .leading, spacing: 14) {
+                MaintProfileSectionHeader(title: "System Preferences")
+                Divider().background(FMSTheme.borderLight)
+                
+                HStack {
+                    Text("Theme Appearance")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FMSTheme.textPrimary)
+                    Spacer()
+                    Text("System")
+                        .font(.system(size: 15))
+                        .foregroundStyle(FMSTheme.textSecondary)
+                }
+                
+                Divider().background(FMSTheme.borderLight)
+
+                HStack {
+                    Text("Notifications")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(FMSTheme.textPrimary)
+                    Spacer()
+                    Toggle("", isOn: .constant(true))
+                        .tint(FMSTheme.amber)
+                }
+            }
+        }
+    }
+
+    private var logoutButton: some View {
+        Button {
+            Task {
+                await authViewModel.logout()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("Log Out")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundStyle(FMSTheme.alertRed)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(FMSTheme.alertRed.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
+    private var avatarInitials: String {
+        let name = authViewModel.currentUser?.name ?? "Maintenance Tech"
+        let parts = name.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return String(name.prefix(2)).uppercased()
     }
 }
 
-struct ProfileRow: View {
+// MARK: - Reusable UI Components
+private struct MaintProfileCard<Content: View>: View {
+    @ViewBuilder let content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(FMSTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: FMSTheme.shadowSmall, radius: 6, x: 0, y: 2)
+    }
+}
+
+private struct MaintProfileSectionHeader: View {
+    let title: String
+    var body: some View {
+        Text(title)
+            .font(.system(size: 18, weight: .bold))
+            .foregroundStyle(FMSTheme.textPrimary)
+    }
+}
+
+private struct MaintProfileInfoRow: View {
     let icon: String
     let label: String
     let value: String
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 14))
-                .foregroundColor(FMSTheme.amberDark)
-                .frame(width: 32, height: 32)
-                .background(FMSTheme.amber.opacity(0.12))
-                .cornerRadius(8)
+                .foregroundStyle(FMSTheme.amber)
+                .frame(width: 22, alignment: .center)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.caption)
-                    .foregroundColor(FMSTheme.textSecondary)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(FMSTheme.textTertiary)
+                    .textCase(.uppercase)
+                    .kerning(0.4)
                 Text(value)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(colorScheme == .dark ? .white : FMSTheme.textPrimary)
+                    .font(.system(size: 15))
+                    .foregroundStyle(FMSTheme.textPrimary)
             }
-            Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(colorScheme == .dark
-                    ? Color(red: 28/255, green: 28/255, blue: 30/255)
-                    : FMSTheme.cardBackground)
     }
 }
 

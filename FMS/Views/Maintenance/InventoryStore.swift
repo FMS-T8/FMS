@@ -88,16 +88,14 @@ class InventoryStore {
             
             await MainActor.run {
                 self.parts = fetchedParts.map { dbPart in
-                    // Determine a default icon based on name
                     let defaultIconName = defaultIcon(for: dbPart.name ?? "")
-                    // Create a PartItem (which guarantees a non-optional id)
                     let partItem = PartItem(from: dbPart, imageName: defaultIconName)
-                    // Preserve existing assigned icon if present, else use the default
                     let icon = self.imageMap[partItem.id] ?? defaultIconName
-                    // Save back to the map using the non-optional id
                     self.imageMap[partItem.id] = icon
-                    // Return the item with the decided icon
-                    return PartItem(from: dbPart, imageName: icon)
+                    
+                    var finalPart = partItem
+                    finalPart.imageName = icon
+                    return finalPart
                 }
             }
         } catch {
@@ -115,85 +113,59 @@ class InventoryStore {
         return "cube.box.fill"
     }
 
-    func addPart(_ inv: PartsInventory, imageName: String = "cube.box.fill") {
-        Task {
-            do {
-                try await SupabaseService.shared.client
-                    .from("parts_inventory")
-                    .insert(inv)
-                    .execute()
-                
-                await MainActor.run {
-                    let partItem = PartItem(from: inv, imageName: imageName)
-                    self.imageMap[partItem.id] = imageName
-                    self.parts.append(partItem)
-                }
-            } catch {
-                print("Error saving part: \(error)")
-            }
-        }
-    }
-
-    func updatePart(_ updated: PartItem) {
-        let dbModel = updated.toPartsInventory()
-        Task {
-            do {
-                try await SupabaseService.shared.client
-                    .from("parts_inventory")
-                    .update(dbModel)
-                    .eq("id", value: updated.id)
-                    .execute()
-                
-                await MainActor.run {
-                    if let idx = self.parts.firstIndex(where: { $0.id == updated.id }) {
-                        self.parts[idx] = updated
-                    }
-                }
-            } catch {
-                print("Error updating part: \(error)")
-            }
-        }
-    }
-
-    func deletePart(id: UUID) {
-        Task {
-            do {
-                try await SupabaseService.shared.client
-                    .from("parts_inventory")
-                    .delete()
-                    .eq("id", value: id)
-                    .execute()
-                
-                await MainActor.run {
-                    self.parts.removeAll { $0.id == id }
-                }
-            } catch {
-                print("Error deleting part: \(error)")
-            }
-        }
-    }
-
-    func reorder(part: PartItem, quantity: Int) {
-        let newStock = part.stock + quantity
-        var updatedDBModel = part.toPartsInventory()
-        updatedDBModel.stock = newStock
+    func addPart(_ inv: PartsInventory, imageName: String = "cube.box.fill") async throws {
+        try await SupabaseService.shared.client
+            .from("parts_inventory")
+            .insert(inv)
+            .execute()
         
-        Task {
-            do {
-                // We update only the stock to be safe, but we can pass the whole object
-                try await SupabaseService.shared.client
-                    .from("parts_inventory")
-                    .update(["stock": newStock])
-                    .eq("id", value: part.id)
-                    .execute()
-                
-                await MainActor.run {
-                    if let idx = self.parts.firstIndex(where: { $0.id == part.id }) {
-                        self.parts[idx].stock = newStock
-                    }
-                }
-            } catch {
-                print("Error reordering part: \(error)")
+        await MainActor.run {
+            let partItem = PartItem(from: inv, imageName: imageName)
+            self.imageMap[partItem.id] = imageName
+            self.parts.append(partItem)
+        }
+    }
+
+    func updatePart(_ updated: PartItem) async throws {
+        let dbModel = updated.toPartsInventory()
+        try await SupabaseService.shared.client
+            .from("parts_inventory")
+            .update(dbModel)
+            .eq("id", value: updated.id)
+            .execute()
+        
+        await MainActor.run {
+            if let idx = self.parts.firstIndex(where: { $0.id == updated.id }) {
+                self.parts[idx] = updated
+            }
+        }
+    }
+
+    func deletePart(id: UUID) async throws {
+        try await SupabaseService.shared.client
+            .from("parts_inventory")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+        
+        await MainActor.run {
+            self.parts.removeAll { $0.id == id }
+        }
+    }
+
+    func reorder(part: PartItem, quantity: Int) async throws {
+        let newStock = part.stock + quantity
+        guard newStock >= 0 else { throw NSError(domain: "InventoryError", code: 400, userInfo: [NSLocalizedDescriptionKey: "Stock cannot be negative"]) }
+
+        try await SupabaseService.shared.client
+            .from("parts_inventory")
+            .update(["stock": newStock])
+            .eq("id", value: part.id)
+            .execute()
+        
+        await MainActor.run {
+            if let idx = self.parts.firstIndex(where: { $0.id == part.id }) {
+                self.parts[idx].stock = newStock
             }
         }
     }

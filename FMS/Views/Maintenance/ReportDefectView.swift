@@ -30,7 +30,7 @@ struct ReportDefectView: View {
         ("Other",       "other")
     ]
 
-    private var canSubmit: Bool { !selectedVehicleId.isEmpty && !defectTitle.isEmpty }
+    private var canSubmit: Bool { !selectedVehicleId.isEmpty && !defectTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     init(store: DefectStore) {
         self.store = store
@@ -205,16 +205,23 @@ struct ReportDefectView: View {
     }
 
     private func submit() {
+        let trimmedTitle = defectTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let newDefect = DefectItem(
-            title:       defectTitle,
+            title:       trimmedTitle,
             vehicle:     selectedVehicleId,   // store UUID in vehicle field (maps to vehicle_id in DB)
             category:    selectedCategory,
             priority:    selectedPriority,
             description: description,
             reportedAt:  Date()
         )
-        store.addDefect(newDefect)
-        dismiss()
+        Task {
+            do {
+                try await store.addDefect(newDefect)
+                await MainActor.run { dismiss() }
+            } catch {
+                print("Error saving defect: \(error)")
+            }
+        }
     }
 }
 

@@ -175,9 +175,15 @@ struct PartDetailView: View {
 
                                     Button {
                                         guard adjustQty != 0 else { return }
-                                        part.stock = max(0, part.stock + adjustQty)
-                                        store.updatePart(part)
-                                        withAnimation { adjustQty = 0 }
+                                        Task {
+                                            do {
+                                                part.stock = max(0, part.stock + adjustQty)
+                                                try await store.updatePart(part)
+                                                await MainActor.run { adjustQty = 0 }
+                                            } catch {
+                                                print("Error adjusting stock: \(error)")
+                                            }
+                                        }
                                     } label: {
                                         Text("Apply")
                                             .font(.system(size: 14, weight: .bold))
@@ -244,11 +250,27 @@ struct PartDetailView: View {
         .alert("Delete Part", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
-                store.deletePart(id: part.id)
-                dismiss()
+                Task {
+                    do {
+                        try await store.deletePart(id: part.id)
+                        await MainActor.run { dismiss() }
+                    } catch {
+                        print("Error deleting part: \(error)")
+                    }
+                }
             }
         } message: {
             Text("Remove \"\(part.name)\" from inventory? This can't be undone.")
+        }
+        .onChange(of: showingReorder) { _, isPresented in
+            if !isPresented {
+                if let updated = store.parts.first(where: { $0.id == part.id }) { part = updated }
+            }
+        }
+        .onChange(of: showingEdit) { _, isPresented in
+            if !isPresented {
+                if let updated = store.parts.first(where: { $0.id == part.id }) { part = updated }
+            }
         }
     }
 }

@@ -125,8 +125,12 @@ public struct InventoryView: View {
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showingAdd) {
                 AddPartView { inv, icon in
-                    withAnimation(.spring(response: 0.4)) {
-                        store.addPart(inv, imageName: icon)
+                    Task {
+                        do {
+                            try await store.addPart(inv, imageName: icon)
+                        } catch {
+                            print("Error adding part: \(error)")
+                        }
                     }
                 }
             }

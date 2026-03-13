@@ -81,13 +81,16 @@ struct EditDefectView: View {
                         }
 
                         Button {
-                            defect.title       = title.isEmpty ? defect.title : title
-                            defect.vehicle     = vehicle.isEmpty ? defect.vehicle : vehicle
+                            guard !title.isEmpty, !vehicle.isEmpty else { return }
+                            defect.title       = title
+                            defect.vehicle     = vehicle
                             defect.category    = category
                             defect.priority    = priority
-                            defect.description = description.isEmpty ? defect.description : description
-                            store.updateDefect(defect)
-                            dismiss()
+                            defect.description = description
+                            Task {
+                                try? await store.updateDefect(defect)
+                                await MainActor.run { dismiss() }
+                            }
                         } label: {
                             Text("Save Changes").font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.black).frame(maxWidth: .infinity).padding(.vertical, 16)

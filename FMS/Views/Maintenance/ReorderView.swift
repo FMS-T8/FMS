@@ -110,8 +110,14 @@ struct ReorderPartView: View {
 
                     Button {
                         guard canOrder else { return }
-                        store.reorder(part: part, quantity: qty)
-                        dismiss()
+                        Task {
+                            do {
+                                try await store.reorder(part: part, quantity: qty)
+                                await MainActor.run { dismiss() }
+                            } catch {
+                                print("Error reordering part: \(error)")
+                            }
+                        }
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "arrow.clockwise.circle.fill").font(.system(size: 18))
@@ -166,12 +172,22 @@ struct ReorderView: View {
                         buildLowPartsList()
 
                         Button {
-                            for part in lowParts {
-                                if let q = Int(quantities[part.id] ?? ""), q > 0 {
-                                    store.reorder(part: part, quantity: q)
+                            Task {
+                                do {
+                                    var didReorder = false
+                                    for part in lowParts {
+                                        if let q = Int(quantities[part.id] ?? ""), q > 0 {
+                                            try await store.reorder(part: part, quantity: q)
+                                            didReorder = true
+                                        }
+                                    }
+                                    if didReorder {
+                                        await MainActor.run { dismiss() }
+                                    }
+                                } catch {
+                                    print("Error bulk reordering: \(error)")
                                 }
                             }
-                            dismiss()
                         } label: {
                             Text("Place All Orders")
                                 .font(.system(size: 16, weight: .bold))

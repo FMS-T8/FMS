@@ -6,7 +6,8 @@ import SwiftUI
 
 public struct MaintenanceDashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
-    var woStore: WorkOrderStore
+    @State var woStore: WorkOrderStore
+    @State var invStore = InventoryStore()
     @State private var showingCreateWO = false
     @State private var selectedFilter  = "All"
     
@@ -43,9 +44,6 @@ public struct MaintenanceDashboardView: View {
             : FMSTheme.cardBackground
     }
 
-    init(woStore: WorkOrderStore = WorkOrderStore()) {
-        self.woStore = woStore
-    }
 
     public var body: some View {
         NavigationStack {
@@ -74,7 +72,9 @@ public struct MaintenanceDashboardView: View {
                             .padding(.horizontal, 16)
 
                             // Low Stock Banner
-                            lowStockBanner
+                            if invStore.lowStockParts.count > 0 {
+                                lowStockBanner
+                            }
 
                             // Work Orders Section
                             workOrdersSection
@@ -100,6 +100,7 @@ public struct MaintenanceDashboardView: View {
         }
         .task {
             await woStore.fetchWorkOrders()
+            await invStore.fetchParts()
         }
     }
 
@@ -113,7 +114,8 @@ public struct MaintenanceDashboardView: View {
                     .foregroundColor(FMSTheme.amberDark).font(.system(size: 17, weight: .semibold))
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text("3 Parts Low on Stock")
+                let lowCount = invStore.lowStockParts.count
+                Text("\(lowCount) Part\(lowCount == 1 ? "" : "s") Low on Stock")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : FMSTheme.textPrimary)
                 Text("Reorder required to maintain fleet uptime")
@@ -295,10 +297,14 @@ struct DashWOCard: View {
                             .foregroundColor(order.priority.color)
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(order.woNumber)
+                        let parts = order.vehicle.components(separatedBy: " · ")
+                        let plate = parts.count > 1 ? parts.last! : order.vehicle
+                        let makeModel = parts.first ?? order.vehicle
+                        
+                        Text(plate)
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(colorScheme == .dark ? .white : FMSTheme.textPrimary)
-                        Text(order.vehicle)
+                        Text(makeModel)
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(FMSTheme.alertOrange)
                             .lineLimit(1)
@@ -356,6 +362,6 @@ struct DashWOCard: View {
 // MARK: - Previews
 // ─────────────────────────────────────────────
 
-#Preview("Light") { MaintenanceDashboardView() }
-#Preview("Dark")  { MaintenanceDashboardView().colorScheme(.dark) }
+#Preview("Light") { MaintenanceDashboardView(woStore: WorkOrderStore()) }
+#Preview("Dark")  { MaintenanceDashboardView(woStore: WorkOrderStore()).colorScheme(.dark) }
 

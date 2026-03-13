@@ -191,9 +191,14 @@ struct DefectDetailView: View {
                 Task {
                     do {
                         let insertedWO = try await woStore.addItem(WOItem(from: newWO))
-                        await MainActor.run {
-                            defect.linkedWorkOrderId = insertedWO.id
-                            store.update(defect)
+                        defect.linkedWorkOrderId = insertedWO.id
+                        do {
+                            try await store.update(defect)
+                        } catch {
+                            // rollback logic
+                            print("Error linking WO, rolling back..")
+                            _ = try? await woStore.delete(id: insertedWO.id) // Need to verify error / API of delete
+                            throw error
                         }
                     } catch {
                         print("Error creating WO and linking to defect details: \(error)")

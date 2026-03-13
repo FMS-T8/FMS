@@ -21,8 +21,11 @@ public struct CreateDefectView: View {
         default:       return FMSTheme.alertGreen
         }
     }
-
-    public init() {}
+    var onAdd: ((MaintenanceWorkOrder) -> Void)?
+    
+    public init(onAdd: ((MaintenanceWorkOrder) -> Void)? = nil) {
+        self.onAdd = onAdd
+    }
 
     public var body: some View {
         NavigationStack {
@@ -167,8 +170,8 @@ public struct CreateDefectView: View {
     private func submitWorkOrder() {
         let newWO = MaintenanceWorkOrder(
             id: UUID().uuidString,
-            vehicleId: vehicleId.isEmpty ? nil : vehicleId,
-            createdBy: "Maintenance Tech",
+            vehicleId: vehicleId,
+            createdBy: authViewModel.currentUser?.name ?? "Maintenance Tech",
             assignedTo: nil,
             description: defectDescription.isEmpty ? nil : defectDescription,
             priority: selectedPriority,
@@ -177,7 +180,7 @@ public struct CreateDefectView: View {
             createdAt: Date(),
             completedAt: nil
         )
-        print("✅ Created WO: \(newWO)")
+        onAdd?(newWO)
         dismiss()
     }
 }

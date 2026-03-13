@@ -36,9 +36,13 @@ struct WODetailView: View {
                             .padding(10).background(Color.gray.opacity(0.1)).clipShape(Circle())
                     }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(wo.woNumber).font(.headline.weight(.bold))
+                        let parts = wo.vehicle.components(separatedBy: " · ")
+                        let plate = parts.count > 1 ? parts.last! : wo.vehicle
+                        let makeModel = parts.first ?? wo.vehicle
+
+                        Text(plate).font(.headline.weight(.bold))
                             .foregroundColor(colorScheme == .dark ? .white : FMSTheme.textPrimary)
-                        Text(wo.vehicle).font(.caption).foregroundColor(FMSTheme.textSecondary).lineLimit(1)
+                        Text(makeModel).font(.caption).foregroundColor(FMSTheme.textSecondary).lineLimit(1)
                     }
                     Spacer()
                     HStack(spacing: 4) {
@@ -269,14 +273,20 @@ struct WODetailView: View {
                                             )
                                             
                                             // Deduct stock from the inventory using negative reorder quantity
-                                            invStore.reorder(part: selectedItem, quantity: -qty)
-                                            
-                                            store.addPartUsed(part, to: wo.id)
-                                            withAnimation { wo.partsUsed.append(part) }
-                                            
-                                            // Reset
-                                            selectedPartId = nil; puQty = "1"; puCost = ""
-                                            showingAddPart = false
+                                            Task {
+                                                do {
+                                                    try await invStore.reorder(part: selectedItem, quantity: -qty)
+                                                    store.addPartUsed(part, to: wo.id)
+                                                    await MainActor.run {
+                                                        withAnimation { wo.partsUsed.append(part) }
+                                                        // Reset
+                                                        selectedPartId = nil; puQty = "1"; puCost = ""
+                                                        showingAddPart = false
+                                                    }
+                                                } catch {
+                                                    print("Error logging part/reordering: \(error)")
+                                                }
+                                            }
                                         } label: {
                                             Text(invStore.parts.first(where:{ $0.id == selectedPartId })?.stock == 0 ? "Out of Stock" : "Log Part")
                                                 .font(.system(size: 14, weight: .bold)).foregroundColor(.black)
@@ -372,7 +382,16 @@ struct WODetailView: View {
         .navigationBarHidden(true)
         .alert("Delete Work Order", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) { store.delete(id: wo.id); dismiss() }
+            Button("Delete", role: .destructive) {
+                Task {
+                    do {
+                        try await store.delete(id: wo.id)
+                        await MainActor.run { dismiss() }
+                    } catch {
+                        print("Error deleting work order: \(error)")
+                    }
+                }
+            }
         } message: { Text("Remove \(wo.woNumber)? This cannot be undone.") }
         .alert("Complete Job", isPresented: $showingCompleteAlert) {
             Button("Cancel", role: .cancel) {}

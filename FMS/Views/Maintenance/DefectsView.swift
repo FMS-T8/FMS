@@ -184,7 +184,11 @@ struct DefectCardView: View {
                     Image(systemName: "box.truck")
                         .font(.system(size: 11))
                         .foregroundColor(FMSTheme.textTertiary)
-                    Text(defect.vehicle)
+                    
+                    let parts = defect.vehicle.components(separatedBy: " · ")
+                    let plate = parts.count > 1 ? parts.last! : defect.vehicle
+                    
+                    Text(plate)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(FMSTheme.textSecondary)
                     Spacer()
@@ -235,9 +239,11 @@ struct DefectCardView: View {
                     do {
                         let insertedWO = try await woStore.addItem(WOItem(from: newWO))
                         // Now physically link it in Supabase since WO exists
+                        var updatedDefect = defect
+                        updatedDefect.linkedWorkOrderId = insertedWO.id
+                        try await store.update(updatedDefect)
                         await MainActor.run {
-                            defect.linkedWorkOrderId = insertedWO.id
-                            store.update(defect)
+                            defect = updatedDefect
                         }
                     } catch {
                         print("Failed to cascade WO insertion to defect link: \(error)")

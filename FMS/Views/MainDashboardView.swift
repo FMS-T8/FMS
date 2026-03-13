@@ -41,8 +41,8 @@ public struct MainDashboardView: View {
                     Spacer().frame(height: 40)
                     
                     Button("Logout") {
-                        withAnimation {
-                            authViewModel.logout()
+                        Task {
+                            await authViewModel.logout()
                         }
                     }
                     .buttonStyle(.fmsPrimary)

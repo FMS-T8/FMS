@@ -63,13 +63,24 @@ struct EditPartView: View {
                         }
 
                         Button {
-                            part.name = name.isEmpty ? part.name : name
-                            part.partNumber = partNumber.isEmpty ? part.partNumber : partNumber
-                            if let s = Int(stock) { part.stock = s }
-                            if let m = Int(minStock) { part.minStock = m }
-                            part.unitCost = Double(unitCost)
-                            store.updatePart(part)
-                            dismiss()
+                            var updatedPart = part
+                            updatedPart.name = name.isEmpty ? updatedPart.name : name
+                            updatedPart.partNumber = partNumber.isEmpty ? updatedPart.partNumber : partNumber
+                            if let s = Int(stock) { updatedPart.stock = s }
+                            if let m = Int(minStock) { updatedPart.minStock = m }
+                            updatedPart.unitCost = Double(unitCost)
+
+                            Task {
+                                do {
+                                    try await store.updatePart(updatedPart)
+                                    await MainActor.run {
+                                        part = updatedPart
+                                        dismiss()
+                                    }
+                                } catch {
+                                    print("Error updating part: \(error)")
+                                }
+                            }
                         } label: {
                             Text("Save Changes")
                                 .font(.system(size: 16, weight: .bold))

@@ -48,7 +48,7 @@ struct CreateWorkOrderView: View {
                                         Picker("Select Vehicle", selection: $vehicle) {
                                             Text("Select a vehicle").tag("")
                                             ForEach(vehicles) { v in
-                                                Text("\(v.manufacturer ?? "Unknown") \(v.model ?? "Truck") · \(v.plateNumber)").tag(v.id)
+                                                Text(v.plateNumber).tag(v.id)
                                             }
                                         }
                                         .pickerStyle(.menu)
