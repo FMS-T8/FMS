@@ -31,27 +31,28 @@ public struct FleetManagerDashboardView: View {
 // MARK: - Home Tab Content
 struct FleetManagerHomeTab: View {
     @State private var navigateToLiveFleet = false
-    
+    @State private var navigateToPreTrip = false
+    @State private var navigateToPostTrip = false
+
     // Mock data
     private let managerName = "Manager"
     private let activeVehicles = 14
     private let pendingOrders = 12
-    
+
     private let alerts: [(title: String, subtitle: String, timeAgo: String, type: AlertType)] = [
         ("Tyre pressure warning", "Truck #402 reported low pressure in rear-left tyre.", "12m ago", .warning),
         ("Driver break scheduled", "Driver David R. is reaching mandatory rest limit in 15 mins.", "45m ago", .info),
         ("Geofence deviation", "Truck #109 exited the designated route area in North District.", "1h ago", .critical)
     ]
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Header
                     headerSection
-                    
+
                     // Fleet Status Card
-                    // Tapping the card's action (or View All) now triggers the navigation
                     FleetStatusCard(
                         activeCount: activeVehicles,
                         subtitle: "Vehicles in transit",
@@ -59,7 +60,7 @@ struct FleetManagerHomeTab: View {
                             navigateToLiveFleet = true
                         }
                     )
-                    
+
                     // Quick Actions
                     QuickActionCard(
                         icon: "shippingbox.fill",
@@ -69,7 +70,10 @@ struct FleetManagerHomeTab: View {
                             // Navigate to orders
                         }
                     )
-                    
+
+                    // Inspection Actions
+                    inspectionSection
+
                     // Recent Alerts Section
                     alertsSection
                 }
@@ -77,9 +81,14 @@ struct FleetManagerHomeTab: View {
                 .padding(.top, 16)
             }
             .background(FMSTheme.backgroundPrimary)
-            // Maps the boolean to the destination screen cleanly
             .navigationDestination(isPresented: $navigateToLiveFleet) {
                 LiveVehicleDashboardView()
+            }
+            .fullScreenCover(isPresented: $navigateToPreTrip) {
+                InspectionChecklistView(type: .preTrip)
+            }
+            .fullScreenCover(isPresented: $navigateToPostTrip) {
+                InspectionChecklistView(type: .postTrip)
             }
         }
     }
@@ -129,6 +138,29 @@ struct FleetManagerHomeTab: View {
         }
     }
     
+    // MARK: - Inspection Section
+    private var inspectionSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Vehicle Inspections")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(FMSTheme.textPrimary)
+
+            QuickActionCard(
+                icon: "checkmark.shield.fill",
+                title: "Pre-trip Inspection",
+                subtitle: "Complete before starting a route",
+                action: { navigateToPreTrip = true }
+            )
+
+            QuickActionCard(
+                icon: "flag.checkered",
+                title: "Post-trip Inspection",
+                subtitle: "Log vehicle condition after route",
+                action: { navigateToPostTrip = true }
+            )
+        }
+    }
+
     private var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d"
