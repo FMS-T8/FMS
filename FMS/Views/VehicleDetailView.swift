@@ -47,16 +47,26 @@ public struct VehicleDetailView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         if onUpdate != nil {
-                            Button("Edit Vehicle") {
+                            Button {
                                 showingEditVehicle = true
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "pencil")
+                                    Text("Edit Vehicle")
+                                }
                             }
+                            .tint(.white)
                         }
                         if onDelete != nil {
                             Button(role: .destructive) {
                                 showingDeleteConfirm = true
                             } label: {
-                                Text("Delete Vehicle")
+                                HStack(spacing: 8) {
+                                    Image(systemName: "trash")
+                                    Text("Delete Vehicle")
+                                }
                             }
+                            .tint(.red)
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
