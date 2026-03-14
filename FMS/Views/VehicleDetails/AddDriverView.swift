@@ -1,4 +1,3 @@
-
 //
 //  AddDriverView.swift
 //  FMS
@@ -38,16 +37,30 @@ private func fetchCountries() async throws -> [CountryDialCode] {
   let (data, _) = try await URLSession.shared.data(from: url)
   let raw = try JSONDecoder().decode([CountryAPIResponse].self, from: data)
 
-  return raw.compactMap { entry in
+  // FIX: Expand multi-suffix countries into individual CountryDialCode entries
+  // so that regional prefixes (e.g. +7 700–799 for Kazakhstan vs +7 9xx for Russia)
+  // are all selectable in the picker rather than silently truncated to the root.
+  return raw.flatMap { entry -> [CountryDialCode] in
     guard
       let root = entry.idd?.root,
       let suffixes = entry.idd?.suffixes,
       !root.isEmpty,
       !suffixes.isEmpty
-    else { return nil }
+    else { return [] }
 
-    let dialCode = suffixes.count == 1 ? root + suffixes[0] : root
-    return CountryDialCode(name: entry.name.common, code: dialCode)
+    if suffixes.count == 1 {
+      // Single suffix: straightforward combination (e.g. "+44" for UK)
+      return [CountryDialCode(name: entry.name.common, code: root + suffixes[0])]
+    } else {
+      // Multiple suffixes: produce one entry per suffix so every regional prefix
+      // is individually selectable (e.g. Russia "+7 9xx", Kazakhstan "+7 7xx").
+      return suffixes.map { suffix in
+        CountryDialCode(
+          name: "\(entry.name.common) (\(root)\(suffix))",
+          code: root + suffix
+        )
+      }
+    }
   }
   .sorted { $0.name < $1.name }
 }
