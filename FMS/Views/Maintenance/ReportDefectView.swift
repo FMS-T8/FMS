@@ -202,21 +202,24 @@ struct ReportDefectView: View {
         }
     }
 
-    private func loadVehicles() async {
-        guard vehicles.isEmpty else { return }
-        loadingVehicles = true
-        do {
-            let fetched: [Vehicle] = try await SupabaseService.shared.client
-                .from("vehicles")
-                .select()
-                .execute()
-                .value
-            await MainActor.run { self.vehicles = fetched }
-        } catch {
-            print("Error loading vehicles: \(error)")
+  private func loadVehicles() async {
+    guard vehicles.isEmpty else { return }
+    await MainActor.run { loadingVehicles = true }
+    do {
+        let fetched: [Vehicle] = try await SupabaseService.shared.client
+            .from("vehicles")
+            .select()
+            .execute()
+            .value
+        await MainActor.run {
+            self.vehicles = fetched
+            self.loadingVehicles = false
         }
-        loadingVehicles = false
+    } catch {
+        print("Error loading vehicles: \(error)")
+        await MainActor.run { loadingVehicles = false }
     }
+}
 
     private func submit() {
         guard !isSubmitting else { return }

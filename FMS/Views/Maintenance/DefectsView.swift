@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct DefectsView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State var store: DefectStore
+    @State private var store: DefectStore
     var woStore: WorkOrderStore
     @State private var selectedFilter  = "All"
     @State private var searchText      = ""
@@ -131,7 +131,7 @@ public struct DefectsView: View {
 
 // MARK: - Defect Card
 struct DefectCardView: View {
-    @State var defect: DefectItem
+    @State  var defect: DefectItem
     let store: DefectStore
     let woStore: WorkOrderStore
     @Environment(\.colorScheme) private var colorScheme

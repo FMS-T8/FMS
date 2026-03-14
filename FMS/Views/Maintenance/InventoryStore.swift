@@ -74,8 +74,8 @@ class InventoryStore {
     // MARK: - Supabase CRUD
     
     func fetchParts() async {
-        isLoading = true
-        defer { isLoading = false }
+        await MainActor.run { isLoading = true }
+defer { Task { await MainActor.run { self.isLoading = false } } }
         
         do {
             let fetchedParts: [PartsInventory] = try await SupabaseService.shared.client

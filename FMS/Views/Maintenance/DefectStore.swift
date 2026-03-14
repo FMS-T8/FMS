@@ -120,8 +120,8 @@ class DefectStore {
     // MARK: - Supabase CRUD
 
     func fetchDefects() async {
-        isLoading = true
-        defer { isLoading = false }
+        await MainActor.run { isLoading = true }
+defer { Task { await MainActor.run { self.isLoading = false } } }
 
         do {
             async let fetchedDefectsTask: [Defect] = try SupabaseService.shared.client
@@ -229,7 +229,7 @@ class DefectStore {
     // Legacy helpers
     func add(_ defect: DefectItem) async throws {
         try await addDefect(defect)
-    };
+    }
     func update(_ defect: DefectItem) async throws { try await updateDefect(defect) }
     func delete(id: UUID) async throws { try await deleteDefect(id: id) }
 }
