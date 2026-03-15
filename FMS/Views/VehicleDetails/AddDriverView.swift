@@ -100,6 +100,9 @@ struct AddDriverView: View {
 
   // Form State
   @State private var phoneDigits = ""
+  @State private var showingScanner = false
+  @State private var showingReview = false
+  @State private var reviewDraft = DriverLicenseReviewData()
 
   // Country State
   @State private var countries: [CountryDialCode] = []
@@ -239,6 +242,27 @@ struct AddDriverView: View {
             // License Verification
             SectionGroup(title: "License Verification") {
               VStack(spacing: 16) {
+                Button {
+                  showingScanner = true
+                } label: {
+                  HStack(spacing: 10) {
+                    Image(systemName: "viewfinder")
+                    Text("Scan Driver License")
+                      .font(.subheadline.weight(.semibold))
+                  }
+                  .frame(maxWidth: .infinity)
+                  .padding(.vertical, 12)
+                  .foregroundStyle(FMSTheme.textPrimary)
+                  .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                      .fill(FMSTheme.cardBackground)
+                  )
+                  .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                      .strokeBorder(FMSTheme.borderLight, lineWidth: 1)
+                  )
+                }
+
                 FormField(label: "License Number", text: $viewModel.licenseNumber, placeholder: "DL-XXXXXXX")
                 
                 VStack(alignment: .leading, spacing: 6) {
@@ -295,6 +319,14 @@ struct AddDriverView: View {
     .task {
       await loadCountries()
     }
+    .fullScreenCover(isPresented: $showingScanner) {
+      DriverLicenseScannerView(onExtracted: handleScannedLicense(_:))
+    }
+    .sheet(isPresented: $showingReview) {
+      DriverLicenseReviewView(draft: $reviewDraft) {
+        viewModel.applyScannedLicense(reviewDraft)
+      }
+    }
   }
 
   // MARK: - Country Loading
@@ -322,6 +354,16 @@ struct AddDriverView: View {
       ]
       selectedCountry = countries.first
     }
+  }
+
+  private func handleScannedLicense(_ extracted: DriverLicenseScanResult) {
+    reviewDraft = DriverLicenseReviewData(
+      fullName: extracted.fullName,
+      licenseNumber: extracted.licenseNumber,
+      dateOfBirth: extracted.dateOfBirth,
+      expiryDate: extracted.expiryDate ?? reviewDraft.expiryDate
+    )
+    showingReview = true
   }
 }
 

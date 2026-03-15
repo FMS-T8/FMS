@@ -7,6 +7,7 @@ struct DriverHomeTab: View {
     @State private var preTripInspectionCompleted = false
     @State private var postTripInspectionCompleted = false
     @State private var showIssueReport = false
+    @State private var showFuelReceipt = false
     @State private var showProfile = false
     @State private var selectedTrip: Trip?
 
@@ -50,6 +51,9 @@ struct DriverHomeTab: View {
             }
             .sheet(isPresented: $showIssueReport) {
                 IssueReportView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showFuelReceipt) {
+                FuelReceiptScannerEntryView(tripID: viewModel.currentJob?.id)
             }
             .sheet(isPresented: $showProfile) {
                 DriverProfileTab(viewModel: viewModel)
@@ -223,6 +227,13 @@ struct DriverHomeTab: View {
                 title: "Report Issue",
                 subtitle: "Report a vehicle problem",
                 action: { showIssueReport = true }
+            )
+
+            QuickActionCard(
+                icon: "fuelpump.fill",
+                title: "Log Fuel Receipt",
+                subtitle: "Scan and submit fueling details",
+                action: { showFuelReceipt = true }
             )
         }
     }

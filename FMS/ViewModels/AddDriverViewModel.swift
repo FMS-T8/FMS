@@ -15,6 +15,7 @@ class AddDriverViewModel: ObservableObject {
     @Published var email = ""
     @Published var phone = ""
     @Published var licenseNumber = ""
+    @Published var dateOfBirth: Date?
     // Default to tomorrow so the field is valid out-of-the-box and the
     // DatePicker's in: Date()... range is immediately satisfied.
     @Published var licenseExpiry = Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
@@ -45,6 +46,13 @@ class AddDriverViewModel: ObservableObject {
         let isExpiryValid = expiryDay >= today
 
         return isNameValid && isEmailValid && isLicenseValid && isExpiryValid
+    }
+
+    func applyScannedLicense(_ result: DriverLicenseReviewData) {
+        name = result.fullName
+        licenseNumber = result.licenseNumber
+        licenseExpiry = result.expiryDate
+        dateOfBirth = result.dateOfBirth
     }
 
     func createDriver(onSuccess: @escaping () -> Void) async {
