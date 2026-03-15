@@ -61,6 +61,9 @@ public struct NewTripAssignmentView: View {
                     // Stats
                     statsSection
                     
+                    // Assigned Vehicle
+                    assignedVehicleCard
+                    
                     // Itinerary
                     itinerarySection
                     
@@ -265,6 +268,80 @@ public struct NewTripAssignmentView: View {
         }
     }
     
+    // MARK: - Assigned Vehicle Card
+    
+    @ViewBuilder
+    private var assignedVehicleCard: some View {
+        if let vehicle = viewModel.assignedVehicle {
+            HStack(spacing: 16) {
+                // Icon
+                ZStack {
+                    if #available(iOS 26, *) {
+                        FMSTheme.amber.opacity(0.15)
+                            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                    } else {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(FMSTheme.pillBackground)
+                    }
+                    
+                    Image(systemName: "box.truck.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(FMSTheme.amberDark)
+                }
+                .frame(width: 48, height: 48)
+                
+                // Typography & Plate
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("ASSIGNED VEHICLE")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(FMSTheme.textTertiary)
+                        .kerning(0.5)
+                    
+                    Text("\(vehicle.manufacturer ?? "Unknown") \(vehicle.model ?? "")".trimmingCharacters(in: .whitespaces))
+                        .font(.title3.weight(.bold))
+                        .foregroundColor(FMSTheme.textPrimary)
+                        .lineLimit(1)
+                    
+                    // License Plate Badge
+                    Text(vehicle.plateNumber)
+                        .font(.system(.caption, design: .monospaced).bold())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(FMSTheme.alertYellow)
+                        .foregroundColor(.black)
+                        .cornerRadius(4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                        )
+                }
+                
+                Spacer(minLength: 0)
+                
+                // Status Indicator
+                if let status = vehicle.status {
+                    Text(status.capitalized)
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(FMSTheme.statusColor(for: status).opacity(0.12))
+                        .foregroundColor(FMSTheme.statusColor(for: status))
+                        .cornerRadius(6)
+                }
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(FMSTheme.cardBackground)
+                    .shadow(color: FMSTheme.shadowLarge, radius: 6, x: 0, y: 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(FMSTheme.borderLight, lineWidth: 0.5)
+                    )
+            )
+        }
+    }
+    
     // MARK: - Trip Info Card
 
     private var tripInfoCard: some View {
@@ -274,7 +351,6 @@ public struct NewTripAssignmentView: View {
                 .foregroundStyle(FMSTheme.textPrimary)
 
             infoRow(label: "Trip ID", value: trip.id.uppercased())
-            infoRow(label: "Vehicle", value: viewModel.assignedVehicle?.plateNumber ?? "—")
             infoRow(label: "Status", value: trip.statusLabel, valueColor: FMSTheme.statusColor(for: trip.status ?? ""))
 
             if let start = trip.startTime {
