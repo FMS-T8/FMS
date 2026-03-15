@@ -33,6 +33,7 @@ public struct VehicleDetailView: View {
                     pastTripsSection
                     serviceSection
                     incidentsSection
+                    documentsSection
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
@@ -97,6 +98,16 @@ public struct VehicleDetailView: View {
                     incidents: viewModel.incidents,
                     isLoading: viewModel.isLoadingEvents,
                     errorMessage: viewModel.incidentsErrorMessage
+                )
+            case .documents:
+                VehicleDocumentsView(
+                    vehicleId: currentVehicle.id,
+                    documents: viewModel.documents,
+                    isLoading: viewModel.isLoadingDocuments,
+                    errorMessage: viewModel.documentsErrorMessage,
+                    onDocumentSaved: {
+                        Task { await viewModel.fetch(vehicleId: currentVehicle.id) }
+                    }
                 )
             }
         }
@@ -227,6 +238,61 @@ public struct VehicleDetailView: View {
             isLoading: viewModel.isLoadingEvents,
             target: .incidents
         )
+    }
+
+    private var documentsSection: some View {
+        let valid = viewModel.documents.filter { $0.documentStatus == .valid }.count
+        let total = kDocumentSlots.count  // Always 5 fixed slots
+
+        return Button {
+            navTarget = .documents
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Documents")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(FMSTheme.textPrimary)
+                    Spacer()
+                    if viewModel.isLoadingDocuments {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: FMSTheme.textSecondary))
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(FMSTheme.textTertiary)
+                }
+
+                HStack {
+                    Text("\(valid)/\(total) Documents Valid")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(FMSTheme.textSecondary)
+                    Spacer()
+                }
+
+                // Progress bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(FMSTheme.borderLight)
+                            .frame(height: 7)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(FMSTheme.amber)
+                            .frame(
+                                width: total > 0
+                                    ? geo.size.width * CGFloat(valid) / CGFloat(total)
+                                    : 0,
+                                height: 7
+                            )
+                    }
+                }
+                .frame(height: 7)
+            }
+            .padding(16)
+            .background(FMSTheme.cardBackground)
+            .cornerRadius(16)
+            .shadow(color: FMSTheme.shadowSmall, radius: 6, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
     }
     
     private func tripCard(_ trip: Trip) -> some View {
@@ -673,7 +739,8 @@ enum DetailSectionTarget: String, Identifiable {
     case pastTrips
     case serviceHistory
     case incidents
-    
+    case documents
+
     var id: String { rawValue }
 }
 

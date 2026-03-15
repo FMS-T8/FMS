@@ -7,12 +7,15 @@ public class VehicleDetailViewModel {
     public var trips: [Trip] = []
     public var workOrders: [MaintenanceWorkOrder] = []
     public var incidents: [Incident] = []
+    public var documents: [VehicleDocument] = []
     public var isLoadingTrips = false
     public var isLoadingWorkOrders = false
     public var isLoadingEvents = false
+    public var isLoadingDocuments = false
     public var tripsErrorMessage: String? = nil
     public var workOrdersErrorMessage: String? = nil
     public var incidentsErrorMessage: String? = nil
+    public var documentsErrorMessage: String? = nil
     public init() {}
     
     @MainActor
@@ -20,9 +23,11 @@ public class VehicleDetailViewModel {
         trips = []
         workOrders = []
         incidents = []
+        documents = []
         tripsErrorMessage = nil
         workOrdersErrorMessage = nil
         incidentsErrorMessage = nil
+        documentsErrorMessage = nil
         await withTaskGroup(of: Void.self) { group in
             group.addTask { [weak self] in
                 await self?.fetchTrips(vehicleId: vehicleId)
@@ -32,6 +37,9 @@ public class VehicleDetailViewModel {
             }
             group.addTask { [weak self] in
                 await self?.fetchIncidents(vehicleId: vehicleId)
+            }
+            group.addTask { [weak self] in
+                await self?.fetchDocuments(vehicleId: vehicleId)
             }
         }
     }
@@ -97,6 +105,27 @@ public class VehicleDetailViewModel {
         } catch {
             incidentsErrorMessage = error.localizedDescription
             print("Error fetching incidents: \(error)")
+        }
+    }
+
+    @MainActor
+    private func fetchDocuments(vehicleId: String) async {
+        isLoadingDocuments = true
+        defer { isLoadingDocuments = false }
+
+        do {
+            let fetched: [VehicleDocument] = try await SupabaseService.shared.client
+                .from("vehicle_documents")
+                .select()
+                .eq("vehicle_id", value: vehicleId)
+                .order("document_type", ascending: true)
+                .execute()
+                .value
+            documents = fetched
+            documentsErrorMessage = nil
+        } catch {
+            documentsErrorMessage = error.localizedDescription
+            print("Error fetching documents: \(error)")
         }
     }
 }
