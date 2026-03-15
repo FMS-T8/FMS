@@ -29,7 +29,7 @@ struct DriverTripsTab: View {
             }
             .background(FMSTheme.backgroundPrimary)
             .navigationDestination(item: $selectedTrip) { trip in
-                DriverTripDetailView(trip: trip, viewModel: viewModel)
+                NewTripAssignmentView(trip: trip, viewModel: viewModel)
             }
         }
     }
