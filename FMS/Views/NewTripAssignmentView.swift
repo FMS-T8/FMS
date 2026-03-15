@@ -10,18 +10,43 @@ import CoreLocation
 
 // Note: To show interactivity, let's make this view dynamic!
 public struct NewTripAssignmentView: View {
-    @State private var isConfirmed = false
-    @State private var distance: String = "24.5 mi"
-    @State private var duration: String = "1h 15m"
+    let trip: Trip
+    @Bindable var viewModel: DriverDashboardViewModel
+    @Environment(\.dismiss) private var dismiss
     
-    // Hardcoded mock data to simulate dynamic fetching
-    @State private var activeStops: [MockStop] = [
-        MockStop(title: "123 Logistics Way", address: "San Francisco, CA 94105", expectedTime: "09:00 AM Expected", stopType: .pickup, coordinate: CLLocationCoordinate2D(latitude: 37.7876, longitude: -122.3966)),
-        MockStop(title: "456 Commerce St", address: "Oakland, CA 94607", expectedTime: "10:15 AM Expected", stopType: .dropOff, coordinate: CLLocationCoordinate2D(latitude: 37.8044, longitude: -122.2712)),
-        MockStop(title: "789 Distribution Hub", address: "San Mateo, CA 94401", expectedTime: "11:45 AM Expected", stopType: .pickup, coordinate: CLLocationCoordinate2D(latitude: 37.5630, longitude: -122.3255))
-    ]
+    @State private var showIssueReport = false
+    @State private var showPreTripInspection = false
+    @State private var showPostTripInspection = false
+    @State private var preTripInspectionCompleted = false
+    @State private var postTripInspectionCompleted = false
     
-    public init() {}
+    private var activeStops: [MockStop] {
+        var stops: [MockStop] = []
+        if let startLat = trip.startLat, let startLng = trip.startLng {
+            stops.append(MockStop(
+                title: trip.startName ?? "Origin",
+                address: "",
+                expectedTime: trip.startTime.map { formatDateTime($0) } ?? "Scheduled",
+                stopType: .pickup,
+                coordinate: CLLocationCoordinate2D(latitude: startLat, longitude: startLng)
+            ))
+        }
+        if let endLat = trip.endLat, let endLng = trip.endLng {
+            stops.append(MockStop(
+                title: trip.endName ?? "Destination",
+                address: "",
+                expectedTime: trip.endTime.map { formatDateTime($0) } ?? "Estimated",
+                stopType: .dropOff,
+                coordinate: CLLocationCoordinate2D(latitude: endLat, longitude: endLng)
+            ))
+        }
+        return stops
+    }
+    
+    public init(trip: Trip, viewModel: DriverDashboardViewModel) {
+        self.trip = trip
+        self.viewModel = viewModel
+    }
     
     public var body: some View {
         NavigationStack {
@@ -40,7 +65,13 @@ public struct NewTripAssignmentView: View {
                     // Itinerary
                     itinerarySection
                     
-                    // Bottom padding to ensure last item clears the button
+                    // Trip details embedded
+                    tripInfoCard
+                    if trip.shipmentDescription != nil {
+                        shipmentCard
+                    }
+                    
+                    // Bottom padding to ensure last item clears the active buttons
                     Spacer().frame(height: 40)
                 }
                 .padding(16)
@@ -51,9 +82,9 @@ public struct NewTripAssignmentView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(action: {
-                        // Dismiss action or equivalent
+                        dismiss()
                     }) {
-                        Image(systemName: "xmark")
+                        Image(systemName: "chevron.left")
                             .font(.body.weight(.bold))
                             .foregroundColor(FMSTheme.textPrimary)
                     }
@@ -62,23 +93,110 @@ public struct NewTripAssignmentView: View {
             .safeAreaInset(edge: .bottom) {
                 bottomStickyButton
             }
+            .sheet(isPresented: $showIssueReport) {
+                IssueReportView(viewModel: viewModel)
+            }
+            .fullScreenCover(isPresented: $showPreTripInspection) {
+                InspectionChecklistView(
+                    type: .preTrip,
+                    vehicleId: viewModel.assignedVehicle?.id ?? "VH-001",
+                    driverId: viewModel.driver.id,
+                    onCompletion: {
+                        preTripInspectionCompleted = true
+                    }
+                )
+            }
+            .fullScreenCover(isPresented: $showPostTripInspection) {
+                InspectionChecklistView(
+                    type: .postTrip,
+                    vehicleId: viewModel.assignedVehicle?.id ?? "VH-001",
+                    driverId: viewModel.driver.id,
+                    onCompletion: {
+                        postTripInspectionCompleted = true
+                    }
+                )
+            }
+            .onChange(of: showPreTripInspection) { _, isShowing in
+                if !isShowing {
+                    if preTripInspectionCompleted {
+                        viewModel.startTrip(trip)
+                        dismiss()
+                    }
+                    preTripInspectionCompleted = false
+                }
+            }
+            .onChange(of: showPostTripInspection) { _, isShowing in
+                if !isShowing {
+                    if postTripInspectionCompleted {
+                        viewModel.endTrip()
+                        dismiss()
+                    }
+                    postTripInspectionCompleted = false
+                }
+            }
         }
     }
     
     @ViewBuilder
     private var bottomStickyButton: some View {
-        let buttonContent = VStack {
-            Button(action: {
-                withAnimation {
-                    isConfirmed.toggle()
+        let buttonContent = VStack(spacing: 10) {
+            if trip.status?.lowercased() == "scheduled" {
+                Button {
+                    preTripInspectionCompleted = false
+                    showPreTripInspection = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Start Trip")
+                            .font(.headline.weight(.bold))
+                    }
                 }
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: isConfirmed ? "checkmark.seal.fill" : "checkmark.circle")
-                    Text(isConfirmed ? "Trip Assigned" : "Confirm Trip Assignment")
+                .buttonStyle(.fmsPrimary)
+            } else if trip.status?.lowercased() == "active" {
+                Button {
+                    postTripInspectionCompleted = false
+                    showPostTripInspection = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "flag.checkered")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("End Trip")
+                            .font(.headline.weight(.bold))
+                    }
                 }
+                .buttonStyle(.fmsPrimary)
+
+                Button {
+                    showIssueReport = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.bubble.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Report Issue")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .foregroundStyle(FMSTheme.amber)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(FMSTheme.amber.opacity(0.12))
+                    .cornerRadius(14)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(FMSTheme.amber.opacity(0.3), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button(action: {}) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill")
+                        Text("Trip Completed")
+                    }
+                }
+                .buttonStyle(.fmsPrimary)
+                .disabled(true)
             }
-            .buttonStyle(.fmsPrimary)
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
@@ -101,13 +219,13 @@ public struct NewTripAssignmentView: View {
             TripStatCard(
                 iconName: "point.topleft.down.curvedto.point.bottomright.up",
                 title: "DISTANCE",
-                value: distance
+                value: trip.distanceKm.map { String(format: "%.0f km", $0) } ?? "--"
             )
             
             TripStatCard(
                 iconName: "clock",
                 title: "DURATION",
-                value: duration
+                value: (trip.actualDurationMin ?? trip.estimatedDurationMin)?.formattedDuration ?? "--"
             )
             
             TripStatCard(
@@ -148,5 +266,114 @@ public struct NewTripAssignmentView: View {
                     )
             )
         }
+    }
+    
+    // MARK: - Trip Info Card
+
+    private var tripInfoCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Trip Information")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(FMSTheme.textPrimary)
+
+            infoRow(label: "Trip ID", value: trip.id.uppercased())
+            infoRow(label: "Vehicle", value: viewModel.assignedVehicle?.plateNumber ?? "—")
+            infoRow(label: "Status", value: trip.statusLabel, valueColor: FMSTheme.statusColor(for: trip.status ?? ""))
+
+            if let start = trip.startTime {
+                infoRow(label: "Start Time", value: formatDateTime(start))
+            }
+
+            if let end = trip.endTime {
+                infoRow(label: "End Time", value: formatDateTime(end))
+            }
+
+            if let duration = trip.actualDurationMin ?? trip.estimatedDurationMin {
+                let label = trip.actualDurationMin != nil ? "Duration" : "Est. Duration"
+                infoRow(label: label, value: duration.formattedDuration)
+            }
+        }
+        .padding(16)
+        .background(FMSTheme.cardBackground)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(FMSTheme.borderLight, lineWidth: 1)
+        )
+    }
+
+    // MARK: - Shipment Card
+
+    private var shipmentCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Shipment Details")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(FMSTheme.textPrimary)
+
+            if let desc = trip.shipmentDescription {
+                infoRow(label: "Description", value: desc)
+            }
+
+            if let weight = trip.shipmentWeightKg {
+                infoRow(label: "Weight", value: String(format: "%.0f kg", weight))
+            }
+
+            if let count = trip.shipmentPackageCount {
+                infoRow(label: "Packages", value: "\(count)")
+            }
+
+            if trip.fragile == true {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(FMSTheme.alertOrange)
+                    Text("Fragile")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(FMSTheme.alertOrange)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(FMSTheme.alertOrange.opacity(0.12))
+                .cornerRadius(8)
+            }
+
+            if let instructions = trip.specialInstructions, !instructions.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Special Instructions")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(FMSTheme.textTertiary)
+                    Text(instructions)
+                        .font(.system(size: 14))
+                        .foregroundStyle(FMSTheme.textPrimary)
+                }
+            }
+        }
+        .padding(16)
+        .background(FMSTheme.cardBackground)
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(FMSTheme.borderLight, lineWidth: 1)
+        )
+    }
+
+    // MARK: - Helpers
+
+    private func infoRow(label: String, value: String, valueColor: Color = FMSTheme.textPrimary) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(FMSTheme.textSecondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(valueColor)
+        }
+    }
+
+    private func formatDateTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMM, h:mm a"
+        return formatter.string(from: date)
     }
 }
