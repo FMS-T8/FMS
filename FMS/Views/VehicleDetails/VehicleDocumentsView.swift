@@ -747,9 +747,9 @@ public struct VehicleDocumentDetailView: View {
                     dismiss()
                 }
             } catch {
-                print("🚨 SUPABASE INSERT ERROR DUMP 🚨")
-                print(String(describing: error))
-                print("👉 Localized: \(error.localizedDescription)")
+                #if DEBUG
+                print("🚨 Document save failed: \(error.localizedDescription)")
+                #endif
                 
                 await MainActor.run {
                     isUploading = false
