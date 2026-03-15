@@ -55,7 +55,7 @@ struct DriverHomeTab: View {
                 DriverProfileTab(viewModel: viewModel)
             }
             .navigationDestination(item: $selectedTrip) { trip in
-                DriverTripDetailView(trip: trip, viewModel: viewModel)
+                NewTripAssignmentView(trip: trip, viewModel: viewModel)
             }
             .onChange(of: showPreTripInspection) { _, isShowing in
                 if !isShowing {
