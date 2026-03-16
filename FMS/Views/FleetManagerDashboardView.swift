@@ -34,17 +34,12 @@ struct FleetManagerHomeTab: View {
     @State private var navigateToPreTrip = false
     @State private var navigateToPostTrip = false
     @State private var navigateToProfile = false
+    @State private var alertsViewModel = AlertsViewModel()
 
     // Mock data
     private let managerName = "Manager"
     private let activeVehicles = 14
     private let pendingOrders = 12
-
-    private let alerts: [(title: String, subtitle: String, timeAgo: String, type: AlertType)] = [
-        ("Tyre pressure warning", "Truck #402 reported low pressure in rear-left tyre.", "12m ago", .warning),
-        ("Driver break scheduled", "Driver David R. is reaching mandatory rest limit in 15 mins.", "45m ago", .info),
-        ("Geofence deviation", "Truck #109 exited the designated route area in North District.", "1h ago", .critical)
-    ]
 
     var body: some View {
         NavigationStack {
@@ -125,16 +120,31 @@ struct FleetManagerHomeTab: View {
     // MARK: - Alerts Section
     private var alertsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Alerts")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(FMSTheme.textPrimary)
+            HStack {
+                Text("Recent Alerts")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(FMSTheme.textPrimary)
+                
+                Spacer()
+                
+                Button("Simulate Breach") {
+                    withAnimation { alertsViewModel.triggerSimulatedBreach() }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(FMSTheme.alertRed)
+                
+                Button("Simulate Maint") {
+                    withAnimation { alertsViewModel.triggerPredictiveMaintenance() }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(FMSTheme.amberDark)
+            }
             
-            ForEach(alerts.indices, id: \.self) { index in
-                let alert = alerts[index]
+            ForEach(alertsViewModel.alerts) { alert in
                 AlertRow(
                     title: alert.title,
                     subtitle: alert.subtitle,
-                    timeAgo: alert.timeAgo,
+                    timeAgo: alertsViewModel.formattedTimeAgo(for: alert.timestamp),
                     type: alert.type
                 )
             }

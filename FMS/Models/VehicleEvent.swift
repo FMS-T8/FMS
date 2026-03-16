@@ -5,6 +5,7 @@ public enum EventType: String, Codable {
     case rapidAcceleration = "RapidAcceleration"
     case maintenanceAlert = "MaintenanceAlert"
     case highGImpact = "HighGImpact"
+    case zoneBreach = "ZoneBreach"
 }
 
 public struct VehicleEvent: Codable, Identifiable {

@@ -14,6 +14,7 @@ public struct MaintenanceDashboardView: View {
     
     @State private var isSearchActive  = false
     @State private var searchText      = ""
+    @State private var alertsViewModel = AlertsViewModel()
 
     let filters = ["All", "Pending", "In Progress", "Completed"]
 
@@ -77,6 +78,9 @@ public struct MaintenanceDashboardView: View {
                                 lowStockBanner
                             }
 
+                            // Alerts Section
+                            alertsSection
+
                             // Work Orders Section
                             workOrdersSection
                         }
@@ -123,6 +127,45 @@ public struct MaintenanceDashboardView: View {
         .padding(14).background(cardBg).cornerRadius(14)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(FMSTheme.amber.opacity(0.3), lineWidth: 1))
         .padding(.horizontal, 16)
+    }
+
+    // MARK: - Alerts Section
+    private var alertsSection: some View {
+        let criticalAlerts = alertsViewModel.alerts.filter { $0.type == .critical }
+        
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Critical Alerts")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(FMSTheme.textPrimary)
+                
+                Spacer()
+                
+                Button("Simulate Overdue") {
+                    withAnimation { alertsViewModel.triggerOverdueMaintenance() }
+                }
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(FMSTheme.alertRed)
+            }
+            .padding(.horizontal, 16)
+            
+            if criticalAlerts.isEmpty {
+                Text("No critical alerts at this time.")
+                    .font(.system(size: 14))
+                    .foregroundColor(FMSTheme.textSecondary)
+                    .padding(.horizontal, 16)
+            } else {
+                ForEach(criticalAlerts) { alert in
+                    AlertRow(
+                        title: alert.title,
+                        subtitle: alert.subtitle,
+                        timeAgo: alertsViewModel.formattedTimeAgo(for: alert.timestamp),
+                        type: alert.type
+                    )
+                    .padding(.horizontal, 16)
+                }
+            }
+        }
     }
 
     // MARK: - Work Orders Section
