@@ -32,7 +32,7 @@ struct LicenseParserService {
   private let dateRegex = try? NSRegularExpression(pattern: #"\b\d{2}[-/]\d{2}[-/]\d{4}\b"#)
 
   private let licenseAnchors = ["DL NO", "DL", "LIC", "LICENSE", "LICENCE", "NO", "DLN"]
-  private let expiryAnchors = ["EXP", "VALID TILL", "VALIDITY", "NT", "TR"]
+  private let expiryAnchors = ["EXP", "EXPIRY", "VALID TILL", "VALIDITY", "VALID UPTO", "NT", "TR"]
   private let ignoreDateAnchors = ["DOB", "ISSUE"]
 
   func parse(recognizedLines: [String]) -> DriverLicenseScanResult {
@@ -96,14 +96,6 @@ struct LicenseParserService {
       return normalized.replacingOccurrences(of: "--", with: "-")
     }
 
-    // Regex pass: generic alphanumeric fallback, including OCR anomaly correction.
-    for line in lines {
-      let candidateLine = correctOpticalAnomalies(line, expecting: .alphanumeric)
-      if let token = firstMatch(in: candidateLine, regex: generalLicenseRegex), isLikelyLicenseToken(token) {
-        return token
-      }
-    }
-
     // Anchor-proximity fallback: same line, then immediate next line.
     for index in lines.indices {
       let line = lines[index]
@@ -116,6 +108,14 @@ struct LicenseParserService {
       if index + 1 < lines.count,
          let nextLine = extractFirstLicenseToken(from: lines[index + 1]) {
         return nextLine
+      }
+    }
+
+    // Regex pass: generic alphanumeric fallback, including OCR anomaly correction.
+    for line in lines {
+      let candidateLine = correctOpticalAnomalies(line, expecting: .alphanumeric)
+      if let token = firstMatch(in: candidateLine, regex: generalLicenseRegex), isLikelyLicenseToken(token) {
+        return token
       }
     }
 
@@ -215,12 +215,13 @@ struct LicenseParserService {
   private func parseDate(_ value: String) -> Date? {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    formatter.timeZone = .current
+    let calendar = Calendar.current
 
     for format in ["dd/MM/yyyy", "dd-MM-yyyy", "MM/dd/yyyy", "MM-dd-yyyy"] {
       formatter.dateFormat = format
       if let date = formatter.date(from: value) {
-        return date
+        return calendar.startOfDay(for: date)
       }
     }
 
@@ -239,7 +240,10 @@ struct LicenseParserService {
   }
 
   private func containsAnyAnchor(_ line: String, anchors: [String]) -> Bool {
-    anchors.contains(where: { line.contains($0) })
+    anchors.contains { anchor in
+      let escapedAnchor = NSRegularExpression.escapedPattern(for: anchor)
+      return line.range(of: "\\b\(escapedAnchor)\\b", options: .regularExpression) != nil
+    }
   }
 
   private func stripAnchorPrefix(from line: String) -> String {

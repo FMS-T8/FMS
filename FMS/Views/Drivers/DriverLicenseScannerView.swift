@@ -3,7 +3,7 @@ import VisionKit
 
 struct DriverLicenseScannerView: View {
   @Environment(\.dismiss) private var dismiss
-  @StateObject private var viewModel = DriverLicenseScannerViewModel()
+  @State private var viewModel = DriverLicenseScannerViewModel()
 
   let onExtracted: (DriverLicenseScanResult) -> Void
 
@@ -116,19 +116,43 @@ struct DriverLicenseReviewView: View {
         }
 
         Section("Dates") {
-          DatePicker(
-            "Date of Birth",
-            selection: dateOfBirthBinding,
-            in: ...Date(),
-            displayedComponents: .date
-          )
+          if draft.dateOfBirth != nil {
+            DatePicker(
+              "Date of Birth",
+              selection: Binding(
+                get: { draft.dateOfBirth ?? Date() },
+                set: { draft.dateOfBirth = $0 }
+              ),
+              in: ...Date(),
+              displayedComponents: .date
+            )
+          } else {
+            HStack {
+              Text("Date of Birth")
+              Spacer()
+              Text("DOB not found")
+                .foregroundColor(.secondary)
+            }
+          }
 
-          DatePicker(
-            "License Expiry",
-            selection: $draft.expiryDate,
-            in: Date()...,
-            displayedComponents: .date
-          )
+          if draft.expiryDate != nil {
+            DatePicker(
+              "License Expiry",
+              selection: Binding(
+                get: { draft.expiryDate ?? Date() },
+                set: { draft.expiryDate = $0 }
+              ),
+              in: Calendar.current.startOfDay(for: Date())...,
+              displayedComponents: .date
+            )
+          } else {
+            HStack {
+              Text("License Expiry")
+              Spacer()
+              Text("Expiry not found")
+                .foregroundColor(.secondary)
+            }
+          }
         }
       }
       .navigationTitle("Review License")
@@ -143,16 +167,11 @@ struct DriverLicenseReviewView: View {
             dismiss()
           }
           .disabled(draft.fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || draft.licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            || draft.licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || draft.dateOfBirth == nil
+            || draft.expiryDate == nil)
         }
       }
     }
-  }
-
-  private var dateOfBirthBinding: Binding<Date> {
-    Binding<Date>(
-      get: { draft.dateOfBirth ?? Calendar.current.date(byAdding: .year, value: -21, to: Date()) ?? Date() },
-      set: { draft.dateOfBirth = $0 }
-    )
   }
 }

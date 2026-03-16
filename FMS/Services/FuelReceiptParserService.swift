@@ -3,7 +3,7 @@ import Foundation
 struct FuelReceiptParserService {
   private let dateRegex = try? NSRegularExpression(pattern: #"\b\d{2}[-/.]\d{2}[-/.]\d{2,4}\b"#)
   private let timeRegex = try? NSRegularExpression(pattern: #"\b\d{2}:\d{2}(?::\d{2})?\b"#)
-  private let decimalRegex = try? NSRegularExpression(pattern: #"\b\d+(?:[.,]\d{1,3})\b"#)
+  private let decimalRegex = try? NSRegularExpression(pattern: #"\b\d+(?:[.,]\d{1,3})?\b"#)
 
   private let amountAnchors = ["TOTAL", "AMOUNT"]
   private let volumeAnchors = ["LTR", "LITERS", "LITRES", "LITER", "VOL", "VOLUME"]

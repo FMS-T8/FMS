@@ -51,7 +51,9 @@ class AddDriverViewModel: ObservableObject {
     func applyScannedLicense(_ result: DriverLicenseReviewData) {
         name = result.fullName
         licenseNumber = result.licenseNumber
-        licenseExpiry = result.expiryDate
+        if let expiry = result.expiryDate {
+            licenseExpiry = expiry
+        }
         dateOfBirth = result.dateOfBirth
     }
 

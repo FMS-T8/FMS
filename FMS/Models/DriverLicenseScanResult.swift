@@ -1,6 +1,6 @@
 import Foundation
 
-struct DriverLicenseScanResult: Equatable {
+struct DriverLicenseScanResult: Codable, Equatable {
   var fullName: String
   var licenseNumber: String
   var dateOfBirth: Date?
@@ -8,9 +8,9 @@ struct DriverLicenseScanResult: Equatable {
   var rawLines: [String]
 }
 
-struct DriverLicenseReviewData {
+struct DriverLicenseReviewData: Codable {
   var fullName: String = ""
   var licenseNumber: String = ""
   var dateOfBirth: Date? = nil
-  var expiryDate: Date = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
+  var expiryDate: Date? = nil
 }

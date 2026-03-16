@@ -361,7 +361,7 @@ struct AddDriverView: View {
       fullName: extracted.fullName,
       licenseNumber: extracted.licenseNumber,
       dateOfBirth: extracted.dateOfBirth,
-      expiryDate: extracted.expiryDate ?? reviewDraft.expiryDate
+      expiryDate: extracted.expiryDate
     )
     showingReview = true
   }

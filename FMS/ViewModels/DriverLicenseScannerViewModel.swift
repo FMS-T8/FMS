@@ -1,13 +1,14 @@
 import Foundation
-import Combine
+import Observation
 import VisionKit
 
 @MainActor
-final class DriverLicenseScannerViewModel: ObservableObject {
-  @Published var isProcessing = false
-  @Published var extractedResult: DriverLicenseScanResult?
-  @Published var showError = false
-  @Published var errorMessage = ""
+@Observable
+final class DriverLicenseScannerViewModel {
+  var isProcessing = false
+  var extractedResult: DriverLicenseScanResult?
+  var showError = false
+  var errorMessage = ""
 
   private let ocrService: DriverLicenseOCRServicing
 
