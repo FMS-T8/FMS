@@ -63,7 +63,7 @@ enum DistanceUnit: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var displayName: String {
         switch self {
-        case .km:    return "Kilometres (km)"
+        case .km:    return "Kilometers"
         case .miles: return "Miles"
         }
     }

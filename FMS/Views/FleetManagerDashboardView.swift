@@ -85,6 +85,9 @@ struct FleetManagerHomeTab: View {
             .navigationDestination(isPresented: $navigateToLiveFleet) {
                 LiveVehicleDashboardView()
             }
+            .navigationDestination(isPresented: $navigateToProfile) {
+                ManagerProfileView()
+            }
         }
     }
     

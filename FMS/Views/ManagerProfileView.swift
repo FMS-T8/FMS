@@ -149,7 +149,6 @@ struct ManagerProfileView: View {
                 ProfileSectionHeader(title: "System Preferences")
                 Divider().background(FMSTheme.borderLight)
 
-                // Map Preference Picker
                 HStack {
                     Text("Map Style")
                         .font(.system(size: 15, weight: .medium))
@@ -171,7 +170,7 @@ struct ManagerProfileView: View {
 
                 // Distance Units Picker
                 HStack {
-                    Text("Distance Units")
+                    Text("Distance Unit")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(FMSTheme.textPrimary)
                     Spacer()
