@@ -19,6 +19,7 @@ public struct NewTripAssignmentView: View {
     @State private var showPostTripInspection = false
     @State private var preTripInspectionCompleted = false
     @State private var postTripInspectionCompleted = false
+    @State private var showLocationConfirmation = false
     
     private var activeStops: [MockStop] {
         var stops: [MockStop] = []
@@ -140,9 +141,18 @@ public struct NewTripAssignmentView: View {
                 if !isShowing {
                     if preTripInspectionCompleted {
                         viewModel.startTrip(trip)
-                        dismiss()
+                        // Trigger the tracking confirmation modal instead of dismissing immediately
+                        showLocationConfirmation = true
                     }
                     preTripInspectionCompleted = false
+                }
+            }
+            .fullScreenCover(isPresented: $showLocationConfirmation) {
+                LocationTrackingConfirmationView(trip: trip)
+            }
+            .onChange(of: showLocationConfirmation) { _, isShowing in
+                if !isShowing {
+                    dismiss() // Drop down to dashboard when splash finishes
                 }
             }
             .onChange(of: showPostTripInspection) { _, isShowing in
