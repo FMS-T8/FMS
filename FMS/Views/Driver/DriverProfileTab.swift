@@ -313,8 +313,9 @@ struct DriverProfileTab: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(FMSTheme.textPrimary)
 
+                let details = documentDetails(for: doc.type)
                 VStack(spacing: 0) {
-                    ForEach(documentDetails(for: doc.type), id: \.label) { detail in
+                    ForEach(details, id: \.label) { detail in
                         HStack {
                             Text(detail.label)
                                 .font(.system(size: 14, weight: .medium))
@@ -327,7 +328,7 @@ struct DriverProfileTab: View {
                         .padding(.vertical, 12)
                         .padding(.horizontal, 16)
 
-                        if detail.label != documentDetails(for: doc.type).last?.label {
+                        if detail.label != details.last?.label {
                             Divider().background(FMSTheme.borderLight)
                                 .padding(.horizontal, 16)
                         }

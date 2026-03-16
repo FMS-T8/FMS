@@ -15,6 +15,7 @@ struct DefectItem: Identifiable {
     var reportedAt: Date
     var status: String
     var tripId: String?              // trip_id from DB
+    var imageUrls: [String]?         // image_urls from DB
     var linkedWorkOrderId: String?   // work_order_id from DB
 
     var reportedAgo: String {
@@ -77,6 +78,7 @@ struct DefectItem: Identifiable {
         self.reportedAt  = defect.reportedAt ?? Date()
         self.status      = defect.status ?? "open"
         self.tripId      = defect.tripId
+        self.imageUrls   = defect.imageUrls
         self.linkedWorkOrderId = defect.workOrderId
     }
 
@@ -94,7 +96,8 @@ struct DefectItem: Identifiable {
             status:      status,
             reportedAt:  reportedAt,
             resolvedAt:  nil,
-            tripId:      tripId
+            tripId:      tripId,
+            imageUrls:   imageUrls
         )
     }
 

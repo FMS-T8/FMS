@@ -54,33 +54,10 @@ public struct NewTripAssignmentView: View {
             VStack(spacing: 24) {
                 
                 // Map
-                ZStack(alignment: .bottomTrailing) {
-                    MapCard(stops: activeStops)
-                        .frame(height: 240)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 4)
-
-                    if trip.endLat != nil && trip.endLng != nil {
-                        Button {
-                            openAppleMaps()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "map.fill")
-                                    .font(.system(size: 13, weight: .bold))
-                                Text("Navigate")
-                                    .font(.system(size: 13, weight: .bold))
-                            }
-                            .foregroundStyle(FMSTheme.obsidian)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(FMSTheme.amber)
-                            .cornerRadius(20)
-                            .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(12)
-                    }
-                }
+                MapCard(stops: activeStops)
+                    .frame(height: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 4)
                     
                     // Stats
                     statsSection
@@ -220,10 +197,6 @@ public struct NewTripAssignmentView: View {
                 }
                 .buttonStyle(.fmsPrimary)
                 .disabled(viewModel.assignedVehicle == nil)
-
-                if trip.endLat != nil && trip.endLng != nil {
-                    navigateButton
-                }
 
                 Button {
                     showIssueReport = true
@@ -544,11 +517,16 @@ public struct NewTripAssignmentView: View {
 
     private func openAppleMaps() {
         guard let lat = trip.endLat, let lng = trip.endLng else { return }
-        let destination = trip.endName ?? "Destination"
-        let encoded = destination.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? destination
-        if let url = URL(string: "http://maps.apple.com/?daddr=\(lat),\(lng)&dname=\(encoded)&dirflg=d") {
-            openURL(url)
-        }
+        var components = URLComponents()
+        components.scheme = "http"
+        components.host = "maps.apple.com"
+        components.queryItems = [
+            URLQueryItem(name: "daddr", value: "\(lat),\(lng)"),
+            URLQueryItem(name: "dname", value: trip.endName ?? "Destination"),
+            URLQueryItem(name: "dirflg", value: "d"),
+        ]
+        guard let url = components.url else { return }
+        openURL(url)
     }
 
     private static let dateTimeFormatter: DateFormatter = {
