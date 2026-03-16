@@ -45,6 +45,9 @@ struct FuelReceiptParserService {
     sliderValue: Double?,
     parsed: FuelReceiptParsedData
   ) -> FuelIntelligenceVerificationStatus {
+    guard manualEntry != nil || gpsDistance != nil || sliderValue != nil else {
+      return .unverified(reason: "No verification data provided")
+    }
     // 1. Cross-check with manual entry
     if let manual = manualEntry {
       // Allow slight variance (e.g. 2 liters or 5 currency units)
