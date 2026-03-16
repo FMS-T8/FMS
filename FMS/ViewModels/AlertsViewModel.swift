@@ -19,18 +19,24 @@ public final class AlertsViewModel {
     // Custom decoder/encoder to match the Supabase JSON date handling
     private var supabaseDecoder: JSONDecoder {
         let decoder = JSONDecoder()
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let dateStr = try container.decode(String.self)
             
-            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-            if let date = dateFormatter.date(from: dateStr) { return date }
+            let fractionalFormatter = ISO8601DateFormatter()
+            fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             
-            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-            if let date = dateFormatter.date(from: dateStr) { return date }
+            if let date = fractionalFormatter.date(from: dateStr) {
+                return date
+            }
+            
+            let nonFractionalFormatter = ISO8601DateFormatter()
+            nonFractionalFormatter.formatOptions = [.withInternetDateTime]
+            
+            if let date = nonFractionalFormatter.date(from: dateStr) {
+                return date
+            }
             
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(dateStr)")
         }
@@ -82,7 +88,9 @@ public final class AlertsViewModel {
             print("Error fetching alerts from Supabase: \(error)")
             // Preserve last-known-good data on transient failures.
             if self.alerts.isEmpty {
+#if DEBUG
                 loadMockAlerts()
+#endif
             }
         }
     }
