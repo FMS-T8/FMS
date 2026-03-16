@@ -44,9 +44,12 @@ public final class SupabaseDriversDataSource: DriversDataSource {
         let drivers = try decoder.decode([User].self, from: driversResponse.data)
         
         // Fetch all active assignments
+        let newISO = ISO8601DateFormatter().string(from: Date())
         let assignmentsResponse = try await client
             .from("driver_vehicle_assignments")
             .select()
+            .eq("status", value: "scheduled")
+            .gte("shift_end", value: newISO)
             .execute()
         let assignments = try decoder.decode([DriverVehicleAssignment].self, from: assignmentsResponse.data)
             
@@ -127,9 +130,17 @@ public final class SupabaseDriversDataSource: DriversDataSource {
             // Map DB status to display status
             // DB: scheduled, completed, cancelled
             // UI: on_duty, break, not_started
-            var status = "not_started"
-            if assignment.status == "scheduled" {
-                // Further logic could check if start time has passed
+            let status: String
+            switch assignment.status {
+            case "scheduled":
+                if let start = assignment.shiftStart, Date() >= start {
+                    status = "on_duty"
+                } else {
+                    status = "not_started"
+                }
+            case "completed", "cancelled":
+                return nil
+            default:
                 status = "not_started"
             }
             

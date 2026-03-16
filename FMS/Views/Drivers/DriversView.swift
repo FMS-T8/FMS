@@ -52,6 +52,17 @@ public struct DriversView: View {
       .task {
           await vm.fetchData()
       }
+      .alert(
+        "Failed to load drivers",
+        isPresented: Binding(
+          get: { vm.errorMessage != nil },
+          set: { if !$0 { vm.errorMessage = nil } }
+        )
+      ) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(vm.errorMessage ?? "")
+      }
       .navigationTitle("")
       .navigationBarTitleDisplayMode(.inline)
       .searchable(text: $vm.searchText, prompt: "Search driver name or ID")

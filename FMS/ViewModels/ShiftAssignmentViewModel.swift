@@ -24,6 +24,7 @@ public final class ShiftAssignmentViewModel {
   // MARK: - Loading State
   public var isLoading: Bool = false
   public var isFetchingData: Bool = false
+  public var fetchErrorMessage: String? = nil
   
   private var supabaseDecoder: JSONDecoder {
       let decoder = JSONDecoder()
@@ -89,6 +90,7 @@ public final class ShiftAssignmentViewModel {
       defer { isFetchingData = false }
       
       do {
+          fetchErrorMessage = nil
           async let driversResponse = try SupabaseService.shared.client
               .from("users")
               .select()
@@ -109,11 +111,12 @@ public final class ShiftAssignmentViewModel {
           self.availableVehicles = vehicles.map {
               let make = $0.manufacturer ?? "Unknown"
               let model = $0.model ?? "Vehicle"
-              let plate = $0.plateNumber
+              let plate = $0.plateNumber ?? "No Plate"
               return (id: $0.id, display: "\(make) \(model) · \(plate)")
           }
       } catch {
           print("Error fetching shift assignment data: \(error)")
+          fetchErrorMessage = "Unable to load drivers and vehicles. Please try again later."
       }
   }
 
@@ -133,15 +136,24 @@ public final class ShiftAssignmentViewModel {
       let startComponents = calendar.dateComponents([.hour, .minute], from: shiftStartTime)
       let endComponents = calendar.dateComponents([.hour, .minute], from: shiftEndTime)
       
+      enum ShiftAssignmentError: LocalizedError {
+          case invalidTimeComponents
+          case invalidDateConstruction
+      }
+
       guard let startHour = startComponents.hour, let startMinute = startComponents.minute,
             let endHour = endComponents.hour, let endMinute = endComponents.minute else {
-          return
+          throw ShiftAssignmentError.invalidTimeComponents
       }
       
-      var start = calendar.date(bySettingHour: startHour, minute: startMinute, second: 0, of: shiftDate) ?? Date()
-      var end = calendar.date(bySettingHour: endHour, minute: endMinute, second: 0, of: shiftDate) ?? Date()
+      guard
+        let start = calendar.date(bySettingHour: startHour, minute: startMinute, second: 0, of: shiftDate),
+        let rawEnd = calendar.date(bySettingHour: endHour, minute: endMinute, second: 0, of: shiftDate)
+      else {
+        throw ShiftAssignmentError.invalidDateConstruction
+      }
       
-      end = normalizedEndDate(for: start, end: end)
+      let end = normalizedEndDate(for: start, end: rawEnd)
       
       let insert = ShiftInsert(
           driver_id: selectedDriverId,
