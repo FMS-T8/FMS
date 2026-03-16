@@ -81,8 +81,8 @@ public struct ShiftDisplayItem: Identifiable, Hashable {
 /// Protocol for providing driver and shift data to the DriversViewModel.
 /// Implement this protocol for real repository/service or mock data sources.
 public protocol DriversDataSource {
-  func fetchDrivers() -> [DriverDisplayItem]
-  func fetchShifts() -> [ShiftDisplayItem]
+  func fetchDrivers() async throws -> [DriverDisplayItem]
+  func fetchShifts() async throws -> [ShiftDisplayItem]
 }
 
 // MARK: - Mock Data Source
@@ -91,11 +91,11 @@ public protocol DriversDataSource {
 public final class MockDriversDataSource: DriversDataSource {
   public init() {}
 
-  public func fetchDrivers() -> [DriverDisplayItem] {
+  public func fetchDrivers() async throws -> [DriverDisplayItem] {
     DriversViewModel.makeMockDrivers()
   }
 
-  public func fetchShifts() -> [ShiftDisplayItem] {
+  public func fetchShifts() async throws -> [ShiftDisplayItem] {
     DriversViewModel.makeMockShifts()
   }
 }
@@ -120,6 +120,12 @@ public final class DriversViewModel {
   // MARK: - Shifts State
   public var shiftItems: [ShiftDisplayItem] = []
   public var selectedDate: Date = Date()
+  
+  // MARK: - UI State
+  public var isLoading: Bool = false
+  public var errorMessage: String? = nil
+  
+  private let dataSource: DriversDataSource
 
   // MARK: - Computed: Directory
 
@@ -190,8 +196,28 @@ public final class DriversViewModel {
   /// - Parameter dataSource: Source for drivers and shifts data. Defaults to mock for previews.
   /// Production code should explicitly pass a real repository/service implementation.
   public init(dataSource: DriversDataSource = MockDriversDataSource()) {
-    self.drivers = dataSource.fetchDrivers()
-    self.shiftItems = dataSource.fetchShifts()
+    self.dataSource = dataSource
+  }
+  
+  /// Fetches fresh data from the data source.
+  public func fetchData() async {
+    isLoading = true
+    errorMessage = nil
+    
+    do {
+      async let fetchedDrivers = dataSource.fetchDrivers()
+      async let fetchedShifts = dataSource.fetchShifts()
+      
+      let (drivers, shifts) = try await (fetchedDrivers, fetchedShifts)
+      
+      self.drivers = drivers
+      self.shiftItems = shifts
+    } catch {
+      self.errorMessage = error.localizedDescription
+      print("Error fetching drivers data: \(error)")
+    }
+    
+    isLoading = false
   }
 }
 

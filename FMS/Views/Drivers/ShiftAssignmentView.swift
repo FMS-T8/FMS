@@ -15,11 +15,15 @@ struct ShiftAssignmentView: View {
     Form {
       // MARK: Driver Selection
       Section {
-        Picker("Driver", selection: $vm.selectedDriverId) {
-          Text("Select Driver").tag("")
-          ForEach(vm.availableDrivers, id: \.id) { driver in
-            Text(driver.name).tag(driver.id)
-          }
+        if vm.isFetchingData {
+            ProgressView("Loading...")
+        } else {
+            Picker("Driver", selection: $vm.selectedDriverId) {
+              Text("Select Driver").tag("")
+              ForEach(vm.availableDrivers, id: \.id) { driver in
+                Text(driver.name).tag(driver.id)
+              }
+            }
         }
       } header: {
         Text("Driver")
@@ -27,11 +31,15 @@ struct ShiftAssignmentView: View {
 
       // MARK: Vehicle Selection
       Section {
-        Picker("Vehicle", selection: $vm.selectedVehicleId) {
-          Text("Select Vehicle").tag("")
-          ForEach(vm.availableVehicles, id: \.id) { vehicle in
-            Text(vehicle.display).tag(vehicle.id)
-          }
+        if vm.isFetchingData {
+            ProgressView("Loading...")
+        } else {
+            Picker("Vehicle", selection: $vm.selectedVehicleId) {
+              Text("Select Vehicle").tag("")
+              ForEach(vm.availableVehicles, id: \.id) { vehicle in
+                Text(vehicle.display).tag(vehicle.id)
+              }
+            }
         }
       } header: {
         Text("Vehicle")
@@ -104,6 +112,9 @@ struct ShiftAssignmentView: View {
       Button("OK", role: .cancel) {}
     } message: {
       Text(errorMessage)
+    }
+    .task {
+        await vm.fetchData()
     }
   }
 }
