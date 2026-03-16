@@ -9,6 +9,7 @@ import SwiftUI
 
 public struct LocationTrackingConfirmationView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     let trip: Trip
 
     public init(trip: Trip) {
@@ -22,10 +23,16 @@ public struct LocationTrackingConfirmationView: View {
 
                 // Confirmation content — centered on screen
                 VStack(spacing: 24) {
-                    Image(systemName: "location.fill.viewfinder")
-                        .font(.system(size: 64, weight: .light))
-                        .foregroundStyle(FMSTheme.statusColor(for: "active"))
-                        .symbolEffect(.pulse.byLayer, options: .repeating)
+                    if accessibilityReduceMotion {
+                        Image(systemName: "location.fill.viewfinder")
+                            .font(.system(size: 64, weight: .light))
+                            .foregroundStyle(FMSTheme.statusColor(for: "active"))
+                    } else {
+                        Image(systemName: "location.fill.viewfinder")
+                            .font(.system(size: 64, weight: .light))
+                            .foregroundStyle(FMSTheme.statusColor(for: "active"))
+                            .symbolEffect(.pulse.byLayer, options: .repeating)
+                    }
 
                     VStack(spacing: 10) {
                         Text("Location Sharing Active")
