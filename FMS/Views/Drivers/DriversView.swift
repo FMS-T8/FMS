@@ -44,9 +44,23 @@ public struct DriversView: View {
       .navigationBarTitleDisplayMode(.inline)
       .searchable(text: $vm.searchText, prompt: "Search driver name or ID")
       .toolbar { toolbarContent }
-      .sheet(isPresented: $showingAddDriver) {
-        AddDriverView()
-          .presentationDetents([.large])
+      .task {
+        await vm.reloadDriversFromBackend()
+      }
+      .sheet(
+        isPresented: $showingAddDriver,
+        onDismiss: {
+          Task {
+            await vm.reloadDriversFromBackend()
+          }
+        }
+      ) {
+        AddDriverView(role: "driver") {
+          Task {
+            await vm.reloadDriversFromBackend()
+          }
+        }
+        .presentationDetents([.large])
       }
     }
   }

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Supabase
 
 // MARK: - Drivers Tab Selection
 
@@ -192,6 +193,63 @@ public final class DriversViewModel {
   public init(dataSource: DriversDataSource = MockDriversDataSource()) {
     self.drivers = dataSource.fetchDrivers()
     self.shiftItems = dataSource.fetchShifts()
+  }
+
+  // MARK: - Backend Sync
+
+  /// Pulls the latest drivers from Supabase and maps them to directory cards.
+  /// Falls back to existing in-memory data if the request fails.
+  @MainActor
+  public func reloadDriversFromBackend() async {
+    struct DriverUserRow: Decodable {
+      let id: String
+      let name: String?
+      let phone: String?
+      let employeeID: String?
+
+      enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case phone
+        case employeeID = "employee_id"
+      }
+    }
+
+    do {
+      let rows: [DriverUserRow] = try await SupabaseService.shared.client
+        .from("users")
+        .select("id, name, phone, employee_id")
+        .eq("role", value: "driver")
+        .order("created_at", ascending: false)
+        .execute()
+        .value
+
+      self.drivers = rows.map { row in
+        let fallbackEmployeeId = "#DRV-\(row.id.prefix(4).uppercased())"
+
+        return DriverDisplayItem(
+          id: row.id,
+          name: (row.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+            ? row.name!
+            : "Unnamed Driver",
+          employeeID: (row.employeeID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            == false)
+            ? row.employeeID!
+            : fallbackEmployeeId,
+          phone: row.phone,
+          vehicleId: nil,
+          vehicleManufacturer: nil,
+          vehicleModel: nil,
+          plateNumber: nil,
+          availabilityStatus: .available,
+          shiftStart: nil,
+          shiftEnd: nil,
+          activeTripId: nil
+        )
+      }
+    } catch {
+      print("DriversViewModel.reloadDriversFromBackend error: \(error)")
+    }
   }
 }
 
