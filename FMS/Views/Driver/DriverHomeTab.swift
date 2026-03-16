@@ -10,6 +10,7 @@ struct DriverHomeTab: View {
     @State private var showFuelReceipt = false
     @State private var showProfile = false
     @State private var selectedTrip: Trip?
+    @State private var showLocationConfirmation = false
 
     /// Trip to start after pre-trip inspection completes
     @State private var pendingStartTrip: Trip?
@@ -69,9 +70,19 @@ struct DriverHomeTab: View {
                 if !isShowing {
                     if preTripInspectionCompleted, let trip = pendingStartTrip {
                         viewModel.startTrip(trip)
+                        showLocationConfirmation = true
                     }
-                    pendingStartTrip = nil
                     preTripInspectionCompleted = false
+                }
+            }
+            .fullScreenCover(isPresented: $showLocationConfirmation) {
+                if let trip = pendingStartTrip ?? viewModel.currentJob {
+                    LocationTrackingConfirmationView(trip: trip)
+                }
+            }
+            .onChange(of: showLocationConfirmation) { _, isShowing in
+                if !isShowing {
+                    pendingStartTrip = nil
                 }
             }
             .onChange(of: showPostTripInspection) { _, isShowing in
