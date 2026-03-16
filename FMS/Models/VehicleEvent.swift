@@ -4,6 +4,7 @@ public enum EventType: String, Codable {
     case harshBraking = "HarshBraking"
     case rapidAcceleration = "RapidAcceleration"
     case maintenanceAlert = "MaintenanceAlert"
+    case overdueMaintenance = "OverdueMaintenance"
     case highGImpact = "HighGImpact"
     case zoneBreach = "ZoneBreach"
 }

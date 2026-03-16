@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Supabase
 
 /// Model to represent an alert in the UI
 public struct AlertData: Identifiable {
@@ -15,9 +16,51 @@ public struct AlertData: Identifiable {
 public final class AlertsViewModel {
     public var alerts: [AlertData] = []
     
+    // Custom decoder/encoder to match the Supabase JSON date handling
+    private var supabaseDecoder: JSONDecoder {
+        let decoder = JSONDecoder()
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateStr = try container.decode(String.self)
+            
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+            if let date = dateFormatter.date(from: dateStr) { return date }
+            
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+            if let date = dateFormatter.date(from: dateStr) { return date }
+            
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(dateStr)")
+        }
+        return decoder
+    }
+    
     public init() {
-        // Load some initial mock alerts
-        loadMockAlerts()
+        Task {
+            await fetchAlerts()
+        }
+    }
+    
+    @MainActor
+    public func fetchAlerts() async {
+        do {
+            let response = try await SupabaseService.shared.client
+                .from("vehicle_events")
+                .select()
+                .order("timestamp", ascending: false)
+                .limit(20)
+                .execute()
+            
+            let fetchedEvents = try supabaseDecoder.decode([VehicleEvent].self, from: response.data)
+            self.alerts = fetchedEvents.map { mapToAlertData($0) }
+            
+        } catch {
+            print("Error fetching alerts from Supabase: \(error)")
+            // Fallback to mock locally if table acts up or doesn't exist yet
+            loadMockAlerts()
+        }
     }
     
     private func loadMockAlerts() {
@@ -28,56 +71,88 @@ public final class AlertsViewModel {
                 timeAgo: "12m ago",
                 type: .warning,
                 timestamp: Date().addingTimeInterval(-12 * 60)
-            ),
-            AlertData(
-                title: "Driver break scheduled",
-                subtitle: "Driver David R. is reaching mandatory rest limit in 15 mins.",
-                timeAgo: "45m ago",
-                type: .info,
-                timestamp: Date().addingTimeInterval(-45 * 60)
             )
         ]
     }
     
-    /// Simulates a vehicle breaching a geofence and adds a critical alert to the queue
+    /// Simulates a vehicle breaching a geofence and adds a critical alert to Supabase
     public func triggerSimulatedBreach() {
-        // Here we simulate an event where GeofenceService detected a breach
-        let newAlert = AlertData(
-            title: "Geofence deviation",
-            subtitle: "Truck #\(Int.random(in: 100...999)) exited the designated route area in North District.",
-            timeAgo: "Just now",
-            type: .critical,
-            timestamp: Date()
-        )
-        // Add to the top of the alerts list
-        alerts.insert(newAlert, at: 0)
+        Task {
+            let event = VehicleEvent(vehicleID: "V-\(Int.random(in: 100...999))", eventType: .zoneBreach)
+            await insertEvent(event)
+        }
     }
     
-    /// Simulates a vehicle approaching its maintenance interval and adds a warning alert
+    /// Simulates a vehicle approaching maintenance
     public func triggerPredictiveMaintenance() {
-        let newAlert = AlertData(
-            title: "Maintenance Approaching",
-            subtitle: "Van #\(Int.random(in: 1000...9999)) is nearing its scheduled 10,000 km service interval.",
-            timeAgo: "Just now",
-            type: .warning,
-            timestamp: Date()
-        )
-        alerts.insert(newAlert, at: 0)
+        Task {
+            let event = VehicleEvent(vehicleID: "V-\(Int.random(in: 100...999))", eventType: .maintenanceAlert)
+            await insertEvent(event)
+        }
     }
     
-    /// Simulates a vehicle dangerously past its scheduled maintenance threshold
+    /// Simulates an overdue maintenance
     public func triggerOverdueMaintenance() {
-        let newAlert = AlertData(
-            title: "Overdue Maintenance",
-            subtitle: "Truck #\(Int.random(in: 100...999)) has exceeded its service mileage limit.",
-            timeAgo: "Just now",
-            type: .critical,
-            timestamp: Date()
-        )
-        alerts.insert(newAlert, at: 0)
+        Task {
+            let event = VehicleEvent(vehicleID: "V-\(Int.random(in: 100...999))", eventType: .overdueMaintenance)
+            await insertEvent(event)
+        }
     }
     
-    /// Formatter to convert Date differences into a "Xm ago" style string (Implementation can be expanded as needed)
+    private func insertEvent(_ event: VehicleEvent) async {
+        do {
+            try await SupabaseService.shared.client
+                .from("vehicle_events")
+                .insert(event)
+                .execute()
+            
+            await fetchAlerts() // Refresh the dashboard after sending
+        } catch {
+            print("Failed to insert event to Supabase: \(error)")
+            // Fallback visually if table doesn't exist yet so it remains testable
+            let fallbackAlert = mapToAlertData(event)
+            await MainActor.run {
+                self.alerts.insert(fallbackAlert, at: 0)
+            }
+        }
+    }
+    
+    private func mapToAlertData(_ event: VehicleEvent) -> AlertData {
+        let title: String
+        let subtitle: String
+        let type: AlertType
+        
+        switch event.eventType {
+        case .zoneBreach:
+            title = "Geofence deviation"
+            subtitle = "Vehicle \(event.vehicleID) exited designated boundary."
+            type = .critical
+        case .maintenanceAlert:
+            title = "Maintenance Check"
+            subtitle = "Vehicle \(event.vehicleID) flagged for maintenance review."
+            type = .warning
+        case .overdueMaintenance:
+            title = "Overdue Maintenance"
+            subtitle = "Vehicle \(event.vehicleID) has exceeded its service mileage limit."
+            type = .critical
+        case .harshBraking:
+            title = "Harsh Braking"
+            subtitle = "Vehicle \(event.vehicleID) executed harsh braking."
+            type = .warning
+        case .rapidAcceleration:
+            title = "Rapid Acceleration"
+            subtitle = "Vehicle \(event.vehicleID) accelerated quickly."
+            type = .info
+        case .highGImpact:
+            title = "High G-Impact"
+            subtitle = "Vehicle \(event.vehicleID) collision detected."
+            type = .critical
+        }
+        
+        return AlertData(title: title, subtitle: subtitle, timeAgo: formattedTimeAgo(for: event.timestamp), type: type, timestamp: event.timestamp)
+    }
+    
+    /// Formatter to convert Date differences into a "Xm ago" style string
     public func formattedTimeAgo(for date: Date) -> String {
         let diff = Date().timeIntervalSince(date)
         if diff < 60 {
