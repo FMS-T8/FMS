@@ -12,7 +12,8 @@ public final class GeofenceService {
     public func isBreaching(location: CLLocationCoordinate2D, geofence: Geofence) -> Bool {
         guard let centerLat = geofence.centerLat,
               let centerLng = geofence.centerLng,
-              let radiusMeters = geofence.radiusMeters else {
+              let radiusMeters = geofence.radiusMeters,
+              radiusMeters > 0 else {
             return false // Invalid geofence data, cannot calculate breach
         }
         

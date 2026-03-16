@@ -37,7 +37,16 @@ public final class AlertsViewModel {
         return decoder
     }
     
-    public init() {
+    public enum AlertFilterContext {
+        case all
+        case fleetManager
+        case maintenancePersonnel
+    }
+    
+    private let filterContext: AlertFilterContext
+    
+    public init(filterContext: AlertFilterContext = .all) {
+        self.filterContext = filterContext
         Task {
             await fetchAlerts()
         }
@@ -46,9 +55,22 @@ public final class AlertsViewModel {
     @MainActor
     public func fetchAlerts() async {
         do {
-            let response = try await SupabaseService.shared.client
+            var query = SupabaseService.shared.client
                 .from("vehicle_events")
                 .select()
+                
+            switch filterContext {
+            case .all:
+                break // No filter needed
+            case .fleetManager:
+                // Manager feed: show everything EXCEPT OverdueMaintenance. (ZoneBreach, MaintenanceAlert, etc.)
+                query = query.neq("event_type", value: "OverdueMaintenance")
+            case .maintenancePersonnel:
+                // Maintenance feed: strictly show OverdueMaintenance.
+                query = query.eq("event_type", value: "OverdueMaintenance")
+            }
+            
+            let response = try await query
                 .order("timestamp", ascending: false)
                 .limit(20)
                 .execute()
@@ -58,8 +80,10 @@ public final class AlertsViewModel {
             
         } catch {
             print("Error fetching alerts from Supabase: \(error)")
-            // Fallback to mock locally if table acts up or doesn't exist yet
-            loadMockAlerts()
+            // Preserve last-known-good data on transient failures.
+            if self.alerts.isEmpty {
+                loadMockAlerts()
+            }
         }
     }
     

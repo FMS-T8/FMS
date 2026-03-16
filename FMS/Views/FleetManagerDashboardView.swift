@@ -34,7 +34,7 @@ struct FleetManagerHomeTab: View {
     @State private var navigateToPreTrip = false
     @State private var navigateToPostTrip = false
     @State private var navigateToProfile = false
-    @State private var alertsViewModel = AlertsViewModel()
+    @State private var alertsViewModel = AlertsViewModel(filterContext: .fleetManager)
 
     // Mock data
     private let managerName = "Manager"

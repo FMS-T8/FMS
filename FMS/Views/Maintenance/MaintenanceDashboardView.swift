@@ -14,7 +14,7 @@ public struct MaintenanceDashboardView: View {
     
     @State private var isSearchActive  = false
     @State private var searchText      = ""
-    @State private var alertsViewModel = AlertsViewModel()
+    @State private var alertsViewModel = AlertsViewModel(filterContext: .maintenancePersonnel)
 
     let filters = ["All", "Pending", "In Progress", "Completed"]
 
@@ -131,7 +131,7 @@ public struct MaintenanceDashboardView: View {
 
     // MARK: - Alerts Section
     private var alertsSection: some View {
-        let criticalAlerts = alertsViewModel.alerts.filter { $0.type == .critical }
+        let criticalAlerts = alertsViewModel.alerts // Filter is already applied in API query
         
         return VStack(alignment: .leading, spacing: 14) {
             HStack {
