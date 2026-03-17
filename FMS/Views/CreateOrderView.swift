@@ -172,6 +172,7 @@ public struct CreateOrderView: View {
     // Form State
     @State private var customerName: String = ""
     @State private var customerPhone: String = ""
+    @State private var customerEmail: String = ""        // Fix: was missing
     @State private var weightString: String = ""
     @State private var packagesString: String = ""
     @State private var originName: String = ""
@@ -184,7 +185,7 @@ public struct CreateOrderView: View {
 
     // Dates
     @State private var pickupDate: Date = Date()
-    @State private var deliveryDate: Date = Date().addingTimeInterval(86400)
+    @State private var deliveryDate: Date = Date().addingTimeInterval(60)
 
     // Location sheets
     @State private var showingOriginSearch = false
@@ -207,8 +208,8 @@ public struct CreateOrderView: View {
         !trimmedOrigin.isEmpty &&
         !trimmedDestination.isEmpty &&
         !isSameLocation &&
-        Double(weightString) != nil &&
-        pickupDate >= Date() &&
+        (Double(weightString) ?? 0) > 0 &&
+        pickupDate >= Date().addingTimeInterval(-60) &&  // Fix: 60s grace period
         deliveryDate >= pickupDate.addingTimeInterval(60)
     }
 
@@ -230,6 +231,13 @@ public struct CreateOrderView: View {
                         icon: "phone.fill",
                         text: $customerPhone,
                         keyboard: .phonePad
+                    )
+                    fmsField(
+                        title: "Email (Optional)",
+                        placeholder: "Enter email address",
+                        icon: "envelope.fill",
+                        text: $customerEmail,
+                        keyboard: .emailAddress
                     )
                 }
                 .listRowBackground(Color(.secondarySystemGroupedBackground))
@@ -356,12 +364,9 @@ public struct CreateOrderView: View {
             .navigationTitle("New Order")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Cancel — uses iOS default blue, turns to "Cancel" style automatically
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel", role: .cancel) { dismiss() }
                 }
-
-                // Create — uses iOS default tint, dims automatically when disabled
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: submitOrder) {
                         if viewModel.isCreating {
@@ -376,7 +381,11 @@ public struct CreateOrderView: View {
                     .disabled(!isFormValid || viewModel.isCreating)
                 }
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+            // Fix: proper writable Binding instead of .constant()
+            .alert("Error", isPresented: Binding(
+                get: { viewModel.errorMessage != nil },
+                set: { if !$0 { viewModel.errorMessage = nil } }
+            )) {
                 Button("OK") { viewModel.errorMessage = nil }
             } message: {
                 Text(viewModel.errorMessage ?? "")
@@ -391,6 +400,7 @@ public struct CreateOrderView: View {
     }
 
     // MARK: - Dropdown Row
+    // MARK: - Dropdown Row
     @ViewBuilder
     private func dropdownRow<MenuItems: View>(
         title: String,
@@ -399,19 +409,19 @@ public struct CreateOrderView: View {
         selectedLabel: String,
         @ViewBuilder menuItems: @escaping () -> MenuItems
     ) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundColor(iconColor)
-                .frame(width: 20)
+        Menu {
+            menuItems()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .foregroundColor(iconColor)
+                    .frame(width: 20)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(Color(.secondaryLabel))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
 
-                Menu {
-                    menuItems()
-                } label: {
                     HStack(spacing: 4) {
                         Text(selectedLabel)
                             .font(.body)
@@ -422,12 +432,13 @@ public struct CreateOrderView: View {
                             .foregroundColor(Color(.tertiaryLabel))
                     }
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())   // ensures full row area is tappable
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)             // prevents Form row from stealing the tap
     }
-
+    
     // MARK: - Location Picker Row
     @ViewBuilder
     private func locationPickerRow(
@@ -487,6 +498,8 @@ public struct CreateOrderView: View {
                 TextField(placeholder, text: text)
                     .keyboardType(keyboard)
                     .foregroundColor(Color(.label))
+                    .autocorrectionDisabled(keyboard == .emailAddress)
+                    .textInputAutocapitalization(keyboard == .emailAddress ? .never : .sentences)
             }
         }
         .padding(.vertical, 4)
@@ -494,12 +507,13 @@ public struct CreateOrderView: View {
 
     // MARK: - Submit Action
     private func submitOrder() {
-        guard let weight = Double(weightString) else { return }
+        guard let weight = Double(weightString), weight > 0 else { return }
         let packages = Int(packagesString)
 
         let payload = OrderCreatePayload(
             customerName: customerName,
             customerPhone: customerPhone.isEmpty ? nil : customerPhone,
+            customerEmail: customerEmail.isEmpty ? nil : customerEmail,  // Fix: now passed
             totalWeightKg: weight,
             totalPackages: packages,
             cargoType: selectedCargoType.rawValue,

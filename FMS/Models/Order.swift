@@ -8,81 +8,85 @@
 import Foundation
 
 public struct Order: Codable, Identifiable {
-    public var id: String
-    public var orderNumber: String?
-    public var customerName: String
-    public var customerPhone: String?
-    public var customerEmail: String?
-    public var totalWeightKg: Double
-    public var totalPackages: Int?
-    public var cargoType: String?
-    public var specialInstructions: String?
-    public var originName: String?
-    public var originLat: Double?
-    public var originLng: Double?
-    public var destinationName: String?
-    public var destinationLat: Double?
-    public var destinationLng: Double?
-    public var requestedPickupAt: Date?
-    public var requestedDeliveryAt: Date?
-    public var status: String?
-    public var priority: String?
-    public var quotedPrice: Double?
-    public var finalPrice: Double?
-    public var createdBy: String?
-    public var createdAt: Date?
-    public var amountReceived: Double?
-    public var paymentStatus: String?
-    public var paymentMethod: String?
-    public var invoiceNumber: String?
+    public let id: String
+    public let orderNumber: String?
+    public let customerName: String
+    public let customerPhone: String?
+    public let customerEmail: String?
+    public let totalWeightKg: Double
+    public let totalPackages: Int?
+    public let cargoType: String?
+    public let specialInstructions: String?
+    public let originName: String?
+    public let originLat: Double?
+    public let originLng: Double?
+    public let destinationName: String?
+    public let destinationLat: Double?
+    public let destinationLng: Double?
+    public let requestedPickupAt: Date?
+    public let requestedDeliveryAt: Date?
+    public let status: String?
+    public let priority: String?
+    public let quotedPrice: Double?
+    public let finalPrice: Double?
+    public let createdBy: String?
+    public let createdAt: Date?
+    public let amountReceived: Double?
+    public let paymentStatus: String?
+    public let paymentMethod: String?
+    public let invoiceNumber: String?
 
     enum CodingKeys: String, CodingKey {
         case id
-        case orderNumber = "order_number"
-        case customerName = "customer_name"
-        case customerPhone = "customer_phone"
-        case customerEmail = "customer_email"
-        case totalWeightKg = "total_weight_kg"
-        case totalPackages = "total_packages"
-        case cargoType = "cargo_type"
+        case orderNumber        = "order_number"
+        case customerName       = "customer_name"
+        case customerPhone      = "customer_phone"
+        case customerEmail      = "customer_email"
+        case totalWeightKg      = "total_weight_kg"
+        case totalPackages      = "total_packages"
+        case cargoType          = "cargo_type"
         case specialInstructions = "special_instructions"
-        case originName = "origin_name"
-        case originLat = "origin_lat"
-        case originLng = "origin_lng"
-        case destinationName = "destination_name"
-        case destinationLat = "destination_lat"
-        case destinationLng = "destination_lng"
-        case requestedPickupAt = "requested_pickup_at"
+        case originName         = "origin_name"
+        case originLat          = "origin_lat"
+        case originLng          = "origin_lng"
+        case destinationName    = "destination_name"
+        case destinationLat     = "destination_lat"
+        case destinationLng     = "destination_lng"
+        case requestedPickupAt  = "requested_pickup_at"
         case requestedDeliveryAt = "requested_delivery_at"
         case status
         case priority
-        case quotedPrice = "quoted_price"
-        case finalPrice = "final_price"
-        case createdBy = "created_by"
-        case createdAt = "created_at"
-        case amountReceived = "amount_received"
-        case paymentStatus = "payment_status"
-        case paymentMethod = "payment_method"
-        case invoiceNumber = "invoice_number"
+        case quotedPrice        = "quoted_price"
+        case finalPrice         = "final_price"
+        case createdBy          = "created_by"
+        case createdAt          = "created_at"
+        case amountReceived     = "amount_received"
+        case paymentStatus      = "payment_status"
+        case paymentMethod      = "payment_method"
+        case invoiceNumber      = "invoice_number"
     }
+
+    // MARK: - Computed
 
     public var statusLabel: String {
         switch status?.lowercased() {
-        case "pending": return "Pending"
-        case "confirmed": return "Confirmed"
+        case "pending":    return "Pending"
+        case "confirmed":  return "Confirmed"
         case "dispatched": return "Dispatched"
         case "in_transit": return "In Transit"
-        case "delivered": return "Delivered"
-        case "cancelled": return "Cancelled"
-        default: return status?.capitalized ?? "Unknown"
+        case "delivered":  return "Delivered"
+        case "cancelled":  return "Cancelled"
+        default:           return status?.capitalized ?? "Unknown"
         }
     }
 
-    public var statusDisplay: String { statusLabel }
-
+    /// Only truly unassigned orders need a driver — "confirmed" means already actioned
     public var isPending: Bool {
-        let s = status?.lowercased()
-        return s == "pending" || s == "confirmed"
+        status?.lowercased() == "pending"
+    }
+
+    public var isConfirmed: Bool {
+        status?.lowercased() == "confirmed"
     }
 
     public var isOngoing: Bool {

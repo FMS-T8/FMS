@@ -223,20 +223,40 @@ public struct OrdersListView: View {
                         .foregroundColor(FMSTheme.textPrimary)
 
                     // Route
-                    HStack(spacing: 6) {
-                        Circle()
-                            .stroke(FMSTheme.textTertiary, lineWidth: 1.5)
-                            .frame(width: 10, height: 10)
-                        Text(order.originName ?? "Unknown")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(FMSTheme.textPrimary)
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(FMSTheme.textTertiary)
-                        Text(order.destinationName ?? "Unknown")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(FMSTheme.textPrimary)
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Pickup
+                        HStack(alignment: .center, spacing: 12) {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 10, height: 10)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("PICKUP")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .kerning(0.8)
+                                    .foregroundColor(.blue)
+                                Text(order.originName ?? "Unknown")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(FMSTheme.textPrimary)
+                            }
+                        }
+                        
+                        // Delivery
+                        HStack(alignment: .center, spacing: 12) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 10, height: 10)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("DELIVERY")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .kerning(0.8)
+                                    .foregroundColor(.green)
+                                Text(order.destinationName ?? "Unknown")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(FMSTheme.textPrimary)
+                            }
+                        }
                     }
+                    .padding(.vertical, 4)
 
                     // Weight + Truck
                     HStack(spacing: 16) {

@@ -1,17 +1,13 @@
 //
-//   OrderCreatePayload.swift
+//  OrderCreatePayload.swift
 //  FMS
-//
-//  Created by user@50 on 16/03/26.
-//
-
-
 
 import Foundation
 
 public struct OrderCreatePayload: Encodable {
     public let customerName: String
     public let customerPhone: String?
+    public let customerEmail: String?
     public let totalWeightKg: Double
     public let totalPackages: Int?
     public let cargoType: String
@@ -25,6 +21,7 @@ public struct OrderCreatePayload: Encodable {
     enum CodingKeys: String, CodingKey {
         case customerName        = "customer_name"
         case customerPhone       = "customer_phone"
+        case customerEmail       = "customer_email"
         case totalWeightKg       = "total_weight_kg"
         case totalPackages       = "total_packages"
         case cargoType           = "cargo_type"
