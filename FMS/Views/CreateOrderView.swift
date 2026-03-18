@@ -252,8 +252,24 @@ public struct CreateOrderView: View {
                 }
             }
             .task {
-                // Fetch LIVE Drivers and Vehicles from your DB when the view opens!
-                await viewModel.fetchAvailableResources()
+                // Fetch resources based on the default date when the view opens
+                await viewModel.fetchAvailableResources(for: pickupDate)
+            }
+            // NEW: Listen to date changes to recalculate driver availability dynamically
+            .onChange(of: pickupDate) { _, newDate in
+                Task {
+                    await viewModel.fetchAvailableResources(for: newDate)
+                    
+                    // Clear out the selection if that driver/vehicle is no longer available on the new date
+                    if !viewModel.availableDrivers.contains(where: { $0.id == selectedDriverId }) {
+                        selectedDriverId = nil
+                        selectedDriverName = ""
+                    }
+                    if !viewModel.availableVehicles.contains(where: { $0.id == selectedVehicleId }) {
+                        selectedVehicleId = nil
+                        selectedVehicleName = ""
+                    }
+                }
             }
             .sheet(isPresented: $showingOriginSearch) { LocationSearchSheet(title: "Pickup Location") { name, lat, lng in self.originName = name; self.originLat = lat; self.originLng = lng } }
             .sheet(isPresented: $showingDestinationSearch) { LocationSearchSheet(title: "Drop-off Location") { name, lat, lng in self.destinationName = name; self.destinationLat = lat; self.destinationLng = lng } }
@@ -350,7 +366,6 @@ public struct CreateOrderView: View {
     }
 }
 
-// Reusable Live Resource Picker Sheet
 struct ResourcePickerSheet: View {
     let title: String
     let icon: String
@@ -362,7 +377,7 @@ struct ResourcePickerSheet: View {
         NavigationStack {
             List {
                 if items.isEmpty {
-                    ContentUnavailableView("No Resources Found", systemImage: "exclamationmark.triangle", description: Text("Ensure you have active entities in the database."))
+                    ContentUnavailableView("No Resources Available", systemImage: "calendar.badge.exclamationmark", description: Text("There are no unassigned drivers or vehicles available for this date."))
                 } else {
                     ForEach(items, id: \.id) { item in
                         Button {
