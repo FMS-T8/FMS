@@ -90,12 +90,12 @@ struct AddDriverView: View {
   var onDriverAdded: (() -> Void)?
 
   // View Model
-  @StateObject private var viewModel: AddDriverViewModel
+  @State private var viewModel: AddDriverViewModel
 
   init(role: String = "driver", onDriverAdded: (() -> Void)? = nil) {
     self.role = role
     self.onDriverAdded = onDriverAdded
-    _viewModel = StateObject(wrappedValue: AddDriverViewModel(role: role))
+    viewModel = AddDriverViewModel(role: role)
   }
 
   // Form State
