@@ -1,3 +1,11 @@
+//
+//  ManagerProfileViewModel.swift
+//  FMS
+//
+//  Created by Devanshi on 19/03/26.
+//
+
+
 import SwiftUI
 
 public struct LoginView: View {
@@ -46,71 +54,95 @@ public struct LoginView: View {
                     .foregroundColor(labelColor)
                     .padding(.bottom, 48)
                 
-                // Input Fields
-                VStack(spacing: 20) {
-                    FMSTextField(
-                        label: "Email Address",
-                        placeholder: "name@fleetpro.com",
-                        icon: "at",
-                        text: $email
-                    )
-                    .textContentType(.emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    
-                    FMSTextField(
-                        label: "Password",
-                        placeholder: "••••••••",
-                        icon: "lock",
-                        text: $password,
-                        isSecure: true,
-                        trailingAction: {
-                            // Forgot password action
-                        },
-                        trailingLabel: "Forgot Password?"
-                    )
-                    .textContentType(.password)
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 32)
-                
-                // Login Button
-                Button {
-                    performLogin()
-                } label: {
-                    HStack {
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(0.9)
-                        } else {
-                            Text("Login")
-                                .font(.system(size: 17, weight: .bold))
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 15, weight: .bold))
-                        }
-                    }
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(FMSTheme.amber)
-                    .cornerRadius(16)
-                    .shadow(color: FMSTheme.amber.opacity(0.2), radius: 10, x: 0, y: 5)
-                }
-                .disabled(isLoading)
-                .padding(.horizontal, 24)
-                
-                Spacer()
-                
-                // Footer
-                Text("© 2026 FLEETPRO SYSTEMS")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(labelColor)
-                    .tracking(1.0)
-                    .padding(.bottom, 20)
-            }
-        }
-    }
+                VStack(spacing: 18) {
+
+                                   // Email
+
+                                   TextField("Email", text: $email)
+                                       .padding()
+                                       .background(
+                                           RoundedRectangle(cornerRadius: 14)
+                                               .fill(FMSTheme.pillBackground)
+                                       )
+                                       .foregroundColor(FMSTheme.textPrimary)
+                                       .textInputAutocapitalization(.never)
+
+
+                                   // Password
+
+                                   SecureField("Password", text: $password)
+                                       .padding()
+                                       .background(
+                                           RoundedRectangle(cornerRadius: 14)
+                                               .fill(FMSTheme.pillBackground)
+                                       )
+                                       .foregroundColor(FMSTheme.textPrimary)
+
+
+                                   // Login Button
+
+                                   Button {
+                                       performLogin()
+                                   } label: {
+
+                                       ZStack {
+
+                                           RoundedRectangle(cornerRadius: 16)
+                                               .fill(FMSTheme.amber)
+
+                                           if isLoading {
+
+                                               ProgressView()
+                                                   .tint(.black)
+
+                                           } else {
+
+                                               Text("Login")
+                                                   .fontWeight(.bold)
+                                                   .foregroundColor(.black)
+                                           }
+                                       }
+                                       .frame(height: 52)
+                                       .shadow(
+                                           color: FMSTheme.shadowMedium,
+                                           radius: 8,
+                                           y: 4
+                                       )
+                                   }
+                                   .disabled(isLoading)
+
+
+                                   Button("Forgot Password?") {
+
+                                   }
+                                   .font(.footnote)
+                                   .foregroundColor(FMSTheme.textSecondary)
+
+                               }
+                               .padding(24)
+                               .background(
+                                   RoundedRectangle(cornerRadius: 28)
+                                       .fill(FMSTheme.cardBackground)
+                                       .shadow(
+                                           color: FMSTheme.shadowSmall,
+                                           radius: 10,
+                                           y: 6
+                                       )
+                               )
+                               .padding(.horizontal, 24)
+
+                               Spacer()
+
+                               // Footer
+
+                               Text("© 2026 FLEETPRO SYSTEMS")
+                                   .font(.system(size: 11, weight: .medium))
+                                   .foregroundColor(FMSTheme.textTertiary)
+                                   .tracking(1)
+
+                           }
+                       }
+                   }
     
     private func performLogin() {
         isLoading = true
