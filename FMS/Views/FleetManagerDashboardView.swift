@@ -24,6 +24,11 @@ public struct FleetManagerDashboardView: View {
             FMSTabItem(id: "maintenance", title: "Maintenance", icon: "wrench.and.screwdriver.fill") {
                 Text("Maintenance")
             }
+            
+            // Reports Tab
+            FMSTabItem(id: "reports", title: "Reports", icon: "chart.bar.xaxis") {
+                ReportsHubView()
+            }
         }
     }
 }
