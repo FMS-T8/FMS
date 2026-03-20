@@ -9,7 +9,6 @@ import SwiftUI
 import CoreLocation
 import Supabase
 
-// Note: To show interactivity, let's make this view dynamic!
 public struct NewTripAssignmentView: View {
     let trip: Trip
     @Bindable var viewModel: DriverDashboardViewModel
@@ -22,14 +21,10 @@ public struct NewTripAssignmentView: View {
     @State private var preTripInspectionCompleted = false
     @State private var postTripInspectionCompleted = false
     @State private var showLocationConfirmation = false
-    /// Vehicle fetched specifically for THIS trip
     @State private var tripVehicle: Vehicle? = nil
-    /// Order number (e.g. ORD-000042) fetched for THIS trip
     @State private var orderNumber: String? = nil
-    /// Waypoints fetched from the linked order
     @State private var orderWaypoints: [Waypoint] = []
     
-    /// All stops: origin → waypoints → destination
     private var activeStops: [MockStop] {
         var stops: [MockStop] = []
         if let startLat = trip.startLat, let startLng = trip.startLng {
@@ -41,7 +36,6 @@ public struct NewTripAssignmentView: View {
                 coordinate: CLLocationCoordinate2D(latitude: startLat, longitude: startLng)
             ))
         }
-        // Insert waypoints between origin and destination
         for wp in orderWaypoints {
             stops.append(MockStop(
                 title: wp.name,
@@ -72,28 +66,20 @@ public struct NewTripAssignmentView: View {
         ScrollView {
             VStack(spacing: 24) {
                 
-                // Map
                 MapCard(stops: activeStops)
                     .frame(height: 240)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 4)
                     
-                    // Stats
                     statsSection
-                    
-                    // Assigned Vehicle
                     assignedVehicleCard
-                    
-                    // Itinerary
                     itinerarySection
-                    
-                    // Trip details embedded
                     tripInfoCard
+                    
                     if trip.shipmentDescription != nil || trip.shipmentWeightKg != nil || trip.shipmentPackageCount != nil || trip.fragile == true || trip.specialInstructions != nil {
                         shipmentCard
                     }
                     
-                    // Bottom padding to ensure last item clears the active buttons
                     Spacer().frame(height: 40)
                 }
                 .padding(16)
@@ -165,7 +151,6 @@ public struct NewTripAssignmentView: View {
                         viewModel.startTrip(trip)
                         openAppleMaps()
                         dismiss()
-                        // Trigger the tracking confirmation modal instead of dismissing immediately
                         showLocationConfirmation = true
                     }
                     preTripInspectionCompleted = false
@@ -176,7 +161,7 @@ public struct NewTripAssignmentView: View {
             }
             .onChange(of: showLocationConfirmation) { _, isShowing in
                 if !isShowing {
-                    dismiss() // Drop down to dashboard when splash finishes
+                    dismiss()
                 }
             }
             .onChange(of: showPostTripInspection) { _, isShowing in
@@ -265,19 +250,21 @@ public struct NewTripAssignmentView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
-        .padding(.bottom, 8) // Accommodates safe area
+        .padding(.bottom, 8)
         buttonContent
             .background(
                 Rectangle()
                     .fill(.ultraThinMaterial)
                     .mask(
-                        LinearGradient(gradient: Gradient(colors: [.black, .black, .black, .clear]), startPoint: .bottom, endPoint: .top)
+                        LinearGradient(
+                            gradient: Gradient(colors: [.black, .black, .black, .clear]),
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
                     )
                     .ignoresSafeArea(edges: .bottom)
             )
     }
-    
-    // Removed headerSection as it is now natively handled by the NavigationBar/Toolbar
     
     private var statsSection: some View {
         HStack(spacing: 12) {
@@ -286,13 +273,11 @@ public struct NewTripAssignmentView: View {
                 title: "DISTANCE",
                 value: trip.distanceKm.map { String(format: "%.0f km", $0) } ?? "--"
             )
-            
             TripStatCard(
                 iconName: "clock",
                 title: "DURATION",
                 value: (trip.actualDurationMin ?? trip.estimatedDurationMin)?.formattedDuration ?? "--"
             )
-            
             TripStatCard(
                 iconName: "123.rectangle",
                 title: "STOPS",
@@ -337,14 +322,16 @@ public struct NewTripAssignmentView: View {
     }
     
     // MARK: - Assigned Vehicle Card
-    
     @ViewBuilder
     private var assignedVehicleCard: some View {
         if let vehicle = tripVehicle ?? viewModel.assignedVehicle {
             HStack(spacing: 16) {
-                // Icon
+                // FIX: replace `if true` with proper iOS 26 availability check
                 ZStack {
-                    if true {
+                    if #available(iOS 26, *) {
+                        RoundedRectangle(cornerRadius: 12)
+                            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                    } else {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(FMSTheme.pillBackground)
                     }
@@ -355,7 +342,6 @@ public struct NewTripAssignmentView: View {
                 }
                 .frame(width: 48, height: 48)
                 
-                // Typography & Plate
                 VStack(alignment: .leading, spacing: 4) {
                     Text("ASSIGNED VEHICLE")
                         .font(.system(size: 11, weight: .bold))
@@ -367,7 +353,6 @@ public struct NewTripAssignmentView: View {
                         .foregroundColor(FMSTheme.textPrimary)
                         .lineLimit(1)
                     
-                    // License Plate Badge
                     Text(vehicle.plateNumber)
                         .font(.system(.caption, design: .monospaced).bold())
                         .padding(.horizontal, 8)
@@ -383,7 +368,6 @@ public struct NewTripAssignmentView: View {
                 
                 Spacer(minLength: 0)
                 
-                // Status Indicator
                 if let status = vehicle.status {
                     Text(status.capitalized)
                         .font(.caption2.weight(.bold))
@@ -408,7 +392,6 @@ public struct NewTripAssignmentView: View {
     }
     
     // MARK: - Trip Info Card
-
     private var tripInfoCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Trip Information")
@@ -421,11 +404,9 @@ public struct NewTripAssignmentView: View {
             if let start = trip.startTime {
                 infoRow(label: "Start Time", value: formatDateTime(start))
             }
-
             if let end = trip.endTime {
                 infoRow(label: "End Time", value: formatDateTime(end))
             }
-
         }
         .padding(16)
         .background(FMSTheme.cardBackground)
@@ -437,7 +418,6 @@ public struct NewTripAssignmentView: View {
     }
 
     // MARK: - Shipment Card
-
     private var shipmentCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Shipment Details")
@@ -447,15 +427,12 @@ public struct NewTripAssignmentView: View {
             if let desc = trip.shipmentDescription {
                 infoRow(label: "Description", value: desc.capitalized)
             }
-
             if let weight = trip.shipmentWeightKg {
                 infoRow(label: "Weight", value: String(format: "%.0f kg", weight))
             }
-
             if let count = trip.shipmentPackageCount {
                 infoRow(label: "Packages", value: "\(count)")
             }
-
             if trip.fragile == true {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -470,7 +447,6 @@ public struct NewTripAssignmentView: View {
                 .background(FMSTheme.alertOrange.opacity(0.12))
                 .cornerRadius(8)
             }
-
             if let instructions = trip.specialInstructions, !instructions.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Special Instructions")
@@ -492,7 +468,6 @@ public struct NewTripAssignmentView: View {
     }
 
     // MARK: - Helpers
-
     private func infoRow(label: String, value: String, valueColor: Color = FMSTheme.textPrimary) -> some View {
         HStack {
             Text(label)
@@ -504,8 +479,6 @@ public struct NewTripAssignmentView: View {
                 .foregroundStyle(valueColor)
         }
     }
-
-    // MARK: - Navigate Button
 
     private var navigateButton: some View {
         Button {
@@ -532,11 +505,8 @@ public struct NewTripAssignmentView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Apple Maps
-
     // MARK: - Apple Maps (multi-stop)
     private func openAppleMaps() {
-        // Build coordinate-ordered list: origin → waypoints → destination
         var coords: [(lat: Double, lng: Double, name: String)] = []
         if let lat = trip.startLat, let lng = trip.startLng {
             coords.append((lat, lng, trip.startName ?? "Origin"))
@@ -549,24 +519,18 @@ public struct NewTripAssignmentView: View {
         }
         guard coords.count >= 2 else { return }
         
-        // Apple Maps does not natively support multi-waypoint deep links via URL scheme.
-        // Best approach: open directions from current location to each stop in sequence.
-        // We chain daddr params which Maps will show as a multi-destination route.
         var items: [URLQueryItem] = []
-        // First stop is the starting address
         items.append(URLQueryItem(name: "saddr", value: "\(coords[0].lat),\(coords[0].lng)"))
-        // All remaining stops as successive destinations
         for coord in coords.dropFirst() {
             items.append(URLQueryItem(name: "daddr", value: "\(coord.lat),\(coord.lng)"))
         }
-        items.append(URLQueryItem(name: "dirflg", value: "d"))  // driving
+        items.append(URLQueryItem(name: "dirflg", value: "d"))
         
         var components = URLComponents()
         components.scheme = "maps"
         components.host = ""
         components.queryItems = items
         
-        // Fallback to http://maps.apple.com
         guard let url = components.url ?? {
             var fb = URLComponents()
             fb.scheme = "https"
@@ -584,12 +548,11 @@ public struct NewTripAssignmentView: View {
     }()
     
     private func formatDateTime(_ date: Date) -> String {
-        return Self.dateTimeFormatter.string(from: date)
+        Self.dateTimeFormatter.string(from: date)
     }
     
-    // MARK: - Fetch vehicle, order info & waypoints for this specific trip
+    // MARK: - Fetch vehicle, order info & waypoints
     private func fetchTripVehicle() async {
-        // Fetch vehicle
         if let vehicleId = trip.vehicleId {
             do {
                 let vehicles: [Vehicle] = try await SupabaseService.shared.client
@@ -604,7 +567,6 @@ public struct NewTripAssignmentView: View {
             }
         }
         
-        // Fetch order number AND waypoints in a single query
         if let orderId = trip.orderId {
             do {
                 let rows: [Order] = try await SupabaseService.shared.client

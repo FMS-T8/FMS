@@ -14,6 +14,10 @@ public extension View {
         cornerRadius: CGFloat = 32,
         fallbackMaterial: Material = .ultraThinMaterial
     ) -> some View {
-        self.background(fallbackMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+        if #available(iOS 26, *) {
+            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+        } else {
+            self.background(fallbackMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+        }
     }
 }
