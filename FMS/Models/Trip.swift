@@ -1,9 +1,16 @@
+//
+//  Trip.swift
+//  FMS
+//
+
 import Foundation
 
 public struct Trip: Codable, Identifiable, Hashable {
     public func hash(into hasher: inout Hasher) { hasher.combine(id) }
     public static func == (lhs: Trip, rhs: Trip) -> Bool { lhs.id == rhs.id }
+
     public var id: String
+    public var orderId: String?
     public var vehicleId: String?
     public var driverId: String?
     public var assignmentId: String?
@@ -27,41 +34,44 @@ public struct Trip: Codable, Identifiable, Hashable {
     public var createdAt: Date?
     public var startTime: Date?
     public var endTime: Date?
-    
+
     enum CodingKeys: String, CodingKey {
         case id
-        case vehicleId = "vehicle_id"
-        case driverId = "driver_id"
-        case assignmentId = "assignment_id"
+        case orderId             = "order_id"
+        case vehicleId           = "vehicle_id"
+        case driverId            = "driver_id"
+        case assignmentId        = "assignment_id"
         case shipmentDescription = "shipment_description"
-        case shipmentWeightKg = "shipment_weight_kg"
+        case shipmentWeightKg    = "shipment_weight_kg"
         case shipmentPackageCount = "shipment_package_count"
         case fragile
         case specialInstructions = "special_instructions"
-        case startLat = "start_lat"
-        case startLng = "start_lng"
-        case startName = "start_name"
-        case endLat = "end_lat"
-        case endLng = "end_lng"
-        case endName = "end_name"
-        case distanceKm = "distance_km"
+        case startLat            = "start_lat"
+        case startLng            = "start_lng"
+        case startName           = "start_name"
+        case endLat              = "end_lat"
+        case endLng              = "end_lng"
+        case endName             = "end_name"
+        case distanceKm          = "distance_km"
+        // Kept as _min to match existing DB column names.
+        // If you run a migration renaming them to _minutes, update these two keys to match.
         case estimatedDurationMin = "estimated_duration_min"
-        case actualDurationMin = "actual_duration_min"
-        case fuelUsedLiters = "fuel_used_liters"
+        case actualDurationMin    = "actual_duration_min"
+        case fuelUsedLiters      = "fuel_used_liters"
         case status
-        case createdBy = "created_by"
-        case createdAt = "created_at"
-        case startTime = "start_time"
-        case endTime = "end_time"
+        case createdBy           = "created_by"
+        case createdAt           = "created_at"
+        case startTime           = "start_time"
+        case endTime             = "end_time"
     }
 
     public var statusLabel: String {
         switch status?.lowercased() {
-        case "completed": return "Completed"
-        case "active": return "In Progress"
-        case "scheduled": return "Scheduled"
-        case "cancelled": return "Cancelled"
-        default: return status?.capitalized ?? "Unknown"
+        case "completed":                           return "Completed"
+        case "active", "in_progress", "in_transit": return "In Progress"
+        case "scheduled", "assigned", "pending":    return "Scheduled"
+        case "cancelled":                           return "Cancelled"
+        default:                                    return status?.capitalized ?? "Unknown"
         }
     }
 }

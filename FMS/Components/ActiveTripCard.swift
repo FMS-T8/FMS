@@ -147,7 +147,7 @@ public struct CurrentJobCard: View {
     // MARK: - Helpers
 
     private var formattedTime: String {
-        guard let time = trip.startTime else { return "—" }
+        guard let time = trip.startTime else { return "Pickup Scheduled" }
         let formatter = DateFormatter()
         if Calendar.current.isDateInToday(time) {
             formatter.dateFormat = "'Today,' h:mm a"
@@ -162,7 +162,7 @@ public struct CurrentJobCard: View {
     private var cargoDescription: String {
         var parts: [String] = []
         if let desc = trip.shipmentDescription {
-            parts.append(desc)
+            parts.append(desc.capitalized)
         }
         if let weight = trip.shipmentWeightKg {
             parts.append("(\(String(format: "%.1f", weight / 1000))t)")

@@ -145,7 +145,8 @@ public struct VehicleDetailView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(FMSTheme.textSecondary)
                     
-                    Text("VIN: \(currentVehicle.chassisNumber)")
+                    // FIX: Handled Optional Chassis Number
+                    Text("VIN: \(currentVehicle.chassisNumber ?? "Unknown")")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(FMSTheme.textSecondary)
                 }
@@ -166,8 +167,13 @@ public struct VehicleDetailView: View {
             
             detailRow(title: "Make", value: currentVehicle.manufacturer ?? "Unknown")
             detailRow(title: "Model", value: currentVehicle.model ?? "Unknown")
-            detailRow(title: "Fuel Type", value: currentVehicle.fuelType.capitalized)
-            detailRow(title: "Fuel Tank", value: "\(Int(currentVehicle.fuelTankCapacity)) L")
+            
+            // FIX: Handled Optional Fuel Type capitalization
+            detailRow(title: "Fuel Type", value: (currentVehicle.fuelType ?? "Unknown").capitalized)
+            
+            // FIX: Handled Optional Fuel Tank Capacity
+            detailRow(title: "Fuel Tank", value: currentVehicle.fuelTankCapacity != nil ? "\(Int(currentVehicle.fuelTankCapacity!)) L" : "Unknown")
+            
             detailRow(title: "Carrying Capacity", value: capacityText)
             detailRow(title: "Odometer", value: odometerText)
         }
@@ -176,7 +182,6 @@ public struct VehicleDetailView: View {
         .cornerRadius(16)
         .shadow(color: FMSTheme.shadowSmall, radius: 6, x: 0, y: 4)
     }
-    
     
     private var currentTripSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -754,7 +759,8 @@ enum DetailSectionTarget: String, Identifiable {
         fuelType: "diesel",
         fuelTankCapacity: 400,
         carryingCapacity: 12000,
-        purchaseDateString: "2025-09-10",
+        // FIX: Replaced string with native Date() to satisfy new Model constraints
+        purchaseDate: "2023-01-15",
         odometer: 125000,
         status: "active",
         createdBy: nil,
