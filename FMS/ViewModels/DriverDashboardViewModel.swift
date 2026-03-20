@@ -125,7 +125,7 @@ public final class DriverDashboardViewModel {
                 .value
 
             let activeStatuses = ["active", "in_progress", "in_transit"]
-            let upcomingStatuses = ["pending", "scheduled", "assigned"]
+            let upcomingStatuses = ["pending", "scheduled", "assigned", "confirmed"]
             let completedStatuses = ["completed", "delivered", "cancelled"]
 
             self.activeTrip = allTrips.first(where: { activeStatuses.contains($0.status?.lowercased() ?? "") })

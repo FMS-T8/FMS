@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreLocation
+import Supabase
 
 // Note: To show interactivity, let's make this view dynamic!
 public struct NewTripAssignmentView: View {
@@ -21,6 +22,10 @@ public struct NewTripAssignmentView: View {
     @State private var preTripInspectionCompleted = false
     @State private var postTripInspectionCompleted = false
     @State private var showLocationConfirmation = false
+    /// Vehicle fetched specifically for THIS trip
+    @State private var tripVehicle: Vehicle? = nil
+    /// Order number (e.g. ORD-000042) fetched for THIS trip
+    @State private var orderNumber: String? = nil
     
     private var activeStops: [MockStop] {
         var stops: [MockStop] = []
@@ -84,6 +89,9 @@ public struct NewTripAssignmentView: View {
             .navigationTitle("Trip Assignment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .tabBar)
+            .task {
+                await fetchTripVehicle()
+            }
             .safeAreaInset(edge: .bottom) {
                 bottomStickyButton
             }
@@ -319,7 +327,7 @@ public struct NewTripAssignmentView: View {
     
     @ViewBuilder
     private var assignedVehicleCard: some View {
-        if let vehicle = viewModel.assignedVehicle {
+        if let vehicle = tripVehicle ?? viewModel.assignedVehicle {
             HStack(spacing: 16) {
                 // Icon
                 ZStack {
@@ -394,7 +402,7 @@ public struct NewTripAssignmentView: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(FMSTheme.textPrimary)
 
-            infoRow(label: "Trip ID", value: trip.id.uppercased())
+            infoRow(label: "Order #", value: orderNumber ?? String(trip.id.prefix(8)).uppercased())
             infoRow(label: "Status", value: trip.statusLabel, valueColor: FMSTheme.statusColor(for: trip.status ?? ""))
 
             if let start = trip.startTime {
@@ -424,7 +432,7 @@ public struct NewTripAssignmentView: View {
                 .foregroundStyle(FMSTheme.textPrimary)
 
             if let desc = trip.shipmentDescription {
-                infoRow(label: "Description", value: desc)
+                infoRow(label: "Description", value: desc.capitalized)
             }
 
             if let weight = trip.shipmentWeightKg {
@@ -535,5 +543,41 @@ public struct NewTripAssignmentView: View {
     
     private func formatDateTime(_ date: Date) -> String {
         return Self.dateTimeFormatter.string(from: date)
+    }
+    
+    // MARK: - Fetch vehicle & order info for this specific trip
+    private func fetchTripVehicle() async {
+        // Fetch vehicle
+        if let vehicleId = trip.vehicleId {
+            do {
+                let vehicles: [Vehicle] = try await SupabaseService.shared.client
+                    .from("vehicles")
+                    .select()
+                    .eq("id", value: vehicleId)
+                    .execute()
+                    .value
+                await MainActor.run { tripVehicle = vehicles.first }
+            } catch {
+                print("Failed to fetch vehicle for trip: \(error)")
+            }
+        }
+        
+        // Fetch order number
+        if let orderId = trip.orderId {
+            do {
+                struct OrderNumRow: Decodable { let order_number: String? }
+                let rows: [OrderNumRow] = try await SupabaseService.shared.client
+                    .from("orders")
+                    .select("order_number")
+                    .eq("id", value: orderId)
+                    .execute()
+                    .value
+                if let num = rows.first?.order_number {
+                    await MainActor.run { orderNumber = num }
+                }
+            } catch {
+                print("Failed to fetch order number: \(error)")
+            }
+        }
     }
 }
