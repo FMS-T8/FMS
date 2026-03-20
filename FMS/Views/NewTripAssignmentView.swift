@@ -26,7 +26,10 @@ public struct NewTripAssignmentView: View {
     @State private var tripVehicle: Vehicle? = nil
     /// Order number (e.g. ORD-000042) fetched for THIS trip
     @State private var orderNumber: String? = nil
+    /// Waypoints fetched from the linked order
+    @State private var orderWaypoints: [Waypoint] = []
     
+    /// All stops: origin → waypoints → destination
     private var activeStops: [MockStop] {
         var stops: [MockStop] = []
         if let startLat = trip.startLat, let startLng = trip.startLng {
@@ -36,6 +39,16 @@ public struct NewTripAssignmentView: View {
                 expectedTime: trip.startTime.map { formatDateTime($0) } ?? "Scheduled",
                 stopType: .pickup,
                 coordinate: CLLocationCoordinate2D(latitude: startLat, longitude: startLng)
+            ))
+        }
+        // Insert waypoints between origin and destination
+        for wp in orderWaypoints {
+            stops.append(MockStop(
+                title: wp.name,
+                address: "",
+                expectedTime: "Via Stop",
+                stopType: .waypoint,
+                coordinate: CLLocationCoordinate2D(latitude: wp.lat, longitude: wp.lng)
             ))
         }
         if let endLat = trip.endLat, let endLng = trip.endLng {
@@ -521,17 +534,46 @@ public struct NewTripAssignmentView: View {
 
     // MARK: - Apple Maps
 
+    // MARK: - Apple Maps (multi-stop)
     private func openAppleMaps() {
-        guard let lat = trip.endLat, let lng = trip.endLng else { return }
+        // Build coordinate-ordered list: origin → waypoints → destination
+        var coords: [(lat: Double, lng: Double, name: String)] = []
+        if let lat = trip.startLat, let lng = trip.startLng {
+            coords.append((lat, lng, trip.startName ?? "Origin"))
+        }
+        for wp in orderWaypoints {
+            coords.append((wp.lat, wp.lng, wp.name))
+        }
+        if let lat = trip.endLat, let lng = trip.endLng {
+            coords.append((lat, lng, trip.endName ?? "Destination"))
+        }
+        guard coords.count >= 2 else { return }
+        
+        // Apple Maps does not natively support multi-waypoint deep links via URL scheme.
+        // Best approach: open directions from current location to each stop in sequence.
+        // We chain daddr params which Maps will show as a multi-destination route.
+        var items: [URLQueryItem] = []
+        // First stop is the starting address
+        items.append(URLQueryItem(name: "saddr", value: "\(coords[0].lat),\(coords[0].lng)"))
+        // All remaining stops as successive destinations
+        for coord in coords.dropFirst() {
+            items.append(URLQueryItem(name: "daddr", value: "\(coord.lat),\(coord.lng)"))
+        }
+        items.append(URLQueryItem(name: "dirflg", value: "d"))  // driving
+        
         var components = URLComponents()
-        components.scheme = "http"
-        components.host = "maps.apple.com"
-        components.queryItems = [
-            URLQueryItem(name: "daddr", value: "\(lat),\(lng)"),
-            URLQueryItem(name: "dname", value: trip.endName ?? "Destination"),
-            URLQueryItem(name: "dirflg", value: "d"),
-        ]
-        guard let url = components.url else { return }
+        components.scheme = "maps"
+        components.host = ""
+        components.queryItems = items
+        
+        // Fallback to http://maps.apple.com
+        guard let url = components.url ?? {
+            var fb = URLComponents()
+            fb.scheme = "https"
+            fb.host = "maps.apple.com"
+            fb.queryItems = items
+            return fb.url
+        }() else { return }
         openURL(url)
     }
 
@@ -545,7 +587,7 @@ public struct NewTripAssignmentView: View {
         return Self.dateTimeFormatter.string(from: date)
     }
     
-    // MARK: - Fetch vehicle & order info for this specific trip
+    // MARK: - Fetch vehicle, order info & waypoints for this specific trip
     private func fetchTripVehicle() async {
         // Fetch vehicle
         if let vehicleId = trip.vehicleId {
@@ -562,21 +604,23 @@ public struct NewTripAssignmentView: View {
             }
         }
         
-        // Fetch order number
+        // Fetch order number AND waypoints in a single query
         if let orderId = trip.orderId {
             do {
-                struct OrderNumRow: Decodable { let order_number: String? }
-                let rows: [OrderNumRow] = try await SupabaseService.shared.client
+                let rows: [Order] = try await SupabaseService.shared.client
                     .from("orders")
-                    .select("order_number")
+                    .select("order_number, waypoints")
                     .eq("id", value: orderId)
                     .execute()
                     .value
-                if let num = rows.first?.order_number {
-                    await MainActor.run { orderNumber = num }
+                if let order = rows.first {
+                    await MainActor.run {
+                        orderNumber    = order.orderNumber
+                        orderWaypoints = order.waypoints ?? []
+                    }
                 }
             } catch {
-                print("Failed to fetch order number: \(error)")
+                print("Failed to fetch order info: \(error)")
             }
         }
     }

@@ -9,19 +9,22 @@ import SwiftUI
 
 public enum StopType: String {
     case pickup = "PICKUP"
+    case waypoint = "STOP"
     case dropOff = "DROP-OFF"
     
     var backgroundColor: Color {
         switch self {
-        case .pickup: return Color(red: 235/255, green: 250/255, blue: 240/255) // Light green
-        case .dropOff: return Color(red: 235/255, green: 240/255, blue: 255/255) // Light blue
+        case .pickup:   return Color(red: 235/255, green: 250/255, blue: 240/255) // Light green
+        case .waypoint: return Color(red: 255/255, green: 243/255, blue: 205/255) // Light amber
+        case .dropOff:  return Color(red: 235/255, green: 240/255, blue: 255/255) // Light blue
         }
     }
     
     var textColor: Color {
         switch self {
-        case .pickup: return Color(red: 40/255, green: 160/255, blue: 80/255) // Dark green
-        case .dropOff: return Color(red: 60/255, green: 100/255, blue: 220/255) // Dark blue
+        case .pickup:   return Color(red: 40/255, green: 160/255, blue: 80/255)  // Dark green
+        case .waypoint: return Color(red: 180/255, green: 120/255, blue: 0/255)  // Amber
+        case .dropOff:  return Color(red: 60/255, green: 100/255, blue: 220/255) // Dark blue
         }
     }
 }
