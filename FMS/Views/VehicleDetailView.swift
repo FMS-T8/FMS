@@ -771,3 +771,4 @@ enum DetailSectionTarget: String, Identifiable {
         VehicleDetailView(vehicle: vehicle)
     }
 }
+

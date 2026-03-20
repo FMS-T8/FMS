@@ -5,10 +5,10 @@ struct PartDetailView: View {
     @State var part: PartItem
     let store: InventoryStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(BannerManager.self) private var bannerManager
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var showingEdit        = false
-    @State private var showingReorder     = false
     @State private var showingDeleteAlert = false
     @State private var adjustQty: Int     = 0
     @State private var errorMessage: String? = nil
@@ -146,7 +146,8 @@ struct PartDetailView: View {
                                     .foregroundColor(FMSTheme.textTertiary)
                                     .tracking(0.6)
 
-                                HStack(spacing: 16) {
+                                HStack(spacing: 32) {
+                                    Spacer()
                                     Button {
                                         withAnimation { adjustQty = max(adjustQty - 1, -part.stock) }
                                     } label: {
@@ -173,35 +174,7 @@ struct PartDetailView: View {
                                             .clipShape(Circle())
                                             .foregroundColor(FMSTheme.amberDark)
                                     }
-
                                     Spacer()
-
-                                    Button {
-                                        guard adjustQty != 0 else { return }
-                                        Task {
-                                            do {
-                                                try await store.reorder(part: part, quantity: adjustQty)
-                                                await MainActor.run {
-                                                    part.stock = max(0, part.stock + adjustQty)
-                                                    adjustQty = 0
-                                                }
-                                            } catch {
-                                                await MainActor.run {
-                                                    errorMessage = error.localizedDescription
-                                                    showingError = true
-                                                }
-                                            }
-                                        }
-                                    } label: {
-                                        Text("Apply")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(adjustQty != 0 ? .black : FMSTheme.textSecondary)
-                                            .padding(.horizontal, 20)
-                                            .padding(.vertical, 10)
-                                            .background(adjustQty != 0 ? FMSTheme.amber : Color.gray.opacity(0.12))
-                                            .cornerRadius(10)
-                                    }
-                                    .disabled(adjustQty == 0)
                                 }
                             }
                         }
@@ -227,20 +200,47 @@ struct PartDetailView: View {
                                 .cornerRadius(12)
                         }
 
-                        // Reorder
-                        Button { showingReorder = true } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "arrow.clockwise.circle.fill")
+                        // Reorder/Apply
+                        Button {
+                            guard adjustQty != 0 else { return }
+                            Task {
+                                do {
+                                    try await store.reorder(part: part, quantity: adjustQty)
+                                    await MainActor.run {
+                                        part.stock = max(0, part.stock + adjustQty)
+                                        adjustQty = 0
+                                        bannerManager.show(type: .success, message: "Inventory updated.")
+                                    }
+                                } catch {
+                                    await MainActor.run {
+                                        errorMessage = error.localizedDescription
+                                        showingError = true
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                let label: String = {
+                                    if adjustQty == 0 { return "Set Quantity to Restock" }
+                                    return adjustQty > 0 ? "Confirm Plus (+\(adjustQty))" : "Confirm Reduce (\(adjustQty))"
+                                }()
+                                let icon: String = {
+                                    if adjustQty == 0 { return "plus.circle" }
+                                    return adjustQty > 0 ? "arrow.down.circle.fill" : "arrow.up.circle.fill"
+                                }()
+                                
+                                Image(systemName: icon)
                                     .font(.system(size: 18))
-                                Text("Reorder Stock")
+                                Text(label)
                                     .font(.system(size: 16, weight: .bold))
                             }
-                            .foregroundColor(.black)
+                            .foregroundColor(adjustQty == 0 ? FMSTheme.textTertiary : .black)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(FMSTheme.amber)
+                            .background(adjustQty == 0 ? Color.gray.opacity(0.1) : FMSTheme.amber)
                             .cornerRadius(12)
                         }
+                        .disabled(adjustQty == 0)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
@@ -251,9 +251,6 @@ struct PartDetailView: View {
         .navigationBarHidden(true)
         .sheet(isPresented: $showingEdit) {
             EditPartView(part: $part, store: store)
-        }
-        .sheet(isPresented: $showingReorder) {
-            ReorderPartView(part: part, store: store)
         }
         .alert("Delete Part", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
@@ -274,11 +271,6 @@ struct PartDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "An unknown error occurred.")
-        }
-        .onChange(of: showingReorder) { _, isPresented in
-            if !isPresented {
-                if let updated = store.parts.first(where: { $0.id == part.id }) { part = updated }
-            }
         }
         .onChange(of: showingEdit) { _, isPresented in
             if !isPresented {

@@ -74,7 +74,19 @@ public struct DefectsView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    FMSFilterBar(tabs: filters, selected: $selectedFilter)
+                    FMSFilterBar(
+                        tabs: filters,
+                        selected: $selectedFilter,
+                        counts: {
+                            var dict: [String: Int] = [:]
+                            dict["All"] = store.defects.count
+                            dict["Critical"] = store.defects.filter { $0.priority == .critical }.count
+                            dict["High"] = store.defects.filter { $0.priority == .high }.count
+                            dict["Medium"] = store.defects.filter { $0.priority == .medium }.count
+                            dict["Low"] = store.defects.filter { $0.priority == .low }.count
+                            return dict
+                        }()
+                    )
                     Divider().opacity(0.35)
 
                     if store.isLoading {

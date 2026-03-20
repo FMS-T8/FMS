@@ -74,7 +74,17 @@ struct InventoryView: View {
                     }
 
                     // Filter pills
-                    FMSFilterBar(tabs: stockFilters, selected: $selectedFilter)
+                    FMSFilterBar(
+                        tabs: stockFilters,
+                        selected: $selectedFilter,
+                        counts: {
+                            var dict: [String: Int] = [:]
+                            dict["All"]       = store.parts.count
+                            dict["Low Stock"] = store.lowStockParts.count
+                            dict["In Stock"]  = store.parts.count - store.lowStockParts.count
+                            return dict
+                        }()
+                    )
 
                     Divider().opacity(0.35)
 

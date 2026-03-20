@@ -52,6 +52,7 @@ public class FleetViewModel {
             let fetchedVehicles: [Vehicle] = try await SupabaseService.shared.client
                 .from("vehicles")
                 .select()
+                .neq("id", value: "00000000-0000-0000-0000-000000000000") // Hide system settings row
                 .order("created_at", ascending: false)
                 .execute()
                 .value
@@ -108,6 +109,23 @@ public class FleetViewModel {
             self.errorMessage = error.localizedDescription
             print("Error updating vehicle: \(error)")
             throw mapVehicleMutationError(error)
+        }
+    }
+
+    @MainActor
+    public func clearAllOverrides() async throws {
+        do {
+            let update = OverrideUpdate(service_interval_km: nil, service_interval_months: nil)
+            try await SupabaseService.shared.client
+                .from("vehicles")
+                .update(update)
+                .not("id", operator: .eq, value: "0") // Update all
+                .execute()
+            
+            try await fetchVehicles()
+        } catch {
+            print("Error clearing overrides: \(error)")
+            throw error
         }
     }
 

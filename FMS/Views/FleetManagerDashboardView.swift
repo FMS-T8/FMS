@@ -22,7 +22,7 @@ public struct FleetManagerDashboardView: View {
             }
             // Maintenance Tab
             FMSTabItem(id: "maintenance", title: "Maintenance", icon: "wrench.and.screwdriver.fill") {
-                Text("Maintenance")
+                MaintenanceManagerView()
             }
         }
     }
