@@ -71,7 +71,8 @@ class AddDriverViewModel {
         let email: String
         let phone: String
         let role: String
-        let status: String
+        let employment_status: String
+        let operational_status: String
         let license_number: String
         let license_expiry: String
         let created_by: String
@@ -85,7 +86,8 @@ class AddDriverViewModel {
         email: email,
         phone: phone,
         role: role,
-        status: "available",
+        employment_status: "active",
+        operational_status: "available",
         license_number: licenseNumber,
         license_expiry: formatter.string(from: licenseExpiry),
         created_by: currentUserId

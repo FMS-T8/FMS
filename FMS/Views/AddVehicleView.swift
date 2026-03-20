@@ -45,14 +45,14 @@ public struct AddVehicleView: View {
         self.existingStatus = vehicle.status
         self.existingCreatedBy = vehicle.createdBy
         self.existingCreatedAt = vehicle.createdAt
-        self.existingPurchaseDateString = vehicle.purchaseDateString
+        self.existingPurchaseDateString = nil
         _plateNumber = State(initialValue: vehicle.plateNumber)
-        _chassisNumber = State(initialValue: vehicle.chassisNumber)
+        _chassisNumber = State(initialValue: vehicle.chassisNumber ?? "")
         _manufacturer = State(initialValue: vehicle.manufacturer ?? "")
         _model = State(initialValue: vehicle.model ?? "")
-        let fuel = vehicle.fuelType.capitalized
+        let fuel = (vehicle.fuelType ?? "Diesel").capitalized
         _fuelType = State(initialValue: fuelOptions.contains(fuel) ? fuel : "Diesel")
-        _tankCapacity = State(initialValue: vehicle.fuelTankCapacity > 0 ? Int(vehicle.fuelTankCapacity) : nil)
+        _tankCapacity = State(initialValue: (vehicle.fuelTankCapacity ?? 0) > 0 ? Int(vehicle.fuelTankCapacity ?? 0) : nil)
         _carryingCapacity = State(initialValue: vehicle.carryingCapacity.flatMap { $0 > 0 ? Int($0) : nil })
         _odometer = State(initialValue: vehicle.odometer.flatMap { $0 >= 0 ? Int($0) : nil })
     }
@@ -373,7 +373,7 @@ public struct AddVehicleView: View {
             fuelType: fuelType.lowercased(),
             fuelTankCapacity: Double(validatedTankCapacity),
             carryingCapacity: Double(validatedCarryingCapacity),
-            purchaseDateString: existingPurchaseDateString,
+            purchaseDate: nil,
             odometer: Double(validatedOdometer),
             status: existingStatus ?? "inactive",
             createdBy: existingCreatedBy,

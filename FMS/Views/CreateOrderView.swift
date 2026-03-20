@@ -143,6 +143,7 @@ public struct CreateOrderView: View {
     @State private var showingWaypointSearch = false
     @State private var showingDriverSearch = false
     @State private var showingVehicleSearch = false
+    @State private var showingError = false
 
     private var trimmedOrigin: String { originName.trimmingCharacters(in: .whitespaces) }
     private var trimmedDestination: String { destinationName.trimmingCharacters(in: .whitespaces) }
@@ -308,6 +309,11 @@ public struct CreateOrderView: View {
                     self.selectedVehicleId = id; self.selectedVehicleName = name
                 }
             }
+            .alert("Error Creating Order", isPresented: $showingError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(viewModel.errorMessage ?? "An unknown error occurred.")
+            }
         }
     }
 
@@ -385,7 +391,11 @@ public struct CreateOrderView: View {
                 driverId: assignmentPref == .now ? selectedDriverId : nil,
                 vehicleId: assignmentPref == .now ? selectedVehicleId : nil
             )
-            if success { dismiss() }
+            if success { 
+                dismiss() 
+            } else {
+                showingError = true
+            }
         }
     }
 }

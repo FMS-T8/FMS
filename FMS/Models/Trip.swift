@@ -1,9 +1,16 @@
+//
+//  Trip.swift
+//  FMS
+//
+
 import Foundation
 
 public struct Trip: Codable, Identifiable, Hashable {
     public func hash(into hasher: inout Hasher) { hasher.combine(id) }
     public static func == (lhs: Trip, rhs: Trip) -> Bool { lhs.id == rhs.id }
+    
     public var id: String
+    public var orderId: String?
     public var vehicleId: String?
     public var driverId: String?
     public var assignmentId: String?
@@ -30,6 +37,7 @@ public struct Trip: Codable, Identifiable, Hashable {
     
     enum CodingKeys: String, CodingKey {
         case id
+        case orderId = "order_id"
         case vehicleId = "vehicle_id"
         case driverId = "driver_id"
         case assignmentId = "assignment_id"
@@ -45,8 +53,8 @@ public struct Trip: Codable, Identifiable, Hashable {
         case endLng = "end_lng"
         case endName = "end_name"
         case distanceKm = "distance_km"
-        case estimatedDurationMin = "estimated_duration_min"
-        case actualDurationMin = "actual_duration_min"
+        case estimatedDurationMin = "estimated_duration_minutes"
+        case actualDurationMin = "actual_duration_minutes"
         case fuelUsedLiters = "fuel_used_liters"
         case status
         case createdBy = "created_by"
@@ -58,8 +66,8 @@ public struct Trip: Codable, Identifiable, Hashable {
     public var statusLabel: String {
         switch status?.lowercased() {
         case "completed": return "Completed"
-        case "active": return "In Progress"
-        case "scheduled": return "Scheduled"
+        case "active", "in_progress", "in_transit": return "In Progress"
+        case "scheduled", "assigned", "pending": return "Scheduled"
         case "cancelled": return "Cancelled"
         default: return status?.capitalized ?? "Unknown"
         }

@@ -48,6 +48,9 @@ public struct Order: Codable, Identifiable {
     public let paymentStatus: String?
     public let paymentMethod: String?
     public let invoiceNumber: String?
+    public let tripId: String?
+    public let assignedDriverId: String?
+    public let assignedVehicleId: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -78,6 +81,9 @@ public struct Order: Codable, Identifiable {
         case paymentStatus      = "payment_status"
         case paymentMethod      = "payment_method"
         case invoiceNumber      = "invoice_number"
+        case tripId             = "trip_id"
+        case assignedDriverId   = "assigned_driver_id"
+        case assignedVehicleId  = "assigned_vehicle_id"
     }
 
     public var statusLabel: String {

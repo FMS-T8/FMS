@@ -15,5 +15,8 @@ public struct DriverDashboardView: View {
                 DriverTripsTab(viewModel: viewModel)
             }
         }
+        .task {
+            await viewModel.fetchLiveDashboardData()
+        }
     }
 }

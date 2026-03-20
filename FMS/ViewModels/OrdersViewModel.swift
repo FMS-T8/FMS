@@ -9,6 +9,8 @@
 import Foundation
 import Observation
 import Supabase
+import MapKit
+import CoreLocation
 
 public struct LiveDriverResource: Decodable, Identifiable {
     public let id: String
@@ -33,7 +35,6 @@ public struct LiveVehicleResource: Decodable, Identifiable {
 public final class OrdersViewModel {
     public var allOrders: [Order] = []
     
-    // Live Resources for the Picker Sheets
     public var availableDrivers: [LiveDriverResource] = []
     public var availableVehicles: [LiveVehicleResource] = []
     
@@ -53,20 +54,16 @@ public final class OrdersViewModel {
     
     public init() {}
     
-    // MARK: - Fetch Available Resources (The "19th" Conflict Checker)
-    // Accepts an optional Date so call sites can filter out already-busy
-    // drivers and vehicles. When nil, returns all active drivers/vehicles.
+    // MARK: - Fetch Available Resources
     @MainActor
     public func fetchAvailableResources(for date: Date? = nil) async {
         do {
-            // 1. Fetch all active drivers and vehicles unconditionally first
             let allDrivers: [LiveDriverResource] = try await SupabaseService.shared.client
                 .from("users")
                 .select("id, name")
                 .eq("role", value: "driver")
                 .eq("is_deleted", value: false)
                 .eq("employment_status", value: "active")
-                .eq("operational_status", value: "available")
                 .execute()
                 .value
             
@@ -77,10 +74,7 @@ public final class OrdersViewModel {
                 .execute()
                 .value
             
-            // 2. If a date was provided, fetch trips scheduled on that calendar day
-            //    and subtract those drivers/vehicles from the available pool
             if let targetDate = date {
-                // Build ISO-8601 day boundaries in UTC
                 var calendar = Calendar(identifier: .gregorian)
                 calendar.timeZone = TimeZone(identifier: "UTC")!
                 let startOfDay = calendar.startOfDay(for: targetDate)
@@ -91,13 +85,11 @@ public final class OrdersViewModel {
                 let startStr = isoFormatter.string(from: startOfDay)
                 let endStr   = isoFormatter.string(from: endOfDay)
                 
-                // Fetch trips whose requested_pickup_at falls within that day
                 struct BusyTrip: Decodable {
                     let driver_id: String?
                     let vehicle_id: String?
                 }
                 
-                // Join trips → orders to get the pickup date
                 let busyTrips: [BusyTrip] = try await SupabaseService.shared.client
                     .from("trips")
                     .select("driver_id, vehicle_id, orders!trips_order_id_fkey!inner(requested_pickup_at)")
@@ -110,11 +102,9 @@ public final class OrdersViewModel {
                 let busyDriverIds  = Set(busyTrips.compactMap(\.driver_id))
                 let busyVehicleIds = Set(busyTrips.compactMap(\.vehicle_id))
                 
-                // Filter out any driver/vehicle that is already busy that day!
                 self.availableDrivers  = allDrivers.filter  { !busyDriverIds.contains($0.id) }
                 self.availableVehicles = allVehicles.filter { !busyVehicleIds.contains($0.id) }
             } else {
-                // No date filter — return everything active
                 self.availableDrivers  = allDrivers
                 self.availableVehicles = allVehicles
             }
@@ -145,15 +135,10 @@ public final class OrdersViewModel {
     
     // MARK: - Create Order
     @MainActor
-    public func createOrder(
-        payload: OrderCreatePayload,
-        driverId: String? = nil,
-        vehicleId: String? = nil
-    ) async -> Bool {
+    public func createOrder(payload: OrderCreatePayload, driverId: String? = nil, vehicleId: String? = nil) async -> Bool {
         isCreating = true
         errorMessage = nil
         do {
-            // 1. Insert the order
             let createdOrder: Order = try await SupabaseService.shared.client
                 .from("orders")
                 .insert(payload)
@@ -162,11 +147,9 @@ public final class OrdersViewModel {
                 .execute()
                 .value
             
-            // 2. If "Assign Now" was chosen, create the trip immediately
             if let dId = driverId, let vId = vehicleId {
                 try await assignTrip(orderId: createdOrder.id, driverId: dId, vehicleId: vId)
             } else {
-                // Only refresh if we didn't assign (assignTrip refreshes internally)
                 await fetchOrders()
             }
             
@@ -179,10 +162,9 @@ public final class OrdersViewModel {
         }
     }
     
-    // MARK: - Assign Trip (Two-Step Database Transaction)
+    // MARK: - Assign Trip
     @MainActor
     public func assignTrip(orderId: String, driverId: String, vehicleId: String) async throws {
-        // Step 1: Fetch the current order details to copy routing info to the Trip
         let orders: [Order] = try await SupabaseService.shared.client
             .from("orders")
             .select()
@@ -194,7 +176,21 @@ public final class OrdersViewModel {
             throw NSError(domain: "OrderError", code: 404, userInfo: [NSLocalizedDescriptionKey: "Order not found"])
         }
         
-        // Step 2: Prepare the new Trip record payload
+        // ── Calculate route distance & duration via MapKit ──────────────────────
+        var routeDistanceKm: Double? = nil
+        var estimatedDurationMin: Int? = nil
+        
+        if let originLat = order.originLat, let originLng = order.originLng,
+           let destLat = order.destinationLat, let destLng = order.destinationLng {
+            let result = await calculateRoute(
+                from: CLLocationCoordinate2D(latitude: originLat, longitude: originLng),
+                to: CLLocationCoordinate2D(latitude: destLat, longitude: destLng)
+            )
+            routeDistanceKm  = result.distanceKm
+            estimatedDurationMin = result.durationMin
+        }
+        // ────────────────────────────────────────────────────────────────────────
+        
         struct TripCreatePayload: Encodable {
             let order_id: String
             let driver_id: String
@@ -210,34 +206,28 @@ public final class OrdersViewModel {
             let end_name: String?
             let end_lat: Double?
             let end_lng: Double?
+            let distance_km: Double?
+            let estimated_duration_minutes: Int?
         }
         
         let newTrip = TripCreatePayload(
-            order_id: orderId,
-            driver_id: driverId,
-            vehicle_id: vehicleId,
-            status: "scheduled", // Ready for the driver to start
+            order_id: orderId, driver_id: driverId, vehicle_id: vehicleId,
+            status: "scheduled",
             shipment_description: order.cargoType,
-            shipment_weight_kg: order.totalWeightKg,
-            shipment_package_count: order.totalPackages,
+            shipment_weight_kg: order.totalWeightKg, shipment_package_count: order.totalPackages,
             special_instructions: order.specialInstructions,
-            start_name: order.originName,
-            start_lat: order.originLat,
-            start_lng: order.originLng,
-            end_name: order.destinationName,
-            end_lat: order.destinationLat,
-            end_lng: order.destinationLng
+            start_name: order.originName, start_lat: order.originLat, start_lng: order.originLng,
+            end_name: order.destinationName, end_lat: order.destinationLat, end_lng: order.destinationLng,
+            distance_km: routeDistanceKm,
+            estimated_duration_minutes: estimatedDurationMin
         )
         
-        // Step 3: Insert the Trip into the database and return the generated record
-        struct InsertedTrip: Decodable {
-            let id: String
-        }
+        struct InsertedTrip: Decodable { let id: String }
         
         let insertedTrips: [InsertedTrip] = try await SupabaseService.shared.client
             .from("trips")
             .insert(newTrip)
-            .select("id") // Ask Supabase to return the generated UUID
+            .select("id")
             .execute()
             .value
         
@@ -245,7 +235,6 @@ public final class OrdersViewModel {
             throw NSError(domain: "TripError", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to generate Trip ID"])
         }
         
-        // Step 4: Update the Order with the new relationships to eliminate blind spots
         struct OrderUpdatePayload: Encodable {
             let status: String
             let trip_id: String
@@ -254,10 +243,9 @@ public final class OrdersViewModel {
         }
         
         let updatePayload = OrderUpdatePayload(
-            status: "dispatched",
+            status: "confirmed",
             trip_id: generatedTripId,
-            assigned_driver_id: driverId,
-            assigned_vehicle_id: vehicleId
+            assigned_driver_id: driverId, assigned_vehicle_id: vehicleId
         )
         
         try await SupabaseService.shared.client
@@ -266,7 +254,30 @@ public final class OrdersViewModel {
             .eq("id", value: orderId)
             .execute()
         
-        // Step 5: Refresh the local UI state
         await fetchOrders()
     }
+    
+    // MARK: - Route Calculator (MapKit)
+    private func calculateRoute(
+        from origin: CLLocationCoordinate2D,
+        to destination: CLLocationCoordinate2D
+    ) async -> (distanceKm: Double?, durationMin: Int?) {
+        let request = MKDirections.Request()
+        request.source      = MKMapItem(placemark: MKPlacemark(coordinate: origin))
+        request.destination = MKMapItem(placemark: MKPlacemark(coordinate: destination))
+        request.transportType = .automobile
+        
+        do {
+            let response = try await MKDirections(request: request).calculate()
+            if let route = response.routes.first {
+                let km  = route.distance / 1000.0
+                let min = Int(route.expectedTravelTime / 60)
+                return (km, min)
+            }
+        } catch {
+            print("MapKit route calculation failed: \(error)")
+        }
+        return (nil, nil)
+    }
 }
+

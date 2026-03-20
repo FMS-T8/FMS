@@ -222,13 +222,8 @@ public struct NewTripAssignmentView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background {
-                        if #available(iOS 26, *) {
-                            FMSTheme.amber.opacity(0.15)
-                                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
-                        } else {
-                            FMSTheme.amber.opacity(0.12)
-                                .cornerRadius(14)
-                        }
+                        FMSTheme.amber.opacity(0.12)
+                            .cornerRadius(14)
                     }
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
@@ -328,10 +323,7 @@ public struct NewTripAssignmentView: View {
             HStack(spacing: 16) {
                 // Icon
                 ZStack {
-                    if #available(iOS 26, *) {
-                        FMSTheme.amber.opacity(0.15)
-                            .glassEffect(.regular, in: .rect(cornerRadius: 12))
-                    } else {
+                    if true {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(FMSTheme.pillBackground)
                     }
@@ -508,13 +500,8 @@ public struct NewTripAssignmentView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background {
-                if #available(iOS 26, *) {
-                    FMSTheme.amber.opacity(0.15)
-                        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
-                } else {
-                    FMSTheme.amber.opacity(0.12)
-                        .cornerRadius(14)
-                }
+                FMSTheme.amber.opacity(0.12)
+                    .cornerRadius(14)
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 14)

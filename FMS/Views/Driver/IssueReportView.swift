@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 
 struct IssueReportView: View {
-    @Bindable var viewModel: DriverDashboardViewModel
+    var viewModel: DriverDashboardViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(BannerManager.self) private var bannerManager
 

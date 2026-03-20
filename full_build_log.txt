@@ -1,0 +1,776 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project FMS.xcodeproj -scheme FMS -configuration Debug -sdk iphonesimulator -destination "platform=iOS Simulator,name=iPhone 17 Pro" build
+
+Build settings from command line:
+    SDKROOT = iphonesimulator18.5
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  swift-clocks: https://github.com/pointfreeco/swift-clocks @ 1.0.6
+  xctest-dynamic-overlay: https://github.com/pointfreeco/xctest-dynamic-overlay @ 1.9.0
+  swift-asn1: https://github.com/apple/swift-asn1.git @ 1.5.1
+  swift-concurrency-extras: https://github.com/pointfreeco/swift-concurrency-extras @ 1.3.2
+  Supabase: https://github.com/supabase/supabase-swift @ 2.41.1
+  swift-crypto: https://github.com/apple/swift-crypto.git @ 4.2.0
+  swift-http-types: https://github.com/apple/swift-http-types.git @ 1.5.1
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (27 targets)
+    Target 'FMS' in project 'FMS'
+        ➜ Explicit dependency on target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+    Target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+    Target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Supabase' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Storage' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Realtime' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'PostgREST' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Functions' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'Auth' in project 'Supabase'
+        ➜ Explicit dependency on target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+    Target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'swift-crypto_Crypto' in project 'swift-crypto'
+    Target 'Crypto' in project 'swift-crypto'
+        ➜ Explicit dependency on target 'swift-crypto_Crypto' in project 'swift-crypto'
+    Target 'swift-crypto_Crypto' in project 'swift-crypto' (no dependencies)
+    Target 'Helpers' in project 'Supabase'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+    Target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'XCTestDynamicOverlay' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'Clocks' in project 'swift-clocks'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+    Target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+    Target 'IssueReporting' in project 'xctest-dynamic-overlay'
+        ➜ Explicit dependency on target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay'
+    Target 'IssueReportingPackageSupport' in project 'xctest-dynamic-overlay' (no dependencies)
+    Target 'HTTPTypes' in project 'swift-http-types'
+        ➜ Explicit dependency on target 'HTTPTypes' in project 'swift-http-types'
+    Target 'HTTPTypes' in project 'swift-http-types' (no dependencies)
+    Target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+        ➜ Explicit dependency on target 'ConcurrencyExtras' in project 'swift-concurrency-extras'
+    Target 'ConcurrencyExtras' in project 'swift-concurrency-extras' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Assets.xcassets
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+ReadFileContents /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/share/docc/features.json
+
+Build description signature: bb746a08fb8bba774965b452e89a22fe
+Build description path: /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/XCBuildData/bb746a08fb8bba774965b452e89a22fe.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk /Users/Anish/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache
+    cd /Users/Anish/FMS/FMS_Codebase/FMS/FMS.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -o /Users/Anish/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache
+
+ProcessInfoPlistFile /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/swift-crypto_Crypto.bundle/Info.plist /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/swift-crypto.build/Debug-iphonesimulator/swift-crypto_Crypto.build/empty-swift-crypto_Crypto.plist (in target 'swift-crypto_Crypto' from project 'swift-crypto')
+    cd /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/SourcePackages/checkouts/swift-crypto
+    builtin-infoPlistUtility /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/swift-crypto.build/Debug-iphonesimulator/swift-crypto_Crypto.build/empty-swift-crypto_Crypto.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/swift-crypto_Crypto.bundle/Info.plist
+
+WriteAuxiliaryFile /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS.SwiftFileList (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    write-file /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS.SwiftFileList
+
+WriteAuxiliaryFile /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS.SwiftConstValuesFileList (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    write-file /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS.LinkFileList (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    write-file /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS.LinkFileList
+
+SwiftDriver Auth normal arm64 com.apple.xcode.tools.swift.compiler (in target 'Auth' from project 'Supabase')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS/FMS.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name Auth -Onone -enforce-exclusivity\=checked @/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/Objects-normal/arm64/Auth.SwiftFileList -DSWIFT_PACKAGE -DDEBUG -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -enable-upcoming-feature ExistentialAny -enable-experimental-feature StrictConcurrency -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -target arm64-apple-ios13.0-simulator -g -module-cache-path /Users/Anish/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -suppress-warnings -index-store-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Index.noindex/DataStore -swift-version 5 -I /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks -F /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk/Developer/Library/Frameworks -c -j11 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache -output-file-map /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/Objects-normal/arm64/Auth-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/Objects-normal/arm64/Auth.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/Anish/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -package-name supabase_swift -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/Objects-normal/arm64/Auth_const_extract_protocols.json -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/DerivedSources-normal/arm64 -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/DerivedSources/arm64 -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/DerivedSources -Xcc -DSWIFT_PACKAGE -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/Supabase.build/Debug-iphonesimulator/Auth.build/Objects-normal/arm64/Auth-Swift.h -working-directory /Users/Anish/FMS/FMS_Codebase/FMS/FMS.xcodeproj -experimental-emit-module-separately -disable-cmo
+
+ProcessProductPackaging "" /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS.app-Simulated.xcent (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+    Entitlements:
+    
+    {
+    "application-identifier" = "V78YZXZV59.com.nirvaan.fms";
+}
+    
+    builtin-productPackagingUtility -entitlements -format xml -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS.app-Simulated.xcent
+
+ProcessProductPackagingDER /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS.app-Simulated.xcent /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS.app-Simulated.xcent.der (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    /usr/bin/derq query -f xml -i /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS.app-Simulated.xcent -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS.app-Simulated.xcent.der --raw
+
+SwiftDriver FMS normal arm64 com.apple.xcode.tools.swift.compiler (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name FMS -Onone -enforce-exclusivity\=checked @/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS.SwiftFileList -DDEBUG -enable-bare-slash-regex -enable-upcoming-feature MemberImportVisibility -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -target arm64-apple-ios26.2-simulator -g -module-cache-path /Users/Anish/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -Xfrontend -serialize-debugging-options -enable-testing -index-store-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Index.noindex/DataStore -swift-version 5 -I /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator -emit-localized-strings -emit-localized-strings-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64 -c -j11 -enable-batch-mode -incremental -Xcc -ivfsstatcache -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache -output-file-map /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/Anish/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS_const_extract_protocols.json -Xcc -iquote -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS-generated-files.hmap -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS-own-target-headers.hmap -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS-09ac764f5f6a6aaea0b26801b5883ea5-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS-project-headers.hmap -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/DerivedSources-normal/arm64 -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/DerivedSources/arm64 -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/DerivedSources -Xcc -DDEBUG\=1 -emit-objc-header -emit-objc-header-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS-Swift.h -working-directory /Users/Anish/FMS/FMS_Codebase/FMS -experimental-emit-module-separately -disable-cmo
+
+SwiftCompile normal arm64 Compiling\ DefectsView.swift,\ InventoryView.swift,\ OrdersListView.swift,\ VehicleDetailView.swift,\ FMSBanner.swift,\ VehicleEvent.swift,\ DriverTripsTab.swift,\ ServiceHistoryListView.swift,\ NewTripAssignmentView.swift,\ LoginView.swift,\ WorkOrdersView.swift,\ AuthViewModel.swift,\ DriverLicenseScannerView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/DefectsView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/InventoryView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/OrdersListView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSBanner.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/VehicleEvent.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverTripsTab.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/ServiceHistoryListView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/NewTripAssignmentView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/LoginView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/WorkOrdersView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/AuthViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/DriverLicenseScannerView.swift (in target 'FMS' from project 'FMS')
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/DefectsView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/InventoryView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/OrdersListView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetailView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSBanner.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/VehicleEvent.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverTripsTab.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/ServiceHistoryListView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/NewTripAssignmentView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/LoginView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/WorkOrdersView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/AuthViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/DriverLicenseScannerView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ AddDriverView.swift,\ DriverShiftDetailView.swift,\ WorkOrderDetailView.swift,\ DriverRosterEntry.swift,\ AddPartView.swift,\ VehicleListCard.swift,\ DriverLicenseScanResult.swift,\ IssueReportView.swift,\ WODetailView.swift,\ DriverLicenseOCRService.swift,\ ShiftViewModel.swift,\ FuelReceiptPayload.swift,\ DriverDashboardView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/AddDriverView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/DriverShiftDetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/WorkOrderDetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/DriverRosterEntry.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/AddPartView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/VehicleListCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/DriverLicenseScanResult.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/IssueReportView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/WODetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/DriverLicenseOCRService.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/ShiftViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/FuelReceiptPayload.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverDashboardView.swift (in target 'FMS' from project 'FMS')
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/AddDriverView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/DriverShiftDetailView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/WorkOrderDetailView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/DriverRosterEntry.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/AddPartView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/VehicleListCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/DriverLicenseScanResult.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/IssueReportView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/WODetailView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/DriverLicenseOCRService.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/ShiftViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/FuelReceiptPayload.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverDashboardView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ ShiftAssignmentView.swift,\ OrderCreatePayload.swift,\ InspectionChecklistView.swift,\ Incident.swift,\ Driver.swift,\ DefectStore.swift,\ InspectionViewModel.swift,\ WOPriority.swift,\ AllUpcomingJobsView.swift,\ AddDriverViewModel.swift,\ TripStatCard.swift,\ TrackingShipmentView.swift,\ FMSTextField.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/ShiftAssignmentView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/OrderCreatePayload.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/InspectionChecklistView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Incident.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Driver.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/DefectStore.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/InspectionViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/WOPriority.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/AllUpcomingJobsView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/AddDriverViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/TripStatCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/TrackingShipmentView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSTextField.swift (in target 'FMS' from project 'FMS')
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/ShiftAssignmentView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/OrderCreatePayload.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/InspectionChecklistView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Incident.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Driver.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/DefectStore.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/InspectionViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/WOPriority.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/AllUpcomingJobsView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/AddDriverViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/TripStatCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/TrackingShipmentView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSTextField.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ MaintenanceDashboardView.swift,\ PartDetailView.swift,\ AlertRow.swift,\ AddVehicleError.swift,\ TripGPSLog.swift,\ Vehicle.swift,\ MaintenanceWorkOrder.swift,\ DriverProfileTab.swift,\ PartsInventory.swift,\ FMSPrimaryButton.swift,\ DriverLicenseScannerViewModel.swift,\ InspectionCompleteView.swift,\ InspectionChecklist.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/MaintenanceDashboardView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/PartDetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/AlertRow.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/AddVehicleError.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/TripGPSLog.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Vehicle.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/MaintenanceWorkOrder.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverProfileTab.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/PartsInventory.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSPrimaryButton.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/DriverLicenseScannerViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/InspectionCompleteView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/InspectionChecklist.swift (in target 'FMS' from project 'FMS')
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/MaintenanceDashboardView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/PartDetailView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/AlertRow.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/AddVehicleError.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/TripGPSLog.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Vehicle.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/MaintenanceWorkOrder.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverProfileTab.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/PartsInventory.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSPrimaryButton.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/DriverLicenseScannerViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/InspectionCompleteView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/InspectionChecklist.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ SupabaseConfig.swift,\ Trip+Display.swift,\ Defects.swift,\ BannerManager.swift,\ DriverCardView.swift,\ FMSTheme.swift,\ LocationTrackingConfirmationView.swift,\ LiveVehicleViewModel.swift,\ IncidentsListView.swift,\ TripHistoryCard.swift,\ FuelReceiptScannerViewModel.swift,\ FuelReceiptParserService.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Config/SupabaseConfig.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/Trip+Display.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Defects.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/BannerManager.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/DriverCardView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/FMSTheme.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/LocationTrackingConfirmationView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/LiveVehicleViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/IncidentsListView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/TripHistoryCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/FuelReceiptScannerViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/FuelReceiptParserService.swift (in target 'FMS' from project 'FMS')
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Config/SupabaseConfig.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/Trip+Display.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Defects.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/BannerManager.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/DriverCardView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/FMSTheme.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/LocationTrackingConfirmationView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/LiveVehicleViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/IncidentsListView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/TripHistoryCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/FuelReceiptScannerViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/FuelReceiptParserService.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ QuickActionCard.swift,\ LiveTripCard.swift,\ Int+Duration.swift,\ CreateDefectView.swift,\ FuelReceiptScannerView.swift,\ FMSListRow.swift,\ Notification.swift,\ VehicleInspection.swift,\ DriverDetailView.swift,\ EditPartView.swift,\ InventoryStore.swift,\ PastTripsListView.swift,\ CreateOrderView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/QuickActionCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/LiveTripCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utilities/Int+Duration.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/CreateDefectView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/FuelReceiptScannerView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSListRow.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Notification.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/VehicleInspection.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/DriverDetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/EditPartView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/InventoryStore.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/PastTripsListView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/CreateOrderView.swift (in target 'FMS' from project 'FMS')
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/QuickActionCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/LiveTripCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utilities/Int+Duration.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/CreateDefectView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/FuelReceiptScannerView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSListRow.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Notification.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/VehicleInspection.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/DriverDetailView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/EditPartView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/InventoryStore.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/PastTripsListView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/CreateOrderView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ FMSTabBar.swift,\ MapCard.swift,\ VehicleDocumentsView.swift,\ OrderDetailView.swift,\ BreakLog.swift,\ EditDriverView.swift,\ Order.swift,\ FleetManagerDashboardView.swift,\ FMSDesignSystem.swift,\ SupabaseDriversDataSource.swift,\ MainDashboardView.swift,\ GeneratedAssetSymbols.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSTabBar.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/MapCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/VehicleDocumentsView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/OrderDetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/BreakLog.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/EditDriverView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Order.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/FleetManagerDashboardView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/FMSDesignSystem.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/SupabaseDriversDataSource.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/MainDashboardView.swift /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'FMS' from project 'FMS')
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSTabBar.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/MapCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/VehicleDetails/VehicleDocumentsView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/OrderDetailView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/BreakLog.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Drivers/EditDriverView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Order.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/FleetManagerDashboardView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/FMSDesignSystem.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/SupabaseDriversDataSource.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/MainDashboardView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftEmitModule normal arm64 Emitting\ module\ for\ FMS (in target 'FMS' from project 'FMS')
+
+EmitSwiftModule normal arm64 (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ OrdersViewModel.swift,\ ContentView.swift,\ TripStop.swift,\ ActiveTripCard.swift,\ LiveVehicleDashboardView.swift,\ EditDefectView.swift,\ AddVehicleView.swift,\ Document.swift,\ TelemetryData.swift,\ CreateWorkOrderView.swift,\ InspectionSummaryView.swift,\ IssueReport.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/OrdersViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ContentView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/TripStop.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ActiveTripCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/LiveVehicleDashboardView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/EditDefectView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/AddVehicleView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Document.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/TelemetryData.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/CreateWorkOrderView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/InspectionSummaryView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/IssueReport.swift (in target 'FMS' from project 'FMS')
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/OrdersViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ContentView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/TripStop.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ActiveTripCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/LiveVehicleDashboardView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/EditDefectView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/AddVehicleView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Document.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/TelemetryData.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/CreateWorkOrderView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/InspectionSummaryView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/IssueReport.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ DriverVehicleAssignment.swift,\ FleetViewModel.swift,\ FMSRoleCard.swift,\ ReportDefectView.swift,\ ShiftAssignmentViewModel.swift,\ FuelLog.swift,\ MaintenanceTabView.swift,\ User.swift,\ SupabaseService.swift,\ DriverStatCard.swift,\ Trip.swift,\ VehicleDocument.swift,\ MaintenancePartsUsed.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/DriverVehicleAssignment.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/FleetViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSRoleCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/ReportDefectView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/ShiftAssignmentViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/FuelLog.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/MaintenanceTabView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/User.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/SupabaseService.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/DriverStatCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Trip.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/VehicleDocument.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/MaintenancePartsUsed.swift (in target 'FMS' from project 'FMS')
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/DriverVehicleAssignment.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/FleetViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FMSRoleCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/ReportDefectView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/ShiftAssignmentViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/FuelLog.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/MaintenanceTabView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/User.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/SupabaseService.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/DriverStatCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Trip.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/VehicleDocument.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/MaintenancePartsUsed.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 Compiling\ Geofence.swift,\ VehicleStatus.swift,\ DefectDetailView.swift,\ FuelReceiptOCRService.swift,\ View+GlassEffect.swift,\ VehicleDetailViewModel.swift,\ DriverHomeTab.swift,\ ManagerProfileViewModel.swift,\ ItineraryRow.swift,\ FleetStatusCard.swift,\ SharedFormatting.swift,\ ShareSheet.swift,\ DriverDetailViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Geofence.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/VehicleStatus.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/DefectDetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/FuelReceiptOCRService.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/View+GlassEffect.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/VehicleDetailViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverHomeTab.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/ManagerProfileViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ItineraryRow.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FleetStatusCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/SharedFormatting.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ShareSheet.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/DriverDetailViewModel.swift (in target 'FMS' from project 'FMS')
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -c -filelist /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/sources-1 -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Geofence.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/VehicleStatus.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/DefectDetailView.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/FuelReceiptOCRService.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/View+GlassEffect.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/VehicleDetailViewModel.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverHomeTab.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/ManagerProfileViewModel.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ItineraryRow.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FleetStatusCard.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/SharedFormatting.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ShareSheet.swift -primary-file /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/DriverDetailViewModel.swift -supplementary-output-file-map /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/supplementaryOutputs-3 -emit-localized-strings -emit-localized-strings-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64 -target arm64-apple-ios26.2-simulator -Xllvm -aarch64-use-tbi -enable-objc-interop -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator18.5.sdk -I /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/PackageFrameworks -F /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator -no-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=5 -module-cache-path /Users/Anish/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -swift-version 5 -enforce-exclusivity\=checked -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FMS_const_extract_protocols.json -enable-upcoming-feature MemberImportVisibility -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/Anish/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/Anish/FMS/FMS_Codebase/FMS -resource-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift -enable-anonymous-context-mangled-names -file-compilation-dir /Users/Anish/FMS/FMS_Codebase/FMS -Xcc -ivfsstatcache -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator18.5-22F76-d5fc8ad4295d2ef488fb7d0f804ce0c4.sdkstatcache -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS-generated-files.hmap -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS-own-target-headers.hmap -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS-all-non-framework-target-headers.hmap -Xcc -ivfsoverlay -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS-09ac764f5f6a6aaea0b26801b5883ea5-VFS-iphonesimulator/all-product-headers.yaml -Xcc -iquote -Xcc /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/FMS-project-headers.hmap -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Products/Debug-iphonesimulator/include -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/DerivedSources-normal/arm64 -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/DerivedSources/arm64 -Xcc -I/Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/DerivedSources -Xcc -DDEBUG\=1 -module-name FMS -frontend-parseable-output -disable-clang-spi -target-sdk-version 18.5 -target-sdk-name iphonesimulator18.5 -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/local/lib/swift/host/plugins\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/lib/swift/host/plugins -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/Geofence.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/VehicleStatus.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/DefectDetailView.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FuelReceiptOCRService.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/View+GlassEffect.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/VehicleDetailViewModel.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/DriverHomeTab.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/ManagerProfileViewModel.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/ItineraryRow.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FleetStatusCard.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/SharedFormatting.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/ShareSheet.o -o /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Build/Intermediates.noindex/FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/DriverDetailViewModel.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/Geofence.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/VehicleStatus.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/DefectDetailView.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FuelReceiptOCRService.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/View+GlassEffect.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/VehicleDetailViewModel.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/DriverHomeTab.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/ManagerProfileViewModel.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/ItineraryRow.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/FleetStatusCard.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/SharedFormatting.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/ShareSheet.o -index-unit-output-path /FMS.build/Debug-iphonesimulator/FMS.build/Objects-normal/arm64/DriverDetailViewModel.o -index-store-path /Users/Anish/Library/Developer/Xcode/DerivedData/FMS-dwfromcokaqshnedexsaxzasxuoc/Index.noindex/DataStore -index-system-modules
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Geofence.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/VehicleStatus.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/DefectDetailView.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/FuelReceiptOCRService.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/View+GlassEffect.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+/Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/View+GlassEffect.swift:18:18: error: value of type 'Self' has no member 'glassEffect'
+            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+            ~~~~ ^~~~~~~~~~~
+/Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/View+GlassEffect.swift:18:31: error: cannot infer contextual base in reference to member 'regular'
+            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+                             ~^~~~~~~
+/Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/View+GlassEffect.swift:18:45: error: cannot infer contextual base in reference to member 'rect'
+            self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+                                           ~^~~~
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/VehicleDetailViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverHomeTab.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/ManagerProfileViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ItineraryRow.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FleetStatusCard.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/SharedFormatting.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ShareSheet.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/DriverDetailViewModel.swift (in target 'FMS' from project 'FMS')
+    cd /Users/Anish/FMS/FMS_Codebase/FMS
+    
+
+/Users/Anish/FMS/FMS_Codebase/FMS/FMS.xcodeproj: warning: The iOS Simulator deployment target 'IPHONEOS_DEPLOYMENT_TARGET' is set to 26.2, but the range of supported deployment target versions is 12.0 to 18.5.99. (in target 'FMS' from project 'FMS')
+** BUILD FAILED **
+
+
+The following build commands failed:
+	SwiftCompile normal arm64 Compiling\ Geofence.swift,\ VehicleStatus.swift,\ DefectDetailView.swift,\ FuelReceiptOCRService.swift,\ View+GlassEffect.swift,\ VehicleDetailViewModel.swift,\ DriverHomeTab.swift,\ ManagerProfileViewModel.swift,\ ItineraryRow.swift,\ FleetStatusCard.swift,\ SharedFormatting.swift,\ ShareSheet.swift,\ DriverDetailViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Models/Geofence.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/VehicleStatus.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Maintenance/DefectDetailView.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Services/FuelReceiptOCRService.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/View+GlassEffect.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/VehicleDetailViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Views/Driver/DriverHomeTab.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/ManagerProfileViewModel.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ItineraryRow.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/FleetStatusCard.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Utils/SharedFormatting.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Components/ShareSheet.swift /Users/Anish/FMS/FMS_Codebase/FMS/FMS/ViewModels/DriverDetailViewModel.swift (in target 'FMS' from project 'FMS')
+	SwiftCompile normal arm64 /Users/Anish/FMS/FMS_Codebase/FMS/FMS/Theme/View+GlassEffect.swift (in target 'FMS' from project 'FMS')
+	Building project FMS with scheme FMS and configuration Debug
+(3 failures)
