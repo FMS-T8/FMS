@@ -64,7 +64,28 @@ public final class DriverDashboardViewModel {
     }
 
     public var filteredCompletedTrips: [Trip] {
-        var trips = completedTrips
+        let calendar = Calendar.current
+        let now = Date()
+
+        // 1. Apply date filter first
+        var trips = completedTrips.filter { trip in
+            guard let date = trip.startTime else {
+                // trips with no startTime only appear under .all
+                return selectedTripFilter == .all
+            }
+            switch selectedTripFilter {
+            case .all:
+                return true
+            case .today:
+                return calendar.isDateInToday(date)
+            case .thisWeek:
+                return calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear)
+            case .thisMonth:
+                return calendar.isDate(date, equalTo: now, toGranularity: .month)
+            }
+        }
+
+        // 2. Apply search text on top
         if !searchText.isEmpty {
             let query = searchText.lowercased()
             trips = trips.filter { trip in
@@ -73,6 +94,7 @@ public final class DriverDashboardViewModel {
                 trip.id.lowercased().contains(query)
             }
         }
+
         return trips
     }
 
@@ -103,7 +125,12 @@ public final class DriverDashboardViewModel {
             let session = try await SupabaseService.shared.client.auth.session
             let currentUserId = session.user.id.uuidString
 
-            struct UserProfile: Decodable { let id: String; let name: String; let phone: String?; let operational_status: String? }
+            struct UserProfile: Decodable {
+                let id: String
+                let name: String
+                let phone: String?
+                let operational_status: String?
+            }
             let profiles: [UserProfile] = try await SupabaseService.shared.client
                 .from("users")
                 .select("id, name, phone, operational_status")
@@ -113,7 +140,13 @@ public final class DriverDashboardViewModel {
 
             if let p = profiles.first {
                 let currentStatus: DriverAvailabilityStatus = (p.operational_status == "on_trip") ? .onTrip : (p.operational_status == "available" ? .available : .offDuty)
-                self.driver = DriverDisplayItem(id: p.id, name: p.name, employeeID: "DRV-\(p.id.prefix(4).uppercased())", phone: p.phone ?? "N/A", availabilityStatus: currentStatus)
+                self.driver = DriverDisplayItem(
+                    id: p.id,
+                    name: p.name,
+                    employeeID: "DRV-\(p.id.prefix(4).uppercased())",
+                    phone: p.phone ?? "N/A",
+                    availabilityStatus: currentStatus
+                )
             }
 
             let allTrips: [Trip] = try await SupabaseService.shared.client
@@ -124,16 +157,16 @@ public final class DriverDashboardViewModel {
                 .execute()
                 .value
 
-            let activeStatuses = ["active", "in_progress", "in_transit"]
-            let upcomingStatuses = ["pending", "scheduled", "assigned", "confirmed"]
+            let activeStatuses    = ["active", "in_progress", "in_transit"]
+            let upcomingStatuses  = ["pending", "scheduled", "assigned", "confirmed"]
             let completedStatuses = ["completed", "delivered", "cancelled"]
 
             self.activeTrip = allTrips.first(where: { activeStatuses.contains($0.status?.lowercased() ?? "") })
-            
-            self.upcomingTrips = allTrips.filter { upcomingStatuses.contains($0.status?.lowercased() ?? "") }
+            self.upcomingTrips = allTrips
+                .filter { upcomingStatuses.contains($0.status?.lowercased() ?? "") }
                 .sorted { ($0.startTime ?? Date.distantFuture) < ($1.startTime ?? Date.distantFuture) }
-            
-            self.completedTrips = allTrips.filter { completedStatuses.contains($0.status?.lowercased() ?? "") }
+            self.completedTrips = allTrips
+                .filter { completedStatuses.contains($0.status?.lowercased() ?? "") }
                 .sorted { ($0.endTime ?? Date.distantPast) > ($1.endTime ?? Date.distantPast) }
 
             if let vehicleId = activeTrip?.vehicleId ?? upcomingTrips.first?.vehicleId {
@@ -155,7 +188,7 @@ public final class DriverDashboardViewModel {
         self.isLoading = false
     }
 
-    // MARK: - Lifecycle Actions (Syncing with DB!)
+    // MARK: - Lifecycle Actions
     public func startTrip(_ trip: Trip) {
         var started = trip
         started.status = "active"
@@ -167,14 +200,17 @@ public final class DriverDashboardViewModel {
         Task {
             do {
                 struct TripUpdate: Encodable { let status: String }
-                try await SupabaseService.shared.client.from("trips").update(TripUpdate(status: "active")).eq("id", value: trip.id).execute()
-                
+                try await SupabaseService.shared.client
+                    .from("trips").update(TripUpdate(status: "active")).eq("id", value: trip.id).execute()
+
                 struct UserUpdate: Encodable { let operational_status: String }
-                try await SupabaseService.shared.client.from("users").update(UserUpdate(operational_status: "on_trip")).eq("id", value: driver.id).execute()
-                
+                try await SupabaseService.shared.client
+                    .from("users").update(UserUpdate(operational_status: "on_trip")).eq("id", value: driver.id).execute()
+
                 if let orderId = trip.orderId {
                     struct OrderUpdate: Encodable { let status: String }
-                    try await SupabaseService.shared.client.from("orders").update(OrderUpdate(status: "in_transit")).eq("id", value: orderId).execute()
+                    try await SupabaseService.shared.client
+                        .from("orders").update(OrderUpdate(status: "in_transit")).eq("id", value: orderId).execute()
                 }
             } catch { print("Failed to start trip in DB: \(error)") }
         }
@@ -182,7 +218,7 @@ public final class DriverDashboardViewModel {
 
     public func endTrip() {
         guard var trip = activeTrip else { return }
-        
+
         trip.status = "completed"
         trip.endTime = Date()
         self.completedTrips.insert(trip, at: 0)
@@ -193,32 +229,35 @@ public final class DriverDashboardViewModel {
         Task {
             do {
                 struct TripUpdate: Encodable { let status: String }
-                try await SupabaseService.shared.client.from("trips").update(TripUpdate(status: "completed")).eq("id", value: trip.id).execute()
-                
+                try await SupabaseService.shared.client
+                    .from("trips").update(TripUpdate(status: "completed")).eq("id", value: trip.id).execute()
+
                 if let orderId = trip.orderId {
                     struct OrderUpdate: Encodable { let status: String }
-                    try await SupabaseService.shared.client.from("orders").update(OrderUpdate(status: "delivered")).eq("id", value: orderId).execute()
+                    try await SupabaseService.shared.client
+                        .from("orders").update(OrderUpdate(status: "delivered")).eq("id", value: orderId).execute()
                 }
-                
+
                 struct UserUpdate: Encodable { let operational_status: String }
-                try await SupabaseService.shared.client.from("users").update(UserUpdate(operational_status: "available")).eq("id", value: driver.id).execute()
-                
+                try await SupabaseService.shared.client
+                    .from("users").update(UserUpdate(operational_status: "available")).eq("id", value: driver.id).execute()
+
             } catch { print("Failed to complete trip in DB: \(error)") }
         }
     }
-    
-    // MARK: - Issue Reporting Sync
+
+    // MARK: - Issue Reporting
     public func submitIssueReport(_ report: IssueReport) async throws {
         struct DefectCreatePayload: Encodable {
             let vehicle_id: String?
-            let reported_by: String?   // <--- FIX: Made Optional
+            let reported_by: String?
             let title: String
-            let description: String?   // <--- FIX: Made Optional
+            let description: String?
             let category: String
             let priority: String
             let status: String
         }
-        
+
         let payload = DefectCreatePayload(
             vehicle_id: report.vehicleId,
             reported_by: report.driverId,
@@ -228,7 +267,7 @@ public final class DriverDashboardViewModel {
             priority: report.severity.rawValue.lowercased(),
             status: "open"
         )
-        
+
         try await SupabaseService.shared.client
             .from("defects")
             .insert(payload)

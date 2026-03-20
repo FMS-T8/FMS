@@ -5,7 +5,7 @@ public struct AddVehicleView: View {
         case add
         case edit
     }
-    
+
     @Environment(\.dismiss) private var dismiss
     @Environment(BannerManager.self) private var bannerManager
     private let mode: FormMode
@@ -14,8 +14,7 @@ public struct AddVehicleView: View {
     private let existingStatus: String?
     private let existingCreatedBy: String?
     private let existingCreatedAt: Date?
-    private let existingPurchaseDateString: String?
-    
+
     @State private var plateNumber = ""
     @State private var chassisNumber = ""
     @State private var manufacturer = ""
@@ -24,10 +23,31 @@ public struct AddVehicleView: View {
     @State private var tankCapacity: Int? = nil
     @State private var carryingCapacity: Int? = nil
     @State private var odometer: Int? = nil
+    // FIX: matches Vehicle.purchaseDate which is String? (ISO-8601) from Supabase
+    @State private var purchaseDateString: String? = nil
     @State private var isSubmitting = false
-    
+
     private let fuelOptions = ["Diesel", "Petrol", "CNG", "Electric"]
-    
+
+    // Converts the stored ISO-8601 string to/from Date for the DatePicker
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withFullDate]   // "YYYY-MM-DD" — no time component needed
+        return f
+    }()
+
+    private var purchaseDateBinding: Binding<Date> {
+        Binding(
+            get: {
+                guard let str = purchaseDateString else { return Date() }
+                return Self.isoFormatter.date(from: str) ?? Date()
+            },
+            set: { newDate in
+                purchaseDateString = Self.isoFormatter.string(from: newDate)
+            }
+        )
+    }
+
     public init(onAdd: @escaping @MainActor (Vehicle) async throws -> Void) {
         self.mode = .add
         self.onSubmit = onAdd
@@ -35,7 +55,6 @@ public struct AddVehicleView: View {
         self.existingStatus = nil
         self.existingCreatedBy = nil
         self.existingCreatedAt = nil
-        self.existingPurchaseDateString = nil
     }
 
     public init(vehicle: Vehicle, onUpdate: @escaping @MainActor (Vehicle) async throws -> Void) {
@@ -45,7 +64,6 @@ public struct AddVehicleView: View {
         self.existingStatus = vehicle.status
         self.existingCreatedBy = vehicle.createdBy
         self.existingCreatedAt = vehicle.createdAt
-        self.existingPurchaseDateString = nil
         _plateNumber = State(initialValue: vehicle.plateNumber)
         _chassisNumber = State(initialValue: vehicle.chassisNumber ?? "")
         _manufacturer = State(initialValue: vehicle.manufacturer ?? "")
@@ -55,13 +73,15 @@ public struct AddVehicleView: View {
         _tankCapacity = State(initialValue: (vehicle.fuelTankCapacity ?? 0) > 0 ? Int(vehicle.fuelTankCapacity ?? 0) : nil)
         _carryingCapacity = State(initialValue: vehicle.carryingCapacity.flatMap { $0 > 0 ? Int($0) : nil })
         _odometer = State(initialValue: vehicle.odometer.flatMap { $0 >= 0 ? Int($0) : nil })
+        // FIX: String? → String? direct assignment, no type conversion needed
+        _purchaseDateString = State(initialValue: vehicle.purchaseDate)
     }
-    
+
     public var body: some View {
         NavigationStack {
             ZStack {
                 FMSTheme.backgroundPrimary.ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
                     ScrollView {
                         VStack(spacing: 24) {
@@ -75,11 +95,9 @@ public struct AddVehicleView: View {
                                 )
                                 .onChange(of: plateNumber) { _, newValue in
                                     let normalized = normalizePlate(newValue)
-                                    if normalized != newValue {
-                                        plateNumber = normalized
-                                    }
+                                    if normalized != newValue { plateNumber = normalized }
                                 }
-                                
+
                                 FMSTextField(
                                     label: "Chassis Number",
                                     placeholder: "VIN Number",
@@ -88,12 +106,10 @@ public struct AddVehicleView: View {
                                 )
                                 .onChange(of: chassisNumber) { _, newValue in
                                     let normalized = normalizeChassis(newValue)
-                                    if normalized != newValue {
-                                        chassisNumber = normalized
-                                    }
+                                    if normalized != newValue { chassisNumber = normalized }
                                 }
                             }
-                            
+
                             // Section: Vehicle Details
                             formSection(title: "Specifications") {
                                 FMSTextField(
@@ -102,20 +118,20 @@ public struct AddVehicleView: View {
                                     icon: "building.2.fill",
                                     text: $manufacturer
                                 )
-                                
+
                                 FMSTextField(
                                     label: "Model",
                                     placeholder: "Prima 5530.S",
                                     icon: "truck.box.fill",
                                     text: $model
                                 )
-                                
+
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text("FUEL TYPE")
                                         .font(.system(size: 11, weight: .medium))
                                         .foregroundColor(FMSTheme.textSecondary)
                                         .tracking(0.5)
-                                    
+
                                     HStack {
                                         ForEach(fuelOptions, id: \.self) { option in
                                             Button {
@@ -133,7 +149,7 @@ public struct AddVehicleView: View {
                                     }
                                 }
                             }
-                            
+
                             // Section: Capacities
                             formSection(title: "Capacities") {
                                 VStack(spacing: 16) {
@@ -146,7 +162,6 @@ public struct AddVehicleView: View {
                                             format: .number,
                                             keyboard: .numberPad
                                         )
-                                        
                                         numericField(
                                             label: "Carrying (KG)",
                                             placeholder: "Kilograms",
@@ -156,7 +171,7 @@ public struct AddVehicleView: View {
                                             keyboard: .numberPad
                                         )
                                     }
-                                    
+
                                     numericField(
                                         label: "Odometer (KM)",
                                         placeholder: "Kilometers",
@@ -167,10 +182,46 @@ public struct AddVehicleView: View {
                                     )
                                 }
                             }
+
+                            // Section: Purchase Date (optional)
+                            formSection(title: "Purchase Details") {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("PURCHASE DATE (OPTIONAL)")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(FMSTheme.textSecondary)
+                                        .tracking(0.5)
+
+                                    if purchaseDateString != nil {
+                                        // DatePicker operates on Date via the binding;
+                                        // writes back as an ISO-8601 string automatically
+                                        DatePicker(
+                                            "",
+                                            selection: purchaseDateBinding,
+                                            in: ...Date(),
+                                            displayedComponents: .date
+                                        )
+                                        .labelsHidden()
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                                        Button("Clear Date") {
+                                            purchaseDateString = nil
+                                        }
+                                        .font(.system(size: 13))
+                                        .foregroundColor(FMSTheme.textSecondary)
+                                    } else {
+                                        Button("Set Purchase Date") {
+                                            // Seed with today formatted as ISO-8601
+                                            purchaseDateString = Self.isoFormatter.string(from: Date())
+                                        }
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(FMSTheme.amber)
+                                    }
+                                }
+                            }
                         }
                         .padding(20)
                     }
-                    
+
                     // Action Button
                     VStack {
                         Button {
@@ -204,23 +255,20 @@ public struct AddVehicleView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .disabled(isSubmitting)
-                    .foregroundColor(FMSTheme.textSecondary)
+                    Button("Cancel") { dismiss() }
+                        .disabled(isSubmitting)
+                        .foregroundColor(FMSTheme.textSecondary)
                 }
             }
         }
     }
-    
+
     private func formSection<Content: View>(title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title.uppercased())
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(FMSTheme.textTertiary)
                 .tracking(1)
-            
             content()
         }
         .padding(20)
@@ -228,142 +276,86 @@ public struct AddVehicleView: View {
         .cornerRadius(20)
         .shadow(color: FMSTheme.shadowSmall, radius: 8, x: 0, y: 4)
     }
-    
+
     private func normalizePlate(_ value: String) -> String {
         value.uppercased().filter { $0.isLetter || $0.isNumber }
     }
-    
+
     private func normalizeChassis(_ value: String) -> String {
         value.uppercased().filter { $0.isLetter || $0.isNumber }
     }
-    
+
     private func numericField<Value: BinaryFloatingPoint>(
-        label: String,
-        placeholder: String,
-        icon: String,
-        value: Binding<Value?>,
-        format: FloatingPointFormatStyle<Value>,
-        keyboard: UIKeyboardType
+        label: String, placeholder: String, icon: String,
+        value: Binding<Value?>, format: FloatingPointFormatStyle<Value>, keyboard: UIKeyboardType
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label.uppercased())
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(FMSTheme.textSecondary)
                 .tracking(0.5)
-            
             HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundColor(FMSTheme.textTertiary)
-                
-                TextField(
-                    "",
-                    value: value,
-                    format: format,
-                    prompt: Text(placeholder).foregroundColor(FMSTheme.textTertiary)
-                )
-                .font(.system(size: 15))
-                .foregroundColor(FMSTheme.textPrimary)
-                .autocorrectionDisabled()
-                .keyboardType(keyboard)
+                Image(systemName: icon).font(.system(size: 16)).foregroundColor(FMSTheme.textTertiary)
+                TextField("", value: value, format: format,
+                          prompt: Text(placeholder).foregroundColor(FMSTheme.textTertiary))
+                    .font(.system(size: 15)).foregroundColor(FMSTheme.textPrimary)
+                    .autocorrectionDisabled().keyboardType(keyboard)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(FMSTheme.cardBackground)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(FMSTheme.borderLight, lineWidth: 1)
-            )
+            .padding(.horizontal, 16).padding(.vertical, 14)
+            .background(FMSTheme.cardBackground).cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(FMSTheme.borderLight, lineWidth: 1))
         }
     }
-    
+
     private func numericField<Value: BinaryInteger>(
-        label: String,
-        placeholder: String,
-        icon: String,
-        value: Binding<Value?>,
-        format: IntegerFormatStyle<Value>,
-        keyboard: UIKeyboardType
+        label: String, placeholder: String, icon: String,
+        value: Binding<Value?>, format: IntegerFormatStyle<Value>, keyboard: UIKeyboardType
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label.uppercased())
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(FMSTheme.textSecondary)
                 .tracking(0.5)
-            
             HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundColor(FMSTheme.textTertiary)
-                
-                TextField(
-                    "",
-                    value: value,
-                    format: format,
-                    prompt: Text(placeholder).foregroundColor(FMSTheme.textTertiary)
-                )
-                .font(.system(size: 15))
-                .foregroundColor(FMSTheme.textPrimary)
-                .autocorrectionDisabled()
-                .keyboardType(keyboard)
+                Image(systemName: icon).font(.system(size: 16)).foregroundColor(FMSTheme.textTertiary)
+                TextField("", value: value, format: format,
+                          prompt: Text(placeholder).foregroundColor(FMSTheme.textTertiary))
+                    .font(.system(size: 15)).foregroundColor(FMSTheme.textPrimary)
+                    .autocorrectionDisabled().keyboardType(keyboard)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(FMSTheme.cardBackground)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(FMSTheme.borderLight, lineWidth: 1)
-            )
+            .padding(.horizontal, 16).padding(.vertical, 14)
+            .background(FMSTheme.cardBackground).cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(FMSTheme.borderLight, lineWidth: 1))
         }
     }
-    
+
     @MainActor
     private func submitVehicle() {
-        // Comprehensive validation
         let trimmedPlate = plateNumber.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if trimmedPlate.isEmpty {
-            showValidationError("Plate Number is required.")
-            return
-        }
-        
+        guard !trimmedPlate.isEmpty else { showValidationError("Plate Number is required."); return }
+
         let trimmedChassis = chassisNumber.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if trimmedChassis.isEmpty {
-            showValidationError("Chassis Number is required.")
-            return
-        }
-        
+        guard !trimmedChassis.isEmpty else { showValidationError("Chassis Number is required."); return }
+
         let trimmedManufacturer = manufacturer.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedManufacturer.isEmpty {
-            showValidationError("Manufacturer is required.")
-            return
-        }
-        
+        guard !trimmedManufacturer.isEmpty else { showValidationError("Manufacturer is required."); return }
+
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedModel.isEmpty {
-            showValidationError("Model is required.")
-            return
-        }
-        
+        guard !trimmedModel.isEmpty else { showValidationError("Model is required."); return }
+
         guard let validatedTankCapacity = tankCapacity, validatedTankCapacity > 0 else {
-            showValidationError("Please enter a valid Fuel Tank Capacity greater than 0.")
-            return
+            showValidationError("Please enter a valid Fuel Tank Capacity greater than 0."); return
         }
-        
         guard let validatedCarryingCapacity = carryingCapacity, validatedCarryingCapacity > 0 else {
-            showValidationError("Please enter a valid Carrying Capacity greater than 0.")
-            return
+            showValidationError("Please enter a valid Carrying Capacity greater than 0."); return
         }
-        
         guard let validatedOdometer = odometer, validatedOdometer >= 0 else {
-            showValidationError("Please enter a valid Odometer reading.")
-            return
+            showValidationError("Please enter a valid Odometer reading."); return
         }
-        
-        // Disable interactions
+
         isSubmitting = true
-        
+
+        // FIX: pass String? directly — matches Vehicle.purchaseDate type
         let vehicle = Vehicle(
             id: existingVehicleId ?? UUID().uuidString,
             plateNumber: trimmedPlate,
@@ -373,43 +365,33 @@ public struct AddVehicleView: View {
             fuelType: fuelType.lowercased(),
             fuelTankCapacity: Double(validatedTankCapacity),
             carryingCapacity: Double(validatedCarryingCapacity),
-            purchaseDate: nil,
+            purchaseDate: purchaseDateString,
             odometer: Double(validatedOdometer),
             status: existingStatus ?? "inactive",
             createdBy: existingCreatedBy,
             createdAt: existingCreatedAt
         )
-        
+
         Task {
             do {
                 try await onSubmit(vehicle)
-                await MainActor.run {
-                    isSubmitting = false
-                    dismiss()
-                }
+                await MainActor.run { isSubmitting = false; dismiss() }
             } catch let error as AddVehicleError {
                 await MainActor.run {
                     isSubmitting = false
                     switch error {
-                    case .duplicatePlate:
-                        showValidationError("Plate Number already exists.")
-                    case .duplicateChassis:
-                        showValidationError("Chassis Number already exists.")
-                    case .networkError:
-                        showValidationError("Network error. Please try again.")
-                    case .unknown:
-                        showValidationError(submitFailureMessage)
+                    case .duplicatePlate:   showValidationError("Plate Number already exists.")
+                    case .duplicateChassis: showValidationError("Chassis Number already exists.")
+                    case .networkError:     showValidationError("Network error. Please try again.")
+                    case .unknown:          showValidationError(submitFailureMessage)
                     }
                 }
             } catch {
-                await MainActor.run {
-                    isSubmitting = false
-                    showValidationError(submitFailureMessage)
-                }
+                await MainActor.run { isSubmitting = false; showValidationError(submitFailureMessage) }
             }
         }
     }
-    
+
     @MainActor
     private func showValidationError(_ message: String) {
         bannerManager.show(type: .error, message: message)
