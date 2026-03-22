@@ -141,14 +141,18 @@ public struct MapCard: View {
             
             let directions = MKDirections(request: request)
             do {
+                try Task.checkCancellation()
                 let response = try await directions.calculate()
                 if let route = response.routes.first {
                     calculatedRoutes.append(route)
                 }
             } catch {
+                if error is CancellationError { return }
                 print("MapCard.fetchRoutes: failed to calculate route from \(source.coordinate) to \(destination.coordinate): \(error)")
             }
         }
+        
+        guard !Task.isCancelled else { return }
         
         // Ensure UI update happens on the main thread
         await MainActor.run {
