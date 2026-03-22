@@ -236,7 +236,7 @@ struct SOSCountdownView: View {
     }
 
     private var progress: CGFloat {
-        CGFloat(secondsRemaining) / CGFloat(10)
+        CGFloat(secondsRemaining) / CGFloat(viewModel.countdownDuration)
     }
 
     private var statusTitle: String {

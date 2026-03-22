@@ -30,7 +30,7 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
 
     // MARK: - Configuration
 
-    private let countdownDuration = 10
+    public let countdownDuration = 10
 
     // MARK: - Private
 
@@ -116,7 +116,7 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
             longitude: lng,
             speed: max(0, speed * 3.6),
             timestamp: Date(),
-            status: "active"
+            status: .active
         )
 
         Task {

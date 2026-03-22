@@ -5,12 +5,11 @@ struct SOSFloatingButton: View {
     let onTrigger: () -> Void
 
     @State private var pulseScale: CGFloat = 1.0
-    @State private var isPressed: Bool = false
+    private let haptic = UIImpactFeedbackGenerator(style: .heavy)
 
     var body: some View {
         Button {
-            let generator = UIImpactFeedbackGenerator(style: .heavy)
-            generator.impactOccurred()
+            haptic.impactOccurred()
             onTrigger()
         } label: {
             ZStack {
@@ -40,6 +39,7 @@ struct SOSFloatingButton: View {
         }
         .buttonStyle(.plain)
         .onAppear {
+            haptic.prepare()
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 pulseScale = 1.15
             }

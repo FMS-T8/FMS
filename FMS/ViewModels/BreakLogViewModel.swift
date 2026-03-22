@@ -114,6 +114,7 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
                     .select()
                     .eq("trip_id", value: tripId)
                     .order("start_time", ascending: false)
+                    .limit(50)
                     .execute()
 
                 let decoder = JSONDecoder()

@@ -62,13 +62,15 @@ struct BreakLoggingView: View {
                 .foregroundStyle(FMSTheme.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 10) {
-                ForEach(BreakType.allCases) { breakType in
-                    BreakTypeChip(
-                        breakType: breakType,
-                        isSelected: viewModel.selectedBreakType == breakType,
-                        onTap: { viewModel.selectedBreakType = breakType }
-                    )
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(BreakType.allCases) { breakType in
+                        BreakTypeChip(
+                            breakType: breakType,
+                            isSelected: viewModel.selectedBreakType == breakType,
+                            onTap: { viewModel.selectedBreakType = breakType }
+                        )
+                    }
                 }
             }
 

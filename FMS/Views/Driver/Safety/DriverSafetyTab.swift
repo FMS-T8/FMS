@@ -118,6 +118,7 @@ struct DriverSafetyTab: View {
                 title: "Break Reminders",
                 status: breakReminderStatusText,
                 isActive: safetyViewModel.drivingTimer.isActive
+                    && safetyViewModel.drivingTimer.breakReminderLevel < .warning
             )
         }
     }

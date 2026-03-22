@@ -145,13 +145,10 @@ private struct AnyJSON: Encodable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        // Decode raw JSON and re-encode through Codable
-        if let dict = try? JSONSerialization.jsonObject(with: data) {
-            // Use JSONSerialization to pass through
-            let reEncoded = try JSONSerialization.data(withJSONObject: dict)
-            let json = try JSONDecoder().decode(AnyCodable.self, from: reEncoded)
-            try container.encode(json)
-        }
+        let dict = try JSONSerialization.jsonObject(with: data)
+        let reEncoded = try JSONSerialization.data(withJSONObject: dict)
+        let json = try JSONDecoder().decode(AnyCodable.self, from: reEncoded)
+        try container.encode(json)
     }
 }
 

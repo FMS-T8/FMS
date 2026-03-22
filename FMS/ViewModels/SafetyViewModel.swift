@@ -87,6 +87,8 @@ public final class SafetyViewModel {
 
     /// Called when an impact-driven SOS has been sent successfully.
     public func impactSOSCompleted() {
+        delayTask?.cancel()
+        delayTask = nil
         showSOSCountdown = false
         showSOSSentBanner = true
         crashService.clearImpact()

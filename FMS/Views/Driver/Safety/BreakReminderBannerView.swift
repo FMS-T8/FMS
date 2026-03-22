@@ -24,6 +24,16 @@ struct BreakReminderBannerView: View {
 
             Spacer()
 
+            Button(action: onStartBreak) {
+                Text("Take Break")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(FMSTheme.obsidian)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(FMSTheme.amber)
+                    .cornerRadius(8)
+            }
+
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .bold))

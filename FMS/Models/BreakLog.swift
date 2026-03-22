@@ -67,6 +67,32 @@ public struct BreakLogInsert: Codable {
     public var endLat: Double?
     public var endLng: Double?
 
+    public init(
+        id: String = UUID().uuidString,
+        tripId: String? = nil,
+        driverId: String? = nil,
+        breakType: String? = nil,
+        startTime: Date? = nil,
+        endTime: Date? = nil,
+        durationMinutes: Int? = nil,
+        lat: Double? = nil,
+        lng: Double? = nil,
+        endLat: Double? = nil,
+        endLng: Double? = nil
+    ) {
+        self.id = id
+        self.tripId = tripId
+        self.driverId = driverId
+        self.breakType = breakType
+        self.startTime = startTime
+        self.endTime = endTime
+        self.durationMinutes = durationMinutes
+        self.lat = lat
+        self.lng = lng
+        self.endLat = endLat
+        self.endLng = endLng
+    }
+
     enum CodingKeys: String, CodingKey {
         case id
         case tripId = "trip_id"

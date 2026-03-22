@@ -291,20 +291,24 @@ private struct DefectPhotoGallery: View {
     let imageUrls: [String]
     @State private var selectedIndex: Int? = nil
 
+    private var validImageUrls: [String] {
+        imageUrls.filter { URL(string: $0) != nil }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Image(systemName: "photo.fill")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(FMSTheme.textTertiary)
-                Text("\(imageUrls.count) Photo\(imageUrls.count == 1 ? "" : "s")")
+                Text("\(validImageUrls.count) Photo\(validImageUrls.count == 1 ? "" : "s")")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(FMSTheme.textTertiary)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(Array(imageUrls.enumerated()), id: \.offset) { index, urlStr in
+                    ForEach(Array(validImageUrls.enumerated()), id: \.offset) { index, urlStr in
                         if let url = URL(string: urlStr) {
                             AsyncImage(url: url) { phase in
                                 switch phase {
@@ -333,7 +337,7 @@ private struct DefectPhotoGallery: View {
             get: { selectedIndex.map { SelectedPhoto(index: $0) } },
             set: { selectedIndex = $0?.index }
         )) { selected in
-            DefectPhotoFullScreen(imageUrls: imageUrls, initialIndex: selected.index)
+            DefectPhotoFullScreen(imageUrls: validImageUrls, initialIndex: selected.index)
         }
     }
 

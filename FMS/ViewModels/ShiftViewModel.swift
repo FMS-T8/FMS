@@ -210,7 +210,7 @@ public final class ShiftViewModel {
       breakLogs = fetched
       timelineEntries = buildTimeline()
     } catch {
-      // Keep whatever data we have
+      print("[FMS] fetchBreakLogs failed: \(error)")
     }
   }
 

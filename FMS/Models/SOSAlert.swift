@@ -76,7 +76,29 @@ public struct SOSAlertInsert: Codable {
     public var longitude: Double
     public var speed: Double?
     public var timestamp: Date
-    public var status: String
+    public var status: SOSAlertStatus
+
+    public init(
+        id: String = UUID().uuidString,
+        driverId: String,
+        vehicleId: String,
+        tripId: String? = nil,
+        latitude: Double,
+        longitude: Double,
+        speed: Double? = nil,
+        timestamp: Date = Date(),
+        status: SOSAlertStatus = .active
+    ) {
+        self.id = id
+        self.driverId = driverId
+        self.vehicleId = vehicleId
+        self.tripId = tripId
+        self.latitude = latitude
+        self.longitude = longitude
+        self.speed = speed
+        self.timestamp = timestamp
+        self.status = status
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
