@@ -222,6 +222,7 @@ public final class DriverDashboardViewModel {
         }
 
         let defect = DefectInsert(
+            id: report.id,
             vehicleId: resolvedVehicleId,
             reportedBy: reportedBy,
             tripId: tripId,
@@ -238,6 +239,9 @@ public final class DriverDashboardViewModel {
             .from("defects")
             .insert(defect)
             .execute()
+
+        // Trigger Smart Alert System logic
+        SmartAlertService.shared.handleNewIssue(report)
 
         issueReports.append(report)
     }

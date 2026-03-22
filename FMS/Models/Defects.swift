@@ -41,6 +41,7 @@ public struct Defect: Codable, Identifiable {
 
 /// Insert-only model — omits `id` so Supabase auto-generates the UUID.
 public struct DefectInsert: Codable {
+    public var id: String?
     public var vehicleId: String
     public var reportedBy: String?
     public var tripId: String?
@@ -52,7 +53,34 @@ public struct DefectInsert: Codable {
     public var reportedAt: Date?
     public var imageUrls: [String]?
 
+    public init(
+        id: String? = nil,
+        vehicleId: String,
+        reportedBy: String? = nil,
+        tripId: String? = nil,
+        title: String,
+        description: String? = nil,
+        category: String? = nil,
+        priority: String? = nil,
+        status: String? = "open",
+        reportedAt: Date? = Date(),
+        imageUrls: [String]? = nil
+    ) {
+        self.id = id
+        self.vehicleId = vehicleId
+        self.reportedBy = reportedBy
+        self.tripId = tripId
+        self.title = title
+        self.description = description
+        self.category = category
+        self.priority = priority
+        self.status = status
+        self.reportedAt = reportedAt
+        self.imageUrls = imageUrls
+    }
+
     enum CodingKeys: String, CodingKey {
+        case id
         case vehicleId  = "vehicle_id"
         case reportedBy = "reported_by"
         case tripId     = "trip_id"

@@ -30,22 +30,18 @@ public struct FleetManagerDashboardView: View {
 
 // MARK: - Home Tab Content
 struct FleetManagerHomeTab: View {
+    @Environment(BannerManager.self) private var bannerManager
     @State private var navigateToLiveFleet = false
     @State private var navigateToPreTrip = false
     @State private var navigateToPostTrip = false
     @State private var navigateToProfile = false
     @State private var navigateToOrders = false
-
-    // Mock data
+    @State private var viewModel = DashboardViewModel()
+    
+    // Mock data for other counts
     private let managerName = "Manager"
     private let activeVehicles = 14
     private let pendingOrders = 12
-
-    private let alerts: [(title: String, subtitle: String, timeAgo: String, type: AlertType)] = [
-        ("Tyre pressure warning", "Truck #402 reported low pressure in rear-left tyre.", "12m ago", .warning),
-        ("Driver break scheduled", "Driver David R. is reaching mandatory rest limit in 15 mins.", "45m ago", .info),
-        ("Geofence deviation", "Truck #109 exited the designated route area in North District.", "1h ago", .critical)
-    ]
 
     var body: some View {
         NavigationStack {
@@ -83,6 +79,12 @@ struct FleetManagerHomeTab: View {
                 .padding(.top, 16)
             }
             .background(FMSTheme.backgroundPrimary)
+            .task {
+                await viewModel.fetchData()
+                if let error = viewModel.errorMessage {
+                    bannerManager.show(type: .error, message: "Fetch failed: \(error)")
+                }
+            }
             .navigationDestination(isPresented: $navigateToLiveFleet) {
                 LiveVehicleDashboardView()
             }
@@ -126,21 +128,34 @@ struct FleetManagerHomeTab: View {
         }
     }
     
-    // MARK: - Alerts Section
     private var alertsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Alerts")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(FMSTheme.textPrimary)
-            
-            ForEach(alerts.indices, id: \.self) { index in
-                let alert = alerts[index]
-                AlertRow(
-                    title: alert.title,
-                    subtitle: alert.subtitle,
-                    timeAgo: alert.timeAgo,
-                    type: alert.type
-                )
+        Group {
+            if !viewModel.alerts.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Recent Alerts")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(FMSTheme.textPrimary)
+                    
+                    if viewModel.isLoading && viewModel.alerts.isEmpty {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                                .tint(FMSTheme.amber)
+                            Spacer()
+                        }
+                        .padding(.vertical, 20)
+                    } else {
+                        ForEach(viewModel.alerts.indices, id: \.self) { index in
+                            let alert = viewModel.alerts[index]
+                            AlertRow(
+                                title: alert.title,
+                                subtitle: alert.subtitle,
+                                timeAgo: alert.timeAgo,
+                                type: alert.type
+                            )
+                        }
+                    }
+                }
             }
         }
     }
