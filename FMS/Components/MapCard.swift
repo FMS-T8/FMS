@@ -107,6 +107,8 @@ public struct MapCard: View {
                         .foregroundStyle(FMSTheme.amber, FMSTheme.cardBackground)
                         .shadow(color: Color.black.opacity(0.3), radius: 4, x: 0, y: 2)
                 }
+                .accessibilityLabel("Open map")
+                .accessibilityHint("Opens Apple Maps with the route pre-populated")
                 .padding(12)
             }
         }
