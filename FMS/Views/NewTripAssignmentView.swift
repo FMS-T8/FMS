@@ -24,6 +24,8 @@ public struct NewTripAssignmentView: View {
     @State private var tripVehicle: Vehicle? = nil
     @State private var orderNumber: String? = nil
     @State private var orderWaypoints: [Waypoint] = []
+    @State private var requestedPickupAt: Date? = nil
+    @State private var requestedDeliveryAt: Date? = nil
     @State private var fetchError: String? = nil
 
     private var activeStops: [MockStop] {
@@ -32,7 +34,9 @@ public struct NewTripAssignmentView: View {
             stops.append(MockStop(
                 title: trip.startName ?? "Origin",
                 address: "",
-                expectedTime: trip.startTime.map { formatDateTime($0) } ?? "Scheduled",
+                expectedTime: trip.startTime.map { formatDateTime($0) }
+                           ?? requestedPickupAt.map { "Requested: \(formatDateTime($0))" }
+                           ?? "Scheduled",
                 stopType: .pickup,
                 coordinate: CLLocationCoordinate2D(latitude: startLat, longitude: startLng)
             ))
@@ -50,7 +54,9 @@ public struct NewTripAssignmentView: View {
             stops.append(MockStop(
                 title: trip.endName ?? "Destination",
                 address: "",
-                expectedTime: trip.endTime.map { formatDateTime($0) } ?? "Estimated",
+                expectedTime: trip.endTime.map { formatDateTime($0) }
+                           ?? requestedDeliveryAt.map { "Requested: \(formatDateTime($0))" }
+                           ?? "Estimated",
                 stopType: .dropOff,
                 coordinate: CLLocationCoordinate2D(latitude: endLat, longitude: endLng)
             ))
@@ -506,13 +512,17 @@ public struct NewTripAssignmentView: View {
                 struct OrderSubset: Decodable {
                     let order_number: String?
                     let waypoints: [Waypoint]?
+                    let requested_pickup_at: Date?
+                    let requested_delivery_at: Date?
                 }
                 let rows: [OrderSubset] = try await SupabaseService.shared.client
-                    .from("orders").select("order_number, waypoints").eq("id", value: orderId).execute().value
+                    .from("orders").select("order_number, waypoints, requested_pickup_at, requested_delivery_at").eq("id", value: orderId).execute().value
                 if let order = rows.first {
                     await MainActor.run {
                         orderNumber    = order.order_number
                         orderWaypoints = order.waypoints ?? []
+                        requestedPickupAt = order.requested_pickup_at
+                        requestedDeliveryAt = order.requested_delivery_at
                     }
                 }
             } catch {
