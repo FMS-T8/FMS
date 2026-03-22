@@ -130,7 +130,7 @@ struct FleetManagerHomeTab: View {
     
     private var alertsSection: some View {
         Group {
-            if !viewModel.alerts.isEmpty {
+            if viewModel.isLoading || !viewModel.alerts.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Recent Alerts")
                         .font(.system(size: 18, weight: .bold))

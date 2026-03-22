@@ -39,7 +39,7 @@ public struct Defect: Codable, Identifiable {
     }
 }
 
-/// Insert-only model — omits `id` so Supabase auto-generates the UUID.
+    /// Insert-only model — `id` is optional; if omitted, Supabase auto-generates the UUID.
 public struct DefectInsert: Codable {
     public var id: String?
     public var vehicleId: String

@@ -127,7 +127,7 @@ public final class SmartAlertService {
             
             // Verify if issue is still "open" in Supabase
             do {
-                let response: [IssueReport] = try await SupabaseService.shared.client
+                let response: [Defect] = try await SupabaseService.shared.client
                     .from("defects")
                     .select()
                     .eq("id", value: report.id)
