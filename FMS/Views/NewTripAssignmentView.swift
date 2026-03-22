@@ -239,6 +239,10 @@ public struct NewTripAssignmentView: View {
                 .buttonStyle(.fmsPrimary)
                 .disabled(viewModel.assignedVehicle == nil)
 
+                if trip.endLat != nil && trip.endLng != nil {
+                    navigateButton
+                }
+
                 Button {
                     showIssueReport = true
                 } label: {

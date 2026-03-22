@@ -1,0 +1,197 @@
+import Foundation
+import Observation
+
+public enum SafetyFlowState: Equatable {
+    case idle
+    case impactDetected
+    case awaitingConfirmation(secondsRemaining: Int)
+    case sosTriggered
+}
+
+@MainActor
+@Observable
+public final class SafetyViewModel {
+
+    // MARK: - State
+
+    public var flowState: SafetyFlowState = .idle
+    public var showSafetyConfirmation: Bool = false
+    public var showSOSCountdown: Bool = false
+    public var showSOSSentBanner: Bool = false
+    public var showFatigueBanner: Bool = false
+    public var fatigueBannerMessage: String = ""
+    public var fatigueBannerIsCritical: Bool = false
+
+    /// Tracks whether current SOS flow was triggered by impact (vs manual)
+    public var isImpactDrivenSOS: Bool = false
+
+    // MARK: - Dependencies
+
+    public let crashService: CrashDetectionService
+    public let drivingTimer: DrivingTimerManager
+
+    // MARK: - Configuration
+
+    private let impactDelaySeconds: TimeInterval = 5
+    private let confirmationTimeoutSeconds = 30
+
+    // MARK: - Private
+
+    private var confirmationTargetDate: Date?
+    private var confirmationTimer: Timer?
+    private var delayTask: Task<Void, Never>?
+    private var lastFatigueLevel: FatigueWarningLevel = .none
+
+    // MARK: - Init
+
+    public init(
+        crashService: CrashDetectionService,
+        drivingTimer: DrivingTimerManager
+    ) {
+        self.crashService = crashService
+        self.drivingTimer = drivingTimer
+    }
+
+    public convenience init() {
+        self.init(crashService: .shared, drivingTimer: DrivingTimerManager())
+    }
+
+    // MARK: - Crash Flow (Impact-Driven)
+
+    public func onImpactDetected() {
+        guard case .idle = flowState else { return }
+        flowState = .impactDetected
+        isImpactDrivenSOS = true
+
+        delayTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(impactDelaySeconds))
+            guard !Task.isCancelled else { return }
+            showSafetyConfirmation = true
+            startConfirmationTimeout()
+        }
+    }
+
+    public func driverConfirmedOK() {
+        cancelConfirmationTimer()
+        showSafetyConfirmation = false
+        crashService.clearImpact()
+        isImpactDrivenSOS = false
+        flowState = .idle
+    }
+
+    public func driverNeedsHelp() {
+        cancelConfirmationTimer()
+        showSafetyConfirmation = false
+        triggerSOSFromImpact()
+    }
+
+    /// Called when an impact-driven SOS has been sent successfully.
+    public func impactSOSCompleted() {
+        showSOSCountdown = false
+        showSOSSentBanner = true
+        crashService.clearImpact()
+        isImpactDrivenSOS = false
+        flowState = .idle
+    }
+
+    // MARK: - Manual SOS (no crash flow)
+
+    public func triggerManualSOS() {
+        isImpactDrivenSOS = false
+        showSOSCountdown = true
+    }
+
+    public func manualSOSCancelled() {
+        showSOSCountdown = false
+    }
+
+    /// Called when a manually-triggered SOS is sent. Shows banner only (no checklist).
+    public func manualSOSSent() {
+        showSOSCountdown = false
+        showSOSSentBanner = true
+        // Manual SOS does NOT advance to checklist
+    }
+
+    // MARK: - Fatigue Monitoring
+
+    public func checkFatigueWarnings() {
+        let level = drivingTimer.fatigueWarningLevel
+        guard level != lastFatigueLevel, level != .none else { return }
+        lastFatigueLevel = level
+
+        switch level {
+        case .none:
+            break
+        case .warning:
+            fatigueBannerMessage = "You've been driving for 4 hours. Consider taking a break."
+            fatigueBannerIsCritical = false
+            showFatigueBanner = true
+        case .critical:
+            fatigueBannerMessage = "CRITICAL: 6 hours continuous driving. Take a break now."
+            fatigueBannerIsCritical = true
+            showFatigueBanner = true
+        }
+    }
+
+    public func dismissFatigueBanner() {
+        showFatigueBanner = false
+    }
+
+    // MARK: - Driving Timer Proxy
+
+    public func startDriving() {
+        drivingTimer.startDriving()
+        crashService.startMonitoring()
+    }
+
+    public func stopDriving() {
+        drivingTimer.stopDriving()
+        crashService.stopMonitoring()
+        lastFatigueLevel = .none
+    }
+
+    // MARK: - Private
+
+    private func triggerSOSFromImpact() {
+        flowState = .sosTriggered
+        isImpactDrivenSOS = true
+        showSOSCountdown = true
+    }
+
+    /// Uses target-date approach so countdown survives app backgrounding.
+    private func startConfirmationTimeout() {
+        let target = Date().addingTimeInterval(TimeInterval(confirmationTimeoutSeconds))
+        confirmationTargetDate = target
+        flowState = .awaitingConfirmation(secondsRemaining: confirmationTimeoutSeconds)
+
+        confirmationTimer?.invalidate()
+        confirmationTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
+            Task { @MainActor [weak self] in
+                guard let self, let target = self.confirmationTargetDate else {
+                    timer.invalidate()
+                    return
+                }
+                let remaining = Int(ceil(target.timeIntervalSinceNow))
+                if remaining <= 0 {
+                    timer.invalidate()
+                    self.confirmationTimedOut()
+                } else {
+                    self.flowState = .awaitingConfirmation(secondsRemaining: remaining)
+                }
+            }
+        }
+    }
+
+    private func confirmationTimedOut() {
+        showSafetyConfirmation = false
+        triggerSOSFromImpact()
+    }
+
+    private func cancelConfirmationTimer() {
+        confirmationTimer?.invalidate()
+        confirmationTimer = nil
+        confirmationTargetDate = nil
+        delayTask?.cancel()
+        delayTask = nil
+    }
+}

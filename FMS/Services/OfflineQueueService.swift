@@ -1,0 +1,197 @@
+import Foundation
+import Supabase
+import Network
+
+// MARK: - Queued Payload Types
+
+public enum QueuedPayloadType: String, Codable {
+    case sosAlert = "sos_alert"
+    case breakLog = "break_log"
+    case defect = "defect"
+}
+
+public struct QueuedPayload: Codable, Identifiable {
+    public let id: String
+    public let type: QueuedPayloadType
+    public let tableName: String
+    public let jsonData: Data
+    public let createdAt: Date
+    public var retryCount: Int
+
+    public init(type: QueuedPayloadType, tableName: String, jsonData: Data) {
+        self.id = UUID().uuidString
+        self.type = type
+        self.tableName = tableName
+        self.jsonData = jsonData
+        self.createdAt = Date()
+        self.retryCount = 0
+    }
+}
+
+// MARK: - Offline Queue Service
+
+@MainActor
+public final class OfflineQueueService {
+    public static let shared = OfflineQueueService()
+
+    private let storageKey = "fms_offline_queue"
+    private let maxRetries = 5
+    private var networkMonitor: NWPathMonitor?
+    private var isProcessing = false
+
+    private init() {
+        startNetworkMonitoring()
+    }
+
+    // MARK: - Public API
+
+    /// Attempt Supabase insert. On failure, queue for retry.
+    public func insertOrQueue<T: Encodable>(
+        table: String,
+        payload: T,
+        payloadType: QueuedPayloadType
+    ) async -> Bool {
+        do {
+            try await SupabaseService.shared.client
+                .from(table)
+                .insert(payload)
+                .execute()
+            return true
+        } catch {
+            enqueue(table: table, payload: payload, type: payloadType)
+            return false
+        }
+    }
+
+    /// Queue a payload directly (without attempting insert first).
+    public func enqueue<T: Encodable>(table: String, payload: T, type: QueuedPayloadType) {
+        guard let jsonData = try? JSONEncoder().encode(payload) else { return }
+        let queued = QueuedPayload(type: type, tableName: table, jsonData: jsonData)
+        var queue = loadQueue()
+        queue.append(queued)
+        saveQueue(queue)
+    }
+
+    /// Process all queued payloads.
+    public func processQueue() async {
+        guard !isProcessing else { return }
+        isProcessing = true
+
+        var queue = loadQueue()
+        var failedItems: [QueuedPayload] = []
+
+        for var item in queue {
+            do {
+                // Send raw JSON to Supabase
+                try await SupabaseService.shared.client
+                    .from(item.tableName)
+                    .insert(AnyJSON(item.jsonData))
+                    .execute()
+            } catch {
+                item.retryCount += 1
+                if item.retryCount < maxRetries {
+                    failedItems.append(item)
+                }
+                // Items exceeding maxRetries are dropped
+            }
+        }
+
+        saveQueue(failedItems)
+        isProcessing = false
+    }
+
+    public var pendingCount: Int {
+        loadQueue().count
+    }
+
+    // MARK: - Network Monitoring
+
+    private func startNetworkMonitoring() {
+        networkMonitor = NWPathMonitor()
+        networkMonitor?.pathUpdateHandler = { [weak self] path in
+            if path.status == .satisfied {
+                Task { @MainActor [weak self] in
+                    await self?.processQueue()
+                }
+            }
+        }
+        networkMonitor?.start(queue: DispatchQueue(label: "fms.network.monitor"))
+    }
+
+    // MARK: - Persistence (UserDefaults)
+
+    private func loadQueue() -> [QueuedPayload] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
+        return (try? JSONDecoder().decode([QueuedPayload].self, from: data)) ?? []
+    }
+
+    private func saveQueue(_ queue: [QueuedPayload]) {
+        if let data = try? JSONEncoder().encode(queue) {
+            UserDefaults.standard.set(data, forKey: storageKey)
+        }
+    }
+}
+
+// MARK: - AnyJSON wrapper for raw data insertion
+
+private struct AnyJSON: Encodable {
+    let data: Data
+
+    init(_ data: Data) {
+        self.data = data
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        // Decode raw JSON and re-encode through Codable
+        if let dict = try? JSONSerialization.jsonObject(with: data) {
+            // Use JSONSerialization to pass through
+            let reEncoded = try JSONSerialization.data(withJSONObject: dict)
+            let json = try JSONDecoder().decode(AnyCodable.self, from: reEncoded)
+            try container.encode(json)
+        }
+    }
+}
+
+private struct AnyCodable: Codable {
+    let value: Any
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let dict = try? container.decode([String: AnyCodable].self) {
+            value = dict.mapValues(\.value)
+        } else if let arr = try? container.decode([AnyCodable].self) {
+            value = arr.map(\.value)
+        } else if let str = try? container.decode(String.self) {
+            value = str
+        } else if let num = try? container.decode(Double.self) {
+            value = num
+        } else if let bool = try? container.decode(Bool.self) {
+            value = bool
+        } else if container.decodeNil() {
+            value = NSNull()
+        } else {
+            value = NSNull()
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch value {
+        case let str as String: try container.encode(str)
+        case let num as Double: try container.encode(num)
+        case let num as Int: try container.encode(num)
+        case let bool as Bool: try container.encode(bool)
+        case let dict as [String: Any]:
+            try container.encode(dict.mapValues { AnyCodable(value: $0) })
+        case let arr as [Any]:
+            try container.encode(arr.map { AnyCodable(value: $0) })
+        case is NSNull: try container.encodeNil()
+        default: try container.encodeNil()
+        }
+    }
+
+    init(value: Any) {
+        self.value = value
+    }
+}
