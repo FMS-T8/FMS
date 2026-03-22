@@ -73,7 +73,7 @@ public struct NewTripAssignmentView: View {
         ScrollView {
             VStack(spacing: 24) {
 
-                MapCard(stops: activeStops)
+                MapCard(stops: activeStops, onNavigate: openAppleMaps)
                     .frame(height: 240)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 4)

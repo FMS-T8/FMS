@@ -32,11 +32,14 @@ public struct MockStop: Identifiable, Equatable {
 
 public struct MapCard: View {
     public let stops: [MockStop]
+    public var onNavigate: (() -> Void)?
+    
     @State private var routes: [MKRoute] = []
     @State private var position: MapCameraPosition = .automatic
     
-    public init(stops: [MockStop]) {
+    public init(stops: [MockStop], onNavigate: (() -> Void)? = nil) {
         self.stops = stops
+        self.onNavigate = onNavigate
     }
     
     // Create a bounding box based on the stops
@@ -95,7 +98,17 @@ public struct MapCard: View {
             MapCompass()
             MapScaleView()
             MapPitchToggle()
-            MapUserLocationButton()
+        }
+        .overlay(alignment: .topTrailing) {
+            if let onNavigate = onNavigate {
+                Button(action: onNavigate) {
+                    Image(systemName: "map.circle.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(FMSTheme.amber, FMSTheme.cardBackground)
+                        .shadow(color: Color.black.opacity(0.3), radius: 4, x: 0, y: 2)
+                }
+                .padding(12)
+            }
         }
         .onAppear {
             position = mapCameraPosition
