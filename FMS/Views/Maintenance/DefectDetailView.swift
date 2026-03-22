@@ -370,11 +370,18 @@ private struct DefectPhotoFullScreen: View {
                 ForEach(Array(imageUrls.enumerated()), id: \.offset) { index, urlStr in
                     if let url = URL(string: urlStr) {
                         AsyncImage(url: url) { phase in
-                            if let image = phase.image {
+                            switch phase {
+                            case .success(let image):
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
-                            } else {
+                            case .failure:
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(.white.opacity(0.5))
+                            case .empty:
+                                ProgressView().tint(.white)
+                            @unknown default:
                                 ProgressView().tint(.white)
                             }
                         }

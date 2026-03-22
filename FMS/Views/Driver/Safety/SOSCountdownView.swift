@@ -181,18 +181,20 @@ struct SOSCountdownView: View {
     private var actionButtons: some View {
         VStack(spacing: 10) {
             if case .active = viewModel.state {
-                // Cancel SOS (driver-initiated)
-                Button {
-                    viewModel.cancelSOS()
-                    onCancelled()
-                } label: {
-                    Text("Cancel SOS")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(FMSTheme.alertRed)
-                        .padding(.horizontal, 48)
-                        .padding(.vertical, 12)
-                        .background(FMSTheme.alertRed.opacity(0.15))
-                        .cornerRadius(14)
+                // Cancel SOS — only when alert is still active (not yet resolved/cancelled)
+                if !viewModel.isResolved {
+                    Button {
+                        viewModel.cancelSOS()
+                        onCancelled()
+                    } label: {
+                        Text("Cancel SOS")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(FMSTheme.alertRed)
+                            .padding(.horizontal, 48)
+                            .padding(.vertical, 12)
+                            .background(FMSTheme.alertRed.opacity(0.15))
+                            .cornerRadius(14)
+                    }
                 }
 
                 // Done / dismiss
