@@ -159,6 +159,7 @@ public final class SafetyViewModel {
         drivingTimer.stopDriving()
         crashService.stopMonitoring()
         lastFatigueLevel = .none
+        showFatigueBanner = false
     }
 
     // MARK: - Private
