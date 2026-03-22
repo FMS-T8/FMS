@@ -32,11 +32,14 @@ public struct MockStop: Identifiable, Equatable {
 
 public struct MapCard: View {
     public let stops: [MockStop]
+    public var onNavigate: (() -> Void)?
+    
     @State private var routes: [MKRoute] = []
     @State private var position: MapCameraPosition = .automatic
     
-    public init(stops: [MockStop]) {
+    public init(stops: [MockStop], onNavigate: (() -> Void)? = nil) {
         self.stops = stops
+        self.onNavigate = onNavigate
     }
     
     // Create a bounding box based on the stops
@@ -95,10 +98,27 @@ public struct MapCard: View {
             MapCompass()
             MapScaleView()
             MapPitchToggle()
-            MapUserLocationButton()
+        }
+        .overlay(alignment: .topTrailing) {
+            if let onNavigate = onNavigate {
+                Button(action: onNavigate) {
+                    Image(systemName: "map.circle.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(FMSTheme.amber, FMSTheme.cardBackground)
+                        .shadow(color: Color.black.opacity(0.3), radius: 4, x: 0, y: 2)
+                }
+                .accessibilityLabel("Open map")
+                .accessibilityHint("Opens Apple Maps with the route pre-populated")
+                .padding(12)
+            }
         }
         .onAppear {
             position = mapCameraPosition
+        }
+        .onChange(of: stops) { _, _ in
+            withAnimation(.easeInOut(duration: 0.5)) {
+                position = mapCameraPosition
+            }
         }
         .task(id: stops) {
             await fetchRoutes()
@@ -121,14 +141,18 @@ public struct MapCard: View {
             
             let directions = MKDirections(request: request)
             do {
+                try Task.checkCancellation()
                 let response = try await directions.calculate()
                 if let route = response.routes.first {
                     calculatedRoutes.append(route)
                 }
             } catch {
+                if error is CancellationError { return }
                 print("MapCard.fetchRoutes: failed to calculate route from \(source.coordinate) to \(destination.coordinate): \(error)")
             }
         }
+        
+        guard !Task.isCancelled else { return }
         
         // Ensure UI update happens on the main thread
         await MainActor.run {

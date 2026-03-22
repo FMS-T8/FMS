@@ -1,18 +1,19 @@
+//
+//  DriverDashboardViewModel.swift
+//  FMS
+//
+
 import Foundation
 import Observation
 import Supabase
 
 // MARK: - Driver Day Stats
-
 public struct DriverDayStats {
     public var tripsCompleted: Int
     public var totalDistanceKm: Double
     public var drivingTimeMinutes: Int
 
-    public var formattedDistance: String {
-        String(format: "%.0f km", totalDistanceKm)
-    }
-
+    public var formattedDistance: String { String(format: "%.0f km", totalDistanceKm) }
     public var formattedDrivingTime: String {
         let hours = drivingTimeMinutes / 60
         let minutes = drivingTimeMinutes % 60
@@ -20,35 +21,14 @@ public struct DriverDayStats {
     }
 }
 
-// MARK: - Trip Filter
-
+// MARK: - UI Enums
 public enum TripFilterOption: String, CaseIterable {
-    case all = "All"
-    case today = "Today"
-    case thisWeek = "This Week"
-    case thisMonth = "This Month"
+    case all = "All", today = "Today", thisWeek = "This Week", thisMonth = "This Month"
 }
-
-// MARK: - Trip Segment
 
 public enum TripSegment: String, CaseIterable {
-    case upcoming = "Upcoming"
-    case history = "History"
+    case upcoming = "Upcoming", history = "History"
 }
-
-// MARK: - Data Source Protocol
-
-@MainActor
-public protocol DriverDashboardDataSource {
-    func fetchCurrentDriver() -> DriverDisplayItem
-    func fetchAssignedVehicle() -> Vehicle?
-    func fetchActiveTrip() -> Trip?
-    func fetchUpcomingTrips() -> [Trip]
-    func fetchCompletedTrips() -> [Trip]
-    func fetchTodayStats() -> DriverDayStats
-}
-
-// MARK: - ViewModel
 
 @MainActor
 @Observable
@@ -60,8 +40,8 @@ public final class DriverDashboardViewModel {
 
     // MARK: - Trip State
     public var activeTrip: Trip?
-    public var upcomingTrips: [Trip]
-    public var completedTrips: [Trip]
+    public var upcomingTrips: [Trip] = []
+    public var completedTrips: [Trip] = []
 
     // MARK: - Stats
     public var todayStats: DriverDayStats
@@ -71,64 +51,44 @@ public final class DriverDashboardViewModel {
     public var searchText: String = ""
     public var selectedTripFilter: TripFilterOption = .all
     public var selectedSegment: TripSegment = .upcoming
+    // issueReports holds IssueReport values (the local domain model, not DefectCreatePayload).
+    // IssueReportView reads this array indirectly via the viewModel — no view currently
+    // binds directly to issueReports, but it's observable so any future observer will
+    // react immediately when a new report is appended here after a successful insert.
     public var issueReports: [IssueReport] = []
+    public var errorMessage: String? = nil
 
     // MARK: - Computed
-
     public var hasActiveTrip: Bool { activeTrip != nil }
+    public var currentJob: Trip? { activeTrip ?? upcomingTrips.first }
+    public var currentJobIsActive: Bool { activeTrip != nil }
 
-    /// The current job: active trip, or the next upcoming trip
-    public var currentJob: Trip? {
-        activeTrip ?? upcomingTrips.first
-    }
-
-    /// Whether the current job is an active (in-progress) trip
-    public var currentJobIsActive: Bool {
-        activeTrip != nil
-    }
-
-    /// Upcoming trips excluding the one shown as current job
     public var remainingUpcomingTrips: [Trip] {
-        if activeTrip != nil {
-            return upcomingTrips
-        } else {
-            return Array(upcomingTrips.dropFirst())
-        }
+        if activeTrip != nil { return upcomingTrips } else { return Array(upcomingTrips.dropFirst()) }
     }
 
     public var filteredCompletedTrips: [Trip] {
-        var trips = completedTrips
+        let calendar = Calendar.current
+        let now = Date()
 
-        // Search filter
+        var trips = completedTrips.filter { trip in
+            guard let date = trip.startTime else {
+                return selectedTripFilter == .all
+            }
+            switch selectedTripFilter {
+            case .all:       return true
+            case .today:     return calendar.isDateInToday(date)
+            case .thisWeek:  return calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear)
+            case .thisMonth: return calendar.isDate(date, equalTo: now, toGranularity: .month)
+            }
+        }
+
         if !searchText.isEmpty {
             let query = searchText.lowercased()
             trips = trips.filter { trip in
                 (trip.startName?.lowercased().contains(query) ?? false) ||
                 (trip.endName?.lowercased().contains(query) ?? false) ||
                 trip.id.lowercased().contains(query)
-            }
-        }
-
-        // Date filter
-        let calendar = Calendar.current
-        let now = Date()
-        switch selectedTripFilter {
-        case .all:
-            break
-        case .today:
-            trips = trips.filter { trip in
-                guard let date = trip.endTime ?? trip.startTime else { return false }
-                return calendar.isDateInToday(date)
-            }
-        case .thisWeek:
-            trips = trips.filter { trip in
-                guard let date = trip.endTime ?? trip.startTime else { return false }
-                return calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear)
-            }
-        case .thisMonth:
-            trips = trips.filter { trip in
-                guard let date = trip.endTime ?? trip.startTime else { return false }
-                return calendar.isDate(date, equalTo: now, toGranularity: .month)
             }
         }
 
@@ -145,105 +105,199 @@ public final class DriverDashboardViewModel {
 
     public var activeTripRoute: String {
         guard let trip = activeTrip else { return "" }
-        let from = trip.startName ?? "Origin"
-        let to = trip.endName ?? "Destination"
-        return "\(from) → \(to)"
+        return "\(trip.startName ?? "Origin") → \(trip.endName ?? "Destination")"
     }
 
-    // MARK: - Actions
+    // MARK: - Init
+    public init() {
+        self.driver = DriverDisplayItem(id: "", name: "Loading...", employeeID: "", phone: "", availabilityStatus: .offDuty)
+        self.todayStats = DriverDayStats(tripsCompleted: 0, totalDistanceKm: 0, drivingTimeMinutes: 0)
+    }
 
+    // MARK: - Live Data Fetch
+    public func fetchLiveDashboardData() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            let session = try await SupabaseService.shared.client.auth.session
+            let currentUserId = session.user.id.uuidString
+
+            struct UserProfile: Decodable {
+                let id: String
+                let name: String
+                let phone: String?
+                let operational_status: String?
+            }
+            let profiles: [UserProfile] = try await SupabaseService.shared.client
+                .from("users")
+                .select("id, name, phone, operational_status")
+                .eq("id", value: currentUserId)
+                .execute()
+                .value
+
+            if let p = profiles.first {
+                let currentStatus: DriverAvailabilityStatus =
+                    p.operational_status == "on_trip"  ? .onTrip  :
+                    p.operational_status == "available" ? .available : .offDuty
+                self.driver = DriverDisplayItem(
+                    id: p.id,
+                    name: p.name,
+                    employeeID: "DRV-\(p.id.prefix(4).uppercased())",
+                    phone: p.phone ?? "N/A",
+                    availabilityStatus: currentStatus
+                )
+            }
+
+            let allTrips: [Trip] = try await SupabaseService.shared.client
+                .from("trips")
+                .select("*")
+                .eq("driver_id", value: currentUserId)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+
+            let activeStatuses    = ["active", "in_progress", "in_transit"]
+            let upcomingStatuses  = ["pending", "scheduled", "assigned", "confirmed"]
+            let completedStatuses = ["completed", "delivered", "cancelled"]
+
+            self.activeTrip = allTrips.first(where: { activeStatuses.contains($0.status?.lowercased() ?? "") })
+            self.upcomingTrips = allTrips
+                .filter { upcomingStatuses.contains($0.status?.lowercased() ?? "") }
+                .sorted { ($0.startTime ?? Date.distantFuture) < ($1.startTime ?? Date.distantFuture) }
+            self.completedTrips = allTrips
+                .filter { completedStatuses.contains($0.status?.lowercased() ?? "") }
+                .sorted { ($0.endTime ?? Date.distantPast) > ($1.endTime ?? Date.distantPast) }
+
+            if let vehicleId = activeTrip?.vehicleId ?? upcomingTrips.first?.vehicleId {
+                let vehicles: [Vehicle] = try await SupabaseService.shared.client
+                    .from("vehicles")
+                    .select()
+                    .eq("id", value: vehicleId)
+                    .execute()
+                    .value
+                self.assignedVehicle = vehicles.first
+            }
+
+            self.todayStats.tripsCompleted = self.completedTrips.count
+
+        } catch {
+            print("Failed to fetch driver dashboard: \(error)")
+            self.errorMessage = error.localizedDescription
+        }
+        self.isLoading = false
+    }
+
+    // MARK: - Lifecycle Actions
     public func startTrip(_ trip: Trip) {
         var started = trip
         started.status = "active"
         started.startTime = Date()
-        activeTrip = started
-        upcomingTrips.removeAll { $0.id == trip.id }
+        self.activeTrip = started
+        self.upcomingTrips.removeAll { $0.id == trip.id }
+        self.driver.availabilityStatus = .onTrip
+
+        Task {
+            do {
+                struct TripUpdate: Encodable { let status: String }
+                try await SupabaseService.shared.client
+                    .from("trips").update(TripUpdate(status: "active")).eq("id", value: trip.id).execute()
+
+                struct UserUpdate: Encodable { let operational_status: String }
+                try await SupabaseService.shared.client
+                    .from("users").update(UserUpdate(operational_status: "on_trip")).eq("id", value: driver.id).execute()
+
+                if let orderId = trip.orderId {
+                    struct OrderUpdate: Encodable { let status: String }
+                    try await SupabaseService.shared.client
+                        .from("orders").update(OrderUpdate(status: "in_transit")).eq("id", value: orderId).execute()
+                }
+            } catch { print("Failed to start trip in DB: \(error)") }
+        }
     }
 
     public func endTrip() {
         guard var trip = activeTrip else { return }
+
         trip.status = "completed"
         trip.endTime = Date()
-        completedTrips.insert(trip, at: 0)
-        activeTrip = nil
-        todayStats.tripsCompleted += 1
+        self.completedTrips.insert(trip, at: 0)
+        self.activeTrip = nil
+        self.todayStats.tripsCompleted += 1
+        self.driver.availabilityStatus = .available
+
+        Task {
+            do {
+                struct TripUpdate: Encodable { let status: String }
+                try await SupabaseService.shared.client
+                    .from("trips").update(TripUpdate(status: "completed")).eq("id", value: trip.id).execute()
+
+                if let orderId = trip.orderId {
+                    struct OrderUpdate: Encodable { let status: String }
+                    try await SupabaseService.shared.client
+                        .from("orders").update(OrderUpdate(status: "delivered")).eq("id", value: orderId).execute()
+                }
+
+                struct UserUpdate: Encodable { let operational_status: String }
+                try await SupabaseService.shared.client
+                    .from("users").update(UserUpdate(operational_status: "available")).eq("id", value: driver.id).execute()
+
+            } catch { print("Failed to complete trip in DB: \(error)") }
+        }
     }
 
+    // MARK: - Issue Reporting
     public func submitIssueReport(_ report: IssueReport) async throws {
-        // Map IssueCategory to DB enum values
-        let categoryMapping: [IssueCategory: String] = [
-            .engine: "engine", .brakes: "brakes", .tires: "tires",
-            .electrical: "electrical", .body: "body_damage", .other: "other"
-        ]
-        // Map IssueSeverity to DB enum values
-        let priorityMapping: [IssueSeverity: String] = [
-            .low: "low", .medium: "medium", .high: "high", .critical: "critical"
-        ]
-
-        // Only send FK fields that are valid UUIDs — mock IDs will cause FK violations
-        var vehicleId = validUUID(report.vehicleId) ?? validUUID(assignedVehicle?.id)
-        let reportedBy = validUUID(report.driverId)
-        let tripId = validUUID(report.tripId)
-
-        // Mock vehicle IDs aren't valid UUIDs — resolve by matching plate number in DB
-        if vehicleId == nil, let plate = assignedVehicle?.plateNumber {
-            let resp = try await SupabaseService.shared.client
-                .from("vehicles")
-                .select("id")
-                .eq("plate_number", value: plate)
-                .limit(1)
-                .execute()
-            if let first = try? JSONDecoder().decode([[String: String]].self, from: resp.data).first {
-                vehicleId = first["id"]
-            }
+        struct DefectCreatePayload: Encodable {
+            let vehicle_id: String?
+            let reported_by: String?
+            let title: String
+            let description: String?
+            let category: String
+            let priority: String
+            let status: String
         }
 
-        guard let resolvedVehicleId = vehicleId else {
-            throw NSError(domain: "FMS", code: 1, userInfo: [NSLocalizedDescriptionKey: "No assigned vehicle found. Please ensure a vehicle is assigned before reporting an issue."])
-        }
+let payload = DefectCreatePayload(
+    vehicle_id: report.vehicleId,
+    reported_by: report.driverId,
+    title: "\(report.category.rawValue) Issue",
+    description: report.description,
+    category: report.category.rawValue.lowercased(),
+    priority: report.severity.rawValue.lowercased(),
+    status: "open"
+)
 
-        let title = "\(report.category.rawValue) Issue"
-            + (report.description.isEmpty ? "" : " – \(report.description.prefix(60))")
+// Upload photos
+var uploadedUrls: [String] = []
+if let photos = report.photoData, !photos.isEmpty {
+    let defectId = UUID().uuidString
+    for (index, imageData) in photos.enumerated() {
+        let path = "defects/\(defectId)/photo-\(index).jpg"
 
-        // Upload photos to storage and collect public URLs
-        var uploadedUrls: [String] = []
-        if let photos = report.photoData, !photos.isEmpty {
-            let defectId = UUID().uuidString
-            for (index, imageData) in photos.enumerated() {
-                let path = "defects/\(defectId)/photo-\(index).jpg"
-                try await SupabaseService.shared.client.storage
-                    .from("report-issue-driver")
-                    .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg"))
-                let publicURL = try SupabaseService.shared.client.storage
-                    .from("report-issue-driver")
-                    .getPublicURL(path: path)
-                uploadedUrls.append(publicURL.absoluteString)
-            }
-        }
+        try await SupabaseService.shared.client.storage
+            .from("report-issue-driver")
+            .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg"))
 
-        let defect = DefectInsert(
-            id: report.id,
-            vehicleId: resolvedVehicleId,
-            reportedBy: reportedBy,
-            tripId: tripId,
-            title: title,
-            description: report.description,
-            category: categoryMapping[report.category] ?? "other",
-            priority: priorityMapping[report.severity] ?? "medium",
-            status: "open",
-            reportedAt: Date(),
-            imageUrls: uploadedUrls.isEmpty ? nil : uploadedUrls
-        )
+        let publicURL = try SupabaseService.shared.client.storage
+            .from("report-issue-driver")
+            .getPublicURL(path: path)
 
-        try await SupabaseService.shared.client
-            .from("defects")
-            .insert(defect)
-            .execute()
+        uploadedUrls.append(publicURL.absoluteString)
+    }
+}
 
-        // Trigger Smart Alert System logic
-        SmartAlertService.shared.handleNewIssue(report)
+// Insert into DB
+try await SupabaseService.shared.client
+    .from("defects")
+    .insert(payload)
+    .execute()
 
-        issueReports.append(report)
+// Trigger alerts
+SmartAlertService.shared.handleNewIssue(report)
+
+// Update UI
+self.issueReports.append(report) 
+       
     }
 
     /// Returns the string only if it's a valid UUID, otherwise nil.
@@ -449,11 +503,10 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
         ]
     }
 
-    public func fetchTodayStats() -> DriverDayStats {
-        DriverDayStats(
-            tripsCompleted: 2,
-            totalDistanceKm: 298,
-            drivingTimeMinutes: 425
-        )
-    }
+   public func fetchTodayStats() -> DriverDayStats {
+    return DriverDayStats(
+        tripsCompleted: 2,
+        totalDistanceKm: 298,
+        drivingTimeMinutes: 425
+    )
 }

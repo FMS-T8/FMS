@@ -62,7 +62,7 @@ public class FleetViewModel {
         } catch {
             self.errorMessage = error.localizedDescription
             self.loadErrorMessage = error.localizedDescription
-            print("Error fetching vehicles: \(error)")
+            print("CRITICAL FLEET DECODING ERROR: \(error)")
             throw error
         }
     }

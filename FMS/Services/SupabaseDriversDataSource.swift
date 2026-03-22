@@ -1,107 +1,139 @@
+//
+//  SupabaseDriversDataSource.swift
+//  FMS
+//
+
 import Foundation
 import Supabase
 
-/// Real implementation of DriversDataSource using Supabase.
 public final class SupabaseDriversDataSource: DriversDataSource {
-    
-    private let client = SupabaseService.shared.client
-    
+
     public init() {}
-    
-    // Custom decoder to handle Supabase date formats
-    private var supabaseDecoder: JSONDecoder {
-        let decoder = JSONDecoder()
-        let dateFormatter = DateFormatter()
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let dateStr = try container.decode(String.self)
-            
-            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-            if let date = dateFormatter.date(from: dateStr) { return date }
-            
-            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-            if let date = dateFormatter.date(from: dateStr) { return date }
-            
-            dateFormatter.dateFormat = "yyyy-MM-dd"
-            if let date = dateFormatter.date(from: dateStr) { return date }
-            
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date format: \(dateStr)")
-        }
-        return decoder
-    }
-    
+
     public func fetchDrivers() async throws -> [DriverDisplayItem] {
-        let decoder = supabaseDecoder
-        
-        // Fetch users with driver role
-        let driversResponse = try await client
+
+        // MARK: 1. Fetch all active drivers
+        struct UserRow: Decodable {
+            let id: String
+            let name: String
+            let phone: String?
+            let employee_id: String?
+            let operational_status: String?
+        }
+
+        let usersResponse: [UserRow] = try await SupabaseService.shared.client
             .from("users")
-            .select()
+            .select("id, name, phone, employee_id, operational_status")
             .eq("role", value: "driver")
             .eq("is_deleted", value: false)
+            .eq("employment_status", value: "active")
             .execute()
-        let drivers = try decoder.decode([User].self, from: driversResponse.data)
-        
-        // Fetch all active assignments
-        let nowISO = ISO8601DateFormatter().string(from: Date())
-        let assignmentsResponse = try await client
-            .from("driver_vehicle_assignments")
-            .select()
-            .eq("status", value: "scheduled")
-            .gte("shift_end", value: nowISO)
-            .execute()
-        let assignments = try decoder.decode([DriverVehicleAssignment].self, from: assignmentsResponse.data)
-            
-        // Fetch all vehicles
-        let vehiclesResponse = try await client
-            .from("vehicles")
-            .select()
-            .execute()
-        let vehicles = try decoder.decode([Vehicle].self, from: vehiclesResponse.data)
-            
-        // Fetch driver-side trip activity and derive status dynamically from it.
-        let tripsResponse = try await client
-            .from("trips")
-            .select()
-            .in("status", values: ["active", "in_transit"])
-            .execute()
-        let trips = try decoder.decode([Trip].self, from: tripsResponse.data)
-            
-        return drivers.map { driver in
-            let assignment = assignments.first { $0.driverId == driver.id }
-            let activeTrip = trips.first { $0.driverId == driver.id }
-            let assignmentVehicle = vehicles.first { $0.id == assignment?.vehicleId }
-            let tripVehicle = vehicles.first { $0.id == activeTrip?.vehicleId }
-            
-            // Determine availability status
-            var availability: DriverAvailabilityStatus = .offDuty
-            if activeTrip != nil {
-                availability = .onTrip
-            } else if assignment != nil {
-                availability = .available
+            .value
+
+        let driverIds = usersResponse.map(\.id)
+        guard !driverIds.isEmpty else { return [] }
+
+        // MARK: 2. Fetch vehicle assignments (joined with vehicles table)
+        struct AssignmentRow: Decodable {
+            let driver_id: String
+            let vehicle_id: String?
+            let vehicle: VehicleInfo?
+
+            struct VehicleInfo: Decodable {
+                let id: String
+                let plate_number: String?
+                let manufacturer: String?
+                let model: String?
             }
 
-            // Only expose assigned vehicle for on-trip drivers.
-            let visibleVehicle: Vehicle? = {
-                guard availability == .onTrip else { return nil }
-                return tripVehicle ?? assignmentVehicle
+            enum CodingKeys: String, CodingKey {
+                case driver_id, vehicle_id
+                case vehicle = "vehicles"
+            }
+        }
+
+        let assignments: [AssignmentRow] = (try? await SupabaseService.shared.client
+            .from("driver_vehicle_assignments")
+            .select("driver_id, vehicle_id, vehicles(id, plate_number, manufacturer, model)")
+            .in("driver_id", values: driverIds)
+            .execute()
+            .value) ?? []
+
+        // Map driver_id → assignment for O(1) lookup
+        let assignmentByDriverId = Dictionary(
+            assignments.map { ($0.driver_id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        // MARK: 3. Fetch active/upcoming trips to populate activeTripId, shiftStart, shiftEnd
+        struct TripRow: Decodable {
+            let id: String
+            let driver_id: String?
+            let status: String?
+            let start_time: Date?
+            let end_time: Date?
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case driver_id
+                case status
+                case start_time
+                case end_time
+            }
+        }
+
+        let activeStatuses = ["active", "in_progress", "in_transit", "scheduled", "assigned", "pending"]
+        let trips: [TripRow] = (try? await SupabaseService.shared.client
+            .from("trips")
+            .select("id, driver_id, status, start_time, end_time")
+            .in("driver_id", values: driverIds)
+            .in("status", values: activeStatuses)
+            .order("start_time", ascending: true)
+            .execute()
+            .value) ?? []
+
+        // Map driver_id → most relevant trip (prefer active over upcoming)
+        var tripByDriverId: [String: TripRow] = [:]
+        for trip in trips {
+            guard let dId = trip.driver_id else { continue }
+            if let existing = tripByDriverId[dId] {
+                // Prefer truly active trips over scheduled ones
+                let isNewActive = ["active", "in_progress", "in_transit"].contains(trip.status ?? "")
+                let isExistingActive = ["active", "in_progress", "in_transit"].contains(existing.status ?? "")
+                if isNewActive && !isExistingActive {
+                    tripByDriverId[dId] = trip
+                }
+            } else {
+                tripByDriverId[dId] = trip
+            }
+        }
+
+        // MARK: 4. Assemble DriverDisplayItems
+        return usersResponse.map { user in
+            let status: DriverAvailabilityStatus = {
+                switch user.operational_status {
+                case "on_trip":   return .onTrip
+                case "available": return .available
+                default:          return .offDuty
+                }
             }()
-            
+
+            let assignment = assignmentByDriverId[user.id]
+            let trip       = tripByDriverId[user.id]
+
             return DriverDisplayItem(
-                id: driver.id,
-                name: driver.name,
-                employeeID: driver.employeeId ?? "#DRV-XXXX",
-                phone: driver.phone,
-                vehicleId: visibleVehicle?.id,
-                vehicleManufacturer: visibleVehicle?.manufacturer,
-                vehicleModel: visibleVehicle?.model,
-                plateNumber: visibleVehicle?.plateNumber,
-                availabilityStatus: availability,
-                shiftStart: activeTrip?.startTime ?? assignment?.shiftStart,
-                shiftEnd: assignment?.shiftEnd,
-                activeTripId: activeTrip?.id
+                id: user.id,
+                name: user.name,
+                employeeID: user.employee_id ?? "EMP-\(user.id.prefix(6).uppercased())",
+                phone: user.phone ?? "N/A",
+                vehicleId:           assignment?.vehicle_id,
+                vehicleManufacturer: assignment?.vehicle?.manufacturer,
+                vehicleModel:        assignment?.vehicle?.model,
+                plateNumber:         assignment?.vehicle?.plate_number,
+                availabilityStatus:  status,
+                shiftStart:          trip?.start_time,
+                shiftEnd:            trip?.end_time,
+                activeTripId:        trip?.id
             )
         }
     }

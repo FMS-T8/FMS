@@ -1,3 +1,8 @@
+//
+//  DriversViewModel.swift
+//  FMS
+//
+
 import Foundation
 import Observation
 
@@ -77,9 +82,8 @@ public final class DriversViewModel {
   // MARK: - Init
 
   /// Initializer with data source dependency injection.
-  /// - Parameter dataSource: Source for drivers data. Defaults to mock for previews.
-  /// Production code should explicitly pass a real repository/service implementation.
-  public init(dataSource: DriversDataSource = MockDriversDataSource()) {
+  /// 🚨 THE FIX: Swapped the default parameter to SupabaseDriversDataSource() to force LIVE data! 🚨
+  public init(dataSource: DriversDataSource = SupabaseDriversDataSource()) {
     self.dataSource = dataSource
   }
   
@@ -92,14 +96,14 @@ public final class DriversViewModel {
       self.drivers = try await dataSource.fetchDrivers()
     } catch {
       self.errorMessage = error.localizedDescription
-      print("Error fetching drivers data: \(error)")
+      print("🚨 CRITICAL DRIVERS DECODING ERROR: \(error)")
     }
     
     isLoading = false
   }
 }
 
-// MARK: - Mock Data (replace with service calls)
+// MARK: - Mock Data (Maintained strictly for SwiftUI Previews)
 
 extension DriversViewModel {
 

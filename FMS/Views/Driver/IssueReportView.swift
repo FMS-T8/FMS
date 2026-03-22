@@ -2,7 +2,11 @@ import SwiftUI
 import PhotosUI
 
 struct IssueReportView: View {
-    @Bindable var viewModel: DriverDashboardViewModel
+    // No @Bindable needed — this view only reads from viewModel (driver.id,
+    // assignedVehicle, activeTrip) and calls async methods on it.
+    // No $viewModel.someProperty two-way bindings are used anywhere in the body.
+    var viewModel: DriverDashboardViewModel
+
     @Environment(\.dismiss) private var dismiss
     @Environment(BannerManager.self) private var bannerManager
 
@@ -32,17 +36,14 @@ struct IssueReportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundStyle(FMSTheme.textSecondary)
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(FMSTheme.textSecondary)
                 }
             }
         }
     }
 
     // MARK: - Category
-
     private var categorySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Category")
@@ -56,7 +57,6 @@ struct IssueReportView: View {
             ], spacing: 10) {
                 ForEach(IssueCategory.allCases) { category in
                     let isSelected = selectedCategory == category
-
                     Button {
                         selectedCategory = category
                     } label: {
@@ -84,7 +84,6 @@ struct IssueReportView: View {
     }
 
     // MARK: - Severity
-
     private var severitySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Severity")
@@ -94,7 +93,6 @@ struct IssueReportView: View {
             HStack(spacing: 8) {
                 ForEach(IssueSeverity.allCases) { severity in
                     let isSelected = selectedSeverity == severity
-
                     Button {
                         selectedSeverity = severity
                     } label: {
@@ -113,7 +111,6 @@ struct IssueReportView: View {
     }
 
     // MARK: - Description
-
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Description")
@@ -134,7 +131,6 @@ struct IssueReportView: View {
     }
 
     // MARK: - Photos
-
     private var photoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Photos")
@@ -198,15 +194,13 @@ struct IssueReportView: View {
     }
 
     // MARK: - Submit
-
     private var submitButton: some View {
         Button {
             submitReport()
         } label: {
             HStack(spacing: 8) {
                 if isSubmitting {
-                    ProgressView()
-                        .tint(FMSTheme.obsidian)
+                    ProgressView().tint(FMSTheme.obsidian)
                 } else {
                     Image(systemName: "paperplane.fill")
                         .font(.system(size: 14, weight: .bold))
@@ -221,7 +215,6 @@ struct IssueReportView: View {
     }
 
     // MARK: - Submit Logic
-
     private func submitReport() {
         isSubmitting = true
 

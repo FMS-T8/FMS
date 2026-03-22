@@ -14,7 +14,7 @@ public struct TripHistoryCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 // Top row: Trip ID + Status
                 HStack {
-                    Text(trip.id.uppercased())
+                    Text(orderRef)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(FMSTheme.textSecondary)
                         .padding(.horizontal, 8)
@@ -82,6 +82,12 @@ public struct TripHistoryCard: View {
 
     private var statusColor: Color {
         FMSTheme.statusColor(for: trip.status ?? "")
+    }
+    
+    private var orderRef: String {
+        // Show a short readable reference: prefer orderId prefix, fall back to trip id prefix
+        let ref = trip.orderId ?? trip.id
+        return "ORD-\(ref.prefix(8).uppercased())"
     }
 
     private var displayDate: Date? {

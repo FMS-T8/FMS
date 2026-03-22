@@ -32,13 +32,15 @@ public struct FMSTabShell: View {
     }
 
     public var body: some View {
-        TabView {
-            ForEach(tabs) { tab in
-                tab.content()
-                    .tabItem {
-                        Label(tab.title, systemImage: tab.icon)
-                    }
-            }
+        let tabViews = ForEach(tabs) { tab in
+            tab.content()
+                .tabItem {
+                    Label(tab.title, systemImage: tab.icon)
+                }
+        }
+        
+        return TabView {
+            tabViews
         }
         .tint(FMSTheme.amber)
     }
