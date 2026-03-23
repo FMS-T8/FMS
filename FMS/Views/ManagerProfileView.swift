@@ -232,9 +232,7 @@ struct ManagerProfileView: View {
 
     private var logoutButton: some View {
         Button {
-            Task {
-                await authViewModel.logout()
-            }
+                authViewModel.logout()
         }label: {
             HStack(spacing: 8) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")

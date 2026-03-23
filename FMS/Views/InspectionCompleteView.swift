@@ -61,15 +61,9 @@ public struct InspectionCompleteView: View {
 
                     Group {
                         if viewModel.checklist.inspectionType == .preTrip {
-                            Text("Your vehicle status has been updated to ")
-                                + Text(viewModel.vehicleStatus)
-                                    .fontWeight(.bold)
-                                + Text(viewModel.checklist.allPassed ? ". Have a safe trip!" : ". Please review flagged items.")
+                            Text("Your vehicle status has been updated to \(Text(viewModel.vehicleStatus).fontWeight(.bold))\(viewModel.checklist.allPassed ? ". Have a safe trip!" : ". Please review flagged items.")")
                         } else {
-                            Text("Post-trip inspection recorded. Vehicle status: ")
-                                + Text(viewModel.vehicleStatus)
-                                    .fontWeight(.bold)
-                                + Text(". Thank you for completing your trip safely.")
+                            Text("Post-trip inspection recorded. Vehicle status: \(Text(viewModel.vehicleStatus).fontWeight(.bold)). Thank you for completing your trip safely.")
                         }
                     }
                     .font(.system(size: 15))

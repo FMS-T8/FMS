@@ -41,9 +41,7 @@ public struct MainDashboardView: View {
                     Spacer().frame(height: 40)
                     
                     Button("Logout") {
-                        Task {
-                            await authViewModel.logout()
-                        }
+                            authViewModel.logout()
                     }
                     .buttonStyle(.fmsPrimary)
                     .padding(.horizontal, 40)

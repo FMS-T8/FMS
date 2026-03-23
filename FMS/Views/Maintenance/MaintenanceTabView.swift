@@ -5,37 +5,28 @@ public struct MaintenanceTabView: View {
     @Environment(AuthViewModel.self) private var authViewModel
     @State private var selectedTab = 0
 
-    // Single source of truth — shared across Dashboard + Defects + Inventory
-    @State private var woStore      = WorkOrderStore()
-    @State private var defectStore  = DefectStore()
-    @State private var invStore     = InventoryStore()
+    @State private var woStore     = WorkOrderStore()
+    @State private var defectStore = DefectStore()
+    @State private var invStore    = InventoryStore()
 
     public init() {}
 
     public var body: some View {
         TabView(selection: $selectedTab) {
             MaintenanceDashboardView(selectedTab: $selectedTab, woStore: woStore, invStore: invStore)
-                .tabItem {
-                    Label("Dashboard", systemImage: "squares.below.rectangle")
-                }
+                .tabItem { Label("Dashboard", systemImage: "squares.below.rectangle") }
                 .tag(0)
 
             DefectsView(woStore: woStore, defectStore: defectStore)
-                .tabItem {
-                    Label("Defects", systemImage: "exclamationmark.triangle")
-                }
+                .tabItem { Label("Defects", systemImage: "exclamationmark.triangle") }
                 .tag(1)
 
             InventoryView(store: invStore)
-                .tabItem {
-                    Label("Inventory", systemImage: "shippingbox")
-                }
+                .tabItem { Label("Inventory", systemImage: "shippingbox") }
                 .tag(2)
 
             ProfileTabView()
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
+                .tabItem { Label("Profile", systemImage: "person") }
                 .tag(3)
         }
         .tint(FMSTheme.amberDark)
@@ -77,7 +68,6 @@ public struct ProfileTabView: View {
     private var profileHeaderCard: some View {
         MaintProfileCard {
             VStack(spacing: 12) {
-                // Avatar
                 ZStack {
                     Circle()
                         .fill(FMSTheme.amber.opacity(0.18))
@@ -116,8 +106,8 @@ public struct ProfileTabView: View {
             VStack(alignment: .leading, spacing: 14) {
                 MaintProfileSectionHeader(title: "Basic Information")
                 Divider().background(FMSTheme.borderLight)
-                MaintProfileInfoRow(icon: "envelope.fill", label: "Email", value: authViewModel.currentUser?.email ?? "tech@fleetms.com")
-                MaintProfileInfoRow(icon: "phone.fill",    label: "Phone", value: authViewModel.currentUser?.phone ?? "Not Provided")
+                MaintProfileInfoRow(icon: "envelope.fill",   label: "Email",      value: authViewModel.currentUser?.email ?? "tech@fleetms.com")
+                MaintProfileInfoRow(icon: "phone.fill",      label: "Phone",      value: authViewModel.currentUser?.phone ?? "Not Provided")
                 MaintProfileInfoRow(icon: "building.2.fill", label: "Department", value: authViewModel.currentUser?.role.capitalized ?? "Maintenance")
             }
         }
@@ -128,7 +118,7 @@ public struct ProfileTabView: View {
             VStack(alignment: .leading, spacing: 14) {
                 MaintProfileSectionHeader(title: "System Preferences")
                 Divider().background(FMSTheme.borderLight)
-                
+
                 HStack {
                     Text("Theme Appearance")
                         .font(.system(size: 15, weight: .medium))
@@ -138,7 +128,7 @@ public struct ProfileTabView: View {
                         .font(.system(size: 15))
                         .foregroundStyle(FMSTheme.textSecondary)
                 }
-                
+
                 Divider().background(FMSTheme.borderLight)
 
                 HStack {
@@ -155,13 +145,9 @@ public struct ProfileTabView: View {
 
     private var logoutButton: some View {
         Button {
-            Task {
-                do {
-                    try await authViewModel.logout()
-                } catch {
-                    print("Logout error: \(error)")
-                }
-            }
+            // FIX: authViewModel.logout() is synchronous — removed Task { await }
+            // which caused "no async operations occur within 'await' expression"
+            authViewModel.logout()
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
@@ -178,7 +164,7 @@ public struct ProfileTabView: View {
     }
 
     private var avatarInitials: String {
-        let name = authViewModel.currentUser?.name ?? "Maintenance Tech"
+        let name  = authViewModel.currentUser?.name ?? "Maintenance Tech"
         let parts = name.split(separator: " ")
         if parts.count >= 2 {
             return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
@@ -191,14 +177,12 @@ public struct ProfileTabView: View {
 private struct MaintProfileCard<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            content
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(FMSTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: FMSTheme.shadowSmall, radius: 6, x: 0, y: 2)
+        VStack(alignment: .leading, spacing: 0) { content }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(FMSTheme.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: FMSTheme.shadowSmall, radius: 6, x: 0, y: 2)
     }
 }
 
@@ -212,7 +196,7 @@ private struct MaintProfileSectionHeader: View {
 }
 
 private struct MaintProfileInfoRow: View {
-    let icon: String
+    let icon:  String
     let label: String
     let value: String
     var body: some View {

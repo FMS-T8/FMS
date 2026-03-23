@@ -212,7 +212,7 @@ public struct NewTripAssignmentView: View {
     @ViewBuilder
     private var bottomStickyButton: some View {
         let hasDestination = trip.endLat != nil && trip.endLng != nil
-        let buttonContent = VStack(spacing: 10) {
+        VStack(spacing: 10) {
             if trip.status?.lowercased() == "scheduled" {
                 Button {
                     if tripVehicle ?? viewModel.assignedVehicle != nil {

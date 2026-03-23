@@ -70,7 +70,7 @@ struct LocationSearchSheet: View {
             Task { @MainActor in
                 isResolving = false
                 let name = result.title + (result.subtitle.isEmpty ? "" : ", \(result.subtitle)")
-                if let coordinate = response?.mapItems.first?.placemark.coordinate {
+                if let coordinate = response?.mapItems.first?.location.coordinate {
                     onSelect(name, coordinate.latitude, coordinate.longitude)
                 } else {
                     onSelect(name, nil, nil)
