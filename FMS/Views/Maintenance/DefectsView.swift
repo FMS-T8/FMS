@@ -209,13 +209,39 @@ struct DefectCardView: View {
                     Image(systemName: "box.truck")
                         .font(.system(size: 11))
                         .foregroundColor(FMSTheme.textTertiary)
-                    
+
                     let parts = defect.vehicleDisplay.components(separatedBy: " · ")
                     let plate = parts.count > 1 ? parts.last! : defect.vehicleDisplay
-                    
+
                     Text(plate)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(FMSTheme.textSecondary)
+
+                    if let reporter = defect.reportedBy, !reporter.isEmpty {
+                        Text("·")
+                            .font(.system(size: 12))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Text(reporter)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(FMSTheme.textSecondary)
+                            .lineLimit(1)
+                    }
+
+                    if let urls = defect.imageUrls, !urls.isEmpty {
+                        Text("·")
+                            .font(.system(size: 12))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Image(systemName: "photo.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Text("\(urls.count)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(FMSTheme.textSecondary)
+                    }
+
                     Spacer()
                 }
 

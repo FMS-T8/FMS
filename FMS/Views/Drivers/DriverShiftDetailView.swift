@@ -19,8 +19,7 @@ struct DriverShiftDetailView: View {
   }()
 
   init(shift: ShiftDisplayItem) {
-    // TODO: In production, pass real breakLogs from parent or repository
-    _vm = State(initialValue: ShiftViewModel.mock(from: shift))
+    _vm = State(initialValue: ShiftViewModel(shift: shift))
   }
 
   var body: some View {
@@ -37,6 +36,9 @@ struct DriverShiftDetailView: View {
     .background(FMSTheme.backgroundPrimary)
     .navigationTitle("Shift Details")
     .navigationBarTitleDisplayMode(.inline)
+    .task {
+      await vm.fetchBreakLogs()
+    }
   }
 
   // MARK: - Driver Info
@@ -168,18 +170,25 @@ struct DriverShiftDetailView: View {
           ForEach(vm.breakLogs) { brk in
             HStack {
               VStack(alignment: .leading, spacing: 2) {
-                Text("Break")
+                Text(brk.breakType ?? "Break")
                   .font(.system(size: 14, weight: .medium))
                   .foregroundStyle(FMSTheme.textPrimary)
                 if let st = brk.startTime {
-                  Text(Self.timeFormatter.string(from: st))
-                    .font(.system(size: 12))
-                    .foregroundStyle(FMSTheme.textSecondary)
+                  let timeStr = Self.timeFormatter.string(from: st)
+                  if let et = brk.endTime {
+                    Text("\(timeStr) – \(Self.timeFormatter.string(from: et))")
+                      .font(.system(size: 12))
+                      .foregroundStyle(FMSTheme.textSecondary)
+                  } else {
+                    Text(timeStr)
+                      .font(.system(size: 12))
+                      .foregroundStyle(FMSTheme.textSecondary)
+                  }
                 }
               }
               Spacer()
               if let dur = brk.durationMinutes {
-                Text("\(dur) minutes")
+                Text("\(dur) min")
                   .font(.system(size: 13))
                   .foregroundStyle(FMSTheme.textSecondary)
               }
