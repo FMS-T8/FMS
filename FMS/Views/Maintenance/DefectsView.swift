@@ -12,6 +12,20 @@ public struct DefectsView: View {
 
     let filters = ["All", "Critical", "High", "Medium", "Low"]
 
+    private var defectCounts: [String: Int] {
+        var counts = ["All": 0, "Critical": 0, "High": 0, "Medium": 0, "Low": 0]
+        for defect in store.defects {
+            counts["All", default: 0] += 1
+            switch defect.priority {
+            case .critical: counts["Critical", default: 0] += 1
+            case .high:     counts["High", default: 0] += 1
+            case .medium:   counts["Medium", default: 0] += 1
+            case .low:      counts["Low", default: 0] += 1
+            }
+        }
+        return counts
+    }
+
     var filteredDefects: [DefectItem] {
         var list = store.defects
         switch selectedFilter {
@@ -74,7 +88,11 @@ public struct DefectsView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    FMSFilterBar(tabs: filters, selected: $selectedFilter)
+                    FMSFilterBar(
+                        tabs: filters,
+                        selected: $selectedFilter,
+                        counts: defectCounts
+                    )
                     Divider().opacity(0.35)
 
                     if store.isLoading {
@@ -191,13 +209,39 @@ struct DefectCardView: View {
                     Image(systemName: "box.truck")
                         .font(.system(size: 11))
                         .foregroundColor(FMSTheme.textTertiary)
-                    
+
                     let parts = defect.vehicleDisplay.components(separatedBy: " · ")
                     let plate = parts.count > 1 ? parts.last! : defect.vehicleDisplay
-                    
+
                     Text(plate)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(FMSTheme.textSecondary)
+
+                    if let reporter = defect.reportedBy, !reporter.isEmpty {
+                        Text("·")
+                            .font(.system(size: 12))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Text(reporter)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(FMSTheme.textSecondary)
+                            .lineLimit(1)
+                    }
+
+                    if let urls = defect.imageUrls, !urls.isEmpty {
+                        Text("·")
+                            .font(.system(size: 12))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Image(systemName: "photo.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Text("\(urls.count)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(FMSTheme.textSecondary)
+                    }
+
                     Spacer()
                 }
 

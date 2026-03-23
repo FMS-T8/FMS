@@ -25,6 +25,7 @@ extension FMSTheme {
 struct FMSFilterBar: View {
     let tabs: [String]
     @Binding var selected: String
+    var counts: [String: Int]? = nil
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -36,15 +37,25 @@ struct FMSFilterBar: View {
                             selected = tab
                         }
                     } label: {
-                        Text(tab)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(selected == tab ? .black : FMSTheme.textSecondary)
-                            .padding(.horizontal, 16).padding(.vertical, 8)
-                            .background(
-                                Capsule().fill(selected == tab
-                                               ? FMSTheme.amber
-                                               : Color.gray.opacity(0.12))
-                            )
+                        HStack(spacing: 6) {
+                            Text(tab)
+                            
+                            if let counts, let count = counts[tab] {
+                                Text("\(count)")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .background(selected == tab ? Color.black.opacity(0.12) : Color.gray.opacity(0.15))
+                                    .cornerRadius(6)
+                            }
+                        }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(selected == tab ? .black : FMSTheme.textSecondary)
+                        .padding(.horizontal, 16).padding(.vertical, 8)
+                        .background(
+                            Capsule().fill(selected == tab
+                                           ? FMSTheme.amber
+                                           : Color.gray.opacity(0.12))
+                        )
                     }
                 }
             }

@@ -73,17 +73,22 @@ struct DefectDetailView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 16) {
 
-                        // Hero icon
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(defect.priority.color.opacity(0.08))
-                                .frame(height: 140)
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(defect.priority.color.opacity(0.2), lineWidth: 1))
-                            Image(systemName: defect.imageName)
-                                .font(.system(size: 56))
-                                .foregroundColor(defect.priority.color)
+                        // Photo gallery or hero icon
+                        if let urls = defect.imageUrls, !urls.isEmpty {
+                            DefectPhotoGallery(imageUrls: urls)
+                                .padding(.horizontal, 16)
+                        } else {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(defect.priority.color.opacity(0.08))
+                                    .frame(height: 140)
+                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(defect.priority.color.opacity(0.2), lineWidth: 1))
+                                Image(systemName: defect.imageName)
+                                    .font(.system(size: 56))
+                                    .foregroundColor(defect.priority.color)
+                            }
+                            .padding(.horizontal, 16)
                         }
-                        .padding(.horizontal, 16)
 
                         // Stat row
                         HStack(spacing: 12) {
@@ -97,6 +102,32 @@ struct DefectDetailView: View {
                                        color: defect.linkedWorkOrderId == nil ? FMSTheme.alertOrange : FMSTheme.alertGreen)
                         }
                         .padding(.horizontal, 16)
+
+                        // Reported by
+                        if let reporter = defect.reportedBy, !reporter.isEmpty {
+                            DDCard {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(FMSTheme.amber)
+                                        .frame(width: 36, height: 36)
+                                        .background(FMSTheme.amber.opacity(0.12))
+                                        .clipShape(Circle())
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("REPORTED BY")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(FMSTheme.textTertiary)
+                                            .tracking(0.6)
+                                        Text(reporter)
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(colorScheme == .dark ? .white : FMSTheme.textPrimary)
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                        }
 
                         // Description card
                         DDCard {
@@ -251,6 +282,148 @@ private struct DDCard<Content: View>: View {
             .background(colorScheme == .dark ? Color(red: 28/255, green: 28/255, blue: 30/255) : FMSTheme.cardBackground)
             .cornerRadius(14)
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.gray.opacity(0.08), lineWidth: 1))
+    }
+}
+
+// MARK: - Photo Gallery
+
+private struct DefectPhotoGallery: View {
+    let imageUrls: [String]
+    @State private var selectedIndex: Int? = nil
+
+    private var validImageUrls: [String] {
+        imageUrls.filter { URL(string: $0) != nil }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Image(systemName: "photo.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(FMSTheme.textTertiary)
+                Text("\(validImageUrls.count) Photo\(validImageUrls.count == 1 ? "" : "s")")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(FMSTheme.textTertiary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(Array(validImageUrls.enumerated()), id: \.offset) { index, urlStr in
+                        if let url = URL(string: urlStr) {
+                            Button {
+                                selectedIndex = index
+                            } label: {
+                                AsyncImage(url: url) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: 140, height: 140)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    case .failure:
+                                        photoPlaceholder(icon: "exclamationmark.triangle")
+                                    case .empty:
+                                        photoPlaceholder(icon: "photo")
+                                            .overlay(ProgressView().tint(.white))
+                                    @unknown default:
+                                        photoPlaceholder(icon: "photo")
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Photo \(index + 1) of \(validImageUrls.count)")
+                        }
+                    }
+                }
+            }
+        }
+        .fullScreenCover(item: Binding(
+            get: { selectedIndex.map { SelectedPhoto(index: $0) } },
+            set: { selectedIndex = $0?.index }
+        )) { selected in
+            DefectPhotoFullScreen(imageUrls: validImageUrls, initialIndex: selected.index)
+        }
+    }
+
+    private func photoPlaceholder(icon: String) -> some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(Color.gray.opacity(0.15))
+            .frame(width: 140, height: 140)
+            .overlay(
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundColor(FMSTheme.textTertiary)
+            )
+    }
+}
+
+private struct SelectedPhoto: Identifiable {
+    let index: Int
+    var id: Int { index }
+}
+
+// MARK: - Full Screen Photo Viewer
+
+private struct DefectPhotoFullScreen: View {
+    let imageUrls: [String]
+    let initialIndex: Int
+    @Environment(\.dismiss) private var dismiss
+    @State private var currentIndex: Int = 0
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $currentIndex) {
+                ForEach(Array(imageUrls.enumerated()), id: \.offset) { index, urlStr in
+                    if let url = URL(string: urlStr) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                            case .failure:
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 32))
+                                    .foregroundStyle(.white.opacity(0.5))
+                            case .empty:
+                                ProgressView().tint(.white)
+                            @unknown default:
+                                ProgressView().tint(.white)
+                            }
+                        }
+                        .tag(index)
+                    }
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .automatic))
+
+            // Close button
+            VStack {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(12)
+                            .background(.white.opacity(0.15))
+                            .clipShape(Circle())
+                    }
+                    .padding(20)
+                }
+                Spacer()
+
+                // Counter
+                Text("\(currentIndex + 1) / \(imageUrls.count)")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.bottom, 40)
+            }
+        }
+        .onAppear { currentIndex = initialIndex }
     }
 }
 

@@ -7,11 +7,12 @@ import SwiftUI
 @MainActor
 public struct MaintenanceDashboardView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Binding var selectedTab: Int
     var woStore: WorkOrderStore
     var invStore: InventoryStore
-    @State private var showingCreateWO = false
+    @State private var fleetStore     = FleetViewModel()
     @State private var selectedFilter  = "All"
-    
+    @State private var showingCreateWO = false
     @State private var isSearchActive  = false
     @State private var searchText      = ""
 
@@ -61,15 +62,18 @@ public struct MaintenanceDashboardView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
 
-                            // Stat Cards (live from store)
-                            HStack(spacing: 10) {
-                                DashStatCard(title: "Pending",  value: "\(woStore.pendingCount)",
-                                             icon: "clock.fill", color: FMSTheme.alertOrange)
-                                DashStatCard(title: "In Prog",  value: "\(woStore.inProgressCount)",
-                                             icon: "wrench.and.screwdriver.fill", color: FMSTheme.amberDark)
-                                DashStatCard(title: "Done",     value: "\(woStore.completedCount)",
-                                             icon: "checkmark.circle.fill", color: FMSTheme.alertGreen)
-                            }
+                            // Unified Summary Card
+                            FMSMaintenanceSummaryCard(
+                                title: "MAINTENANCE STATUS",
+                                mainCount: woStore.pendingCount,
+                                mainLabel: "Pending",
+                                subtitle: woStore.pendingCount == 0 ? "All tasks are up to date" : "Critical attention required for \(woStore.pendingCount) tasks",
+                                showWarning: true,
+                                subItems: [
+                                    .init(icon: "wrench.and.screwdriver.fill", count: woStore.inProgressCount, label: "In Progress"),
+                                    .init(icon: "checkmark.circle.fill", count: woStore.completedCount, label: "Done")
+                                ]
+                            )
                             .padding(.horizontal, 16)
 
                             // Low Stock Banner
@@ -96,6 +100,7 @@ public struct MaintenanceDashboardView: View {
         .task {
             await woStore.fetchWorkOrders()
             await invStore.fetchParts()
+            try? await fleetStore.fetchVehicles()
         }
     }
 
@@ -123,6 +128,12 @@ public struct MaintenanceDashboardView: View {
         .padding(14).background(cardBg).cornerRadius(14)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(FMSTheme.amber.opacity(0.3), lineWidth: 1))
         .padding(.horizontal, 16)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.spring) {
+                selectedTab = 2
+            }
+        }
     }
 
     // MARK: - Work Orders Section
@@ -210,8 +221,10 @@ public struct MaintenanceDashboardView: View {
             } else {
                 VStack(spacing: 10) {
                     ForEach(filteredOrders) { order in
-                        NavigationLink(destination: WODetailView(wo: order, store: woStore)) {
-                            DashWOCard(order: order, cardBg: cardBg)
+                        NavigationLink(destination: WODetailView(wo: order, store: woStore, onUpdate: {
+                            try? await fleetStore.fetchVehicles()
+                        })) {
+                            DashWOCard(woItem: order, background: cardBg)
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
@@ -220,6 +233,8 @@ public struct MaintenanceDashboardView: View {
             }
         }
     }
+
+
 }
 
 // ─────────────────────────────────────────────
@@ -266,97 +281,12 @@ struct DashStatCard: View {
 // MARK: - Work Order Card (uses WOItem)
 // ─────────────────────────────────────────────
 
-struct DashWOCard: View {
-    let order: WOItem
-    let cardBg: Color
-    @Environment(\.colorScheme) private var colorScheme
 
-    var body: some View {
-        HStack(spacing: 0) {
-            // Left accent bar
-            RoundedRectangle(cornerRadius: 3)
-                .fill(order.priority.color)
-                .frame(width: 4)
-                .padding(.vertical, 4)
-
-            VStack(alignment: .leading, spacing: 10) {
-                // Header row
-                HStack(spacing: 10) {
-                    // Icon block
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(order.priority.color.opacity(0.12))
-                            .frame(width: 36, height: 36)
-                        Image(systemName: "doc.text.fill")
-                            .font(.system(size: 15))
-                            .foregroundColor(order.priority.color)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        let parts = order.vehicle.components(separatedBy: " · ")
-                        let plate = parts.count > 1 ? parts.last! : order.vehicle
-                        let makeModel = parts.first ?? order.vehicle
-                        
-                        Text(plate)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white : FMSTheme.textPrimary)
-                        Text(makeModel)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(FMSTheme.alertOrange)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    // Status pill
-                    HStack(spacing: 4) {
-                        Circle().fill(order.status.color).frame(width: 6, height: 6)
-                        Text(order.status.rawValue)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(order.status.color)
-                    }
-                    .padding(.horizontal, 9).padding(.vertical, 5)
-                    .background(order.status.color.opacity(0.1))
-                    .clipShape(Capsule())
-                }
-
-                // Description
-                Text(order.description)
-                    .font(.system(size: 13))
-                    .foregroundColor(FMSTheme.textSecondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                // Footer
-                HStack {
-                    Label(order.priority.rawValue + " Priority",
-                          systemImage: "flag.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(order.priority.color)
-                    Spacer()
-                    if let cost = order.estimatedCost {
-                        Text("Est. $\(Int(cost))")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(FMSTheme.textSecondary)
-                    }
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(FMSTheme.textTertiary)
-                }
-            }
-            .padding(14)
-        }
-        .background(cardBg)
-        .cornerRadius(14)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(FMSTheme.borderLight.opacity(colorScheme == .dark ? 0.15 : 1), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
-    }
-}
 
 // ─────────────────────────────────────────────
 // MARK: - Previews
 // ─────────────────────────────────────────────
 
-#Preview("Light") { MaintenanceDashboardView(woStore: WorkOrderStore(), invStore: InventoryStore()) }
-#Preview("Dark")  { MaintenanceDashboardView(woStore: WorkOrderStore(), invStore: InventoryStore()).colorScheme(.dark) }
+#Preview("Light") { MaintenanceDashboardView(selectedTab: .constant(0), woStore: WorkOrderStore(), invStore: InventoryStore()) }
+#Preview("Dark")  { MaintenanceDashboardView(selectedTab: .constant(0), woStore: WorkOrderStore(), invStore: InventoryStore()).colorScheme(.dark) }
 

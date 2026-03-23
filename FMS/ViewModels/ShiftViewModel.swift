@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Supabase
 
 // MARK: - Shift Display Item
 
@@ -110,6 +111,7 @@ public final class ShiftViewModel {
   public var shiftEnd: Date?
   public var breakLogs: [BreakLog] = []
   public var timelineEntries: [ShiftTimelineEntry] = []
+  private var driverId: String = ""
 
   // MARK: - Computed
 
@@ -141,6 +143,7 @@ public final class ShiftViewModel {
   /// Production initializer accepting real shift data and break logs.
   public init(shift: ShiftDisplayItem, breakLogs: [BreakLog] = []) {
     self.driverName = shift.driverName
+    self.driverId = shift.driverId
     self.plateNumber = shift.plateNumber
     if let m = shift.vehicleManufacturer, let mdl = shift.vehicleModel {
       self.vehicleDisplayName = "\(m) \(mdl)"
@@ -181,6 +184,32 @@ public final class ShiftViewModel {
     }
 
     return ShiftViewModel(shift: shift, breakLogs: mockBreaks)
+  }
+
+  // MARK: - Fetch Break Logs
+
+  @MainActor
+  public func fetchBreakLogs() async {
+    guard let start = shiftStart else { return }
+    let end = shiftEnd ?? Date()
+
+    do {
+      let formatter = ISO8601DateFormatter()
+      let response = try await SupabaseService.shared.client
+        .from("break_logs")
+        .select()
+        .eq("driver_id", value: driverId)
+        .gte("start_time", value: formatter.string(from: start))
+        .lte("start_time", value: formatter.string(from: end))
+        .order("start_time", ascending: true)
+        .execute()
+
+      let fetched = try JSONDecoder.supabase().decode([BreakLog].self, from: response.data)
+      breakLogs = fetched
+      timelineEntries = buildTimeline()
+    } catch {
+      print("[FMS] fetchBreakLogs failed: \(error)")
+    }
   }
 
   // MARK: - Timeline Builder

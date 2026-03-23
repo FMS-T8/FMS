@@ -14,7 +14,7 @@ public struct MaintenanceTabView: View {
 
     public var body: some View {
         TabView(selection: $selectedTab) {
-            MaintenanceDashboardView(woStore: woStore, invStore: invStore)
+            MaintenanceDashboardView(selectedTab: $selectedTab, woStore: woStore, invStore: invStore)
                 .tabItem {
                     Label("Dashboard", systemImage: "squares.below.rectangle")
                 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import Observation
+import Supabase
 
 @MainActor
 @Observable
@@ -67,7 +68,95 @@ public class InspectionViewModel {
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
             isCompleted = true
         }
+        Task {
+            await createDefectsFromFailedItems()
+        }
     }
+
+    // MARK: - FM-206: Auto-Create Defects from Failed Inspection Items
+
+    private func createDefectsFromFailedItems() async {
+        // Create defects for ALL failed items, not just those with notes/photos
+        let failedItems = checklist.items.filter { !$0.passed }
+        guard !failedItems.isEmpty else { return }
+
+        // Map inspection categories to DB-compatible category values
+        let categoryMapping: [String: String] = [
+            "Tires": "tires",
+            "Brakes": "brakes",
+            "Lights": "electrical",
+            "Fluid Levels": "engine",
+            "Engine": "engine",
+        ]
+
+        let categoryToPriority: [String: String] = [
+            "Brakes": "high",
+            "Engine": "high",
+            "Tires": "medium",
+            "Lights": "medium",
+            "Fluid Levels": "medium",
+        ]
+
+        var successCount = 0
+
+        // Use TaskGroup for concurrent photo uploads + defect inserts
+        await withTaskGroup(of: Bool.self) { group in
+            for item in failedItems {
+                group.addTask { @MainActor in
+                    var uploadedUrls: [String] = []
+                    if let photoData = item.photoData {
+                        let defectId = UUID().uuidString
+                        let path = "defects/\(defectId)/photo-0.jpg"
+                        do {
+                            try await SupabaseService.shared.client.storage
+                                .from("report-issue-driver")
+                                .upload(path, data: photoData, options: FileOptions(contentType: "image/jpeg"))
+                            let publicURL = try SupabaseService.shared.client.storage
+                                .from("report-issue-driver")
+                                .getPublicURL(path: path)
+                            uploadedUrls.append(publicURL.absoluteString)
+                        } catch {
+                            // Photo upload failed — still create defect without image
+                        }
+                    }
+
+                    let title = "\(item.category.rawValue) Defect — \(self.checklist.inspectionType.rawValue) Inspection"
+                    let description = item.notes.isEmpty
+                        ? "Defect detected during \(self.checklist.inspectionType.rawValue.lowercased()) inspection"
+                        : item.notes
+
+                    let defect = DefectInsert(
+                        vehicleId: self.checklist.vehicleId,
+                        reportedBy: nil,
+                        tripId: nil,
+                        title: title,
+                        description: description,
+                        category: categoryMapping[item.category.rawValue] ?? "other",
+                        priority: categoryToPriority[item.category.rawValue] ?? "medium",
+                        status: "open",
+                        reportedAt: Date(),
+                        imageUrls: uploadedUrls.isEmpty ? nil : uploadedUrls
+                    )
+
+                    return await OfflineQueueService.shared.insertOrQueue(
+                        table: "defects",
+                        payload: defect,
+                        payloadType: .defect
+                    )
+                }
+            }
+
+            for await success in group {
+                if success { successCount += 1 }
+            }
+        }
+
+        defectsCreatedCount = successCount
+        defectsQueuedCount = failedItems.count - successCount
+    }
+
+    public var defectsCreatedCount: Int = 0
+    public var defectsQueuedCount: Int = 0
 
     public var vehicleStatus: String {
         checklist.allPassed ? "Ready" : "Needs Attention"

@@ -211,8 +211,9 @@ public struct NewTripAssignmentView: View {
     // MARK: - Bottom Sticky Button
     @ViewBuilder
     private var bottomStickyButton: some View {
-        VStack(spacing: 10) {
-            if currentTrip.status?.lowercased() == "scheduled" {
+        let hasDestination = trip.endLat != nil && trip.endLng != nil
+        let buttonContent = VStack(spacing: 10) {
+            if trip.status?.lowercased() == "scheduled" {
                 Button {
                     if tripVehicle ?? viewModel.assignedVehicle != nil {
                         preTripInspectionCompleted = false
@@ -226,12 +227,12 @@ public struct NewTripAssignmentView: View {
                     }
                 }
                 .buttonStyle(.fmsPrimary)
-                .disabled(tripVehicle ?? viewModel.assignedVehicle == nil)
+                .disabled(viewModel.assignedVehicle == nil)
 
-                if currentTrip.endLat != nil && currentTrip.endLng != nil {
+                if hasDestination {
                     navigateButton
                 }
-            } else if currentTrip.status?.lowercased() == "active" {
+            } else if trip.status?.lowercased() == "active" {
                 Button {
                     if tripVehicle ?? viewModel.assignedVehicle != nil {
                         postTripInspectionCompleted = false
@@ -246,6 +247,10 @@ public struct NewTripAssignmentView: View {
                 }
                 .buttonStyle(.fmsPrimary)
                 .disabled((tripVehicle ?? viewModel.assignedVehicle) == nil)
+
+                if hasDestination {
+                    navigateButton
+                }
 
                 Button {
                     showIssueReport = true

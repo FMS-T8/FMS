@@ -3,21 +3,21 @@ import Supabase
 import PostgREST
 
 // MARK: - PartItem (UI display model — wraps PartsInventory)
-struct PartItem: Identifiable {
-    var id:        UUID
-    var name:      String
-    var partNumber: String { id.uuidString.prefix(8).uppercased() }   // derived-only, not editable
-    var stock:     Int
-    var minStock:  Int        // maps to PartsInventory.threshold
-    var unitCost:  Double?
-    var imageName: String     // SF Symbol — UI only, not in DB model
-    var lastUpdated: Date?
+public struct PartItem: Identifiable {
+    public var id:        UUID
+    public var name:      String
+    public var partNumber: String { id.uuidString.prefix(8).uppercased() }   // derived-only, not editable
+    public var stock:     Int
+    public var minStock:  Int        // maps to PartsInventory.threshold
+    public var unitCost:  Double?
+    public var imageName: String     // SF Symbol — UI only, not in DB model
+    public var lastUpdated: Date?
 
     var isLowStock: Bool  { stock <= minStock }
     var statusColor: Color { isLowStock ? FMSTheme.alertOrange : FMSTheme.alertGreen }
 
     // MARK: Convert from DB model
-    init(from part: PartsInventory, imageName: String = "cube.box.fill") {
+    public init(from part: PartsInventory, imageName: String = "cube.box.fill") {
         let assignedId = part.id ?? UUID()
         self.id          = assignedId
         self.name        = part.name ?? "Unknown Part"
@@ -41,7 +41,7 @@ struct PartItem: Identifiable {
     }
 
     // Manual memberwise init (for in-app creation)
-    init(id: UUID, name: String, partNumber: String, stock: Int, minStock: Int,
+    public init(id: UUID, name: String, stock: Int, minStock: Int,
          unitCost: Double? = nil, imageName: String, lastUpdated: Date? = nil) {
         self.id          = id
         self.name        = name
@@ -57,7 +57,7 @@ struct PartItem: Identifiable {
 // MARK: - Inventory Store
 @MainActor
 @Observable
-class InventoryStore {
+public class InventoryStore {
     // imageName is UI-only; key = PartsInventory.id
     private var imageMap: [UUID: String] = [:]
 
@@ -89,7 +89,7 @@ class InventoryStore {
         return decoder
     }
 
-    init() {
+    public init() {
         // Will be populated by fetchParts()
     }
 

@@ -14,6 +14,7 @@ struct DefectItem: Identifiable {
     var description: String
     var reportedAt: Date
     var status: String
+    var reportedBy: String?          // driver_id or name who reported
     var tripId: String?              // trip_id from DB
     var imageUrls: [String]?         // image_urls from DB
     var linkedWorkOrderId: String?   // work_order_id from DB
@@ -77,6 +78,7 @@ struct DefectItem: Identifiable {
         self.description = defect.description ?? ""
         self.reportedAt  = defect.reportedAt ?? Date()
         self.status      = defect.status ?? "open"
+        self.reportedBy  = defect.reportedBy
         self.tripId      = defect.tripId
         self.imageUrls   = defect.imageUrls
         self.linkedWorkOrderId = defect.workOrderId
@@ -87,7 +89,7 @@ struct DefectItem: Identifiable {
         Defect(
             id:          id.uuidString,
             vehicleId:   vehicleId,
-            reportedBy:  nil,
+            reportedBy:  reportedBy,
             workOrderId: linkedWorkOrderId,
             title:       title,
             description: description.isEmpty ? nil : description,
@@ -104,7 +106,7 @@ struct DefectItem: Identifiable {
     // Manual memberwise init (for local creation before saving)
     init(id: UUID = UUID(), title: String, vehicleId: String, vehicleDisplay: String = "", category: String,
          priority: Priority, description: String, reportedAt: Date,
-         status: String = "open", tripId: String? = nil, imageUrls: [String]? = nil, linkedWorkOrderId: String? = nil) {
+         status: String = "open", reportedBy: String? = nil, tripId: String? = nil, imageUrls: [String]? = nil, linkedWorkOrderId: String? = nil) {
         self.id                = id
         self.title             = title
         self.vehicleId         = vehicleId
@@ -114,6 +116,7 @@ struct DefectItem: Identifiable {
         self.description       = description
         self.reportedAt        = reportedAt
         self.status            = status
+        self.reportedBy        = reportedBy
         self.tripId            = tripId
         self.imageUrls         = imageUrls
         self.linkedWorkOrderId = linkedWorkOrderId

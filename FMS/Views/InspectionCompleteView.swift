@@ -78,6 +78,39 @@ public struct InspectionCompleteView: View {
                     .padding(.horizontal, 40)
                 }
 
+                // Defects reported notification (FM-206)
+                if viewModel.defectsCreatedCount > 0 || viewModel.defectsQueuedCount > 0 {
+                    VStack(spacing: 6) {
+                        if viewModel.defectsCreatedCount > 0 {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wrench.and.screwdriver.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(FMSTheme.alertOrange)
+
+                                Text("\(viewModel.defectsCreatedCount) defect\(viewModel.defectsCreatedCount == 1 ? "" : "s") reported to maintenance")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(FMSTheme.textPrimary)
+                            }
+                        }
+                        if viewModel.defectsQueuedCount > 0 {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(FMSTheme.alertOrange)
+
+                                Text("\(viewModel.defectsQueuedCount) defect\(viewModel.defectsQueuedCount == 1 ? "" : "s") queued — will send when online")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(FMSTheme.textSecondary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(FMSTheme.alertOrange.opacity(0.08))
+                    .cornerRadius(10)
+                    .padding(.horizontal, 40)
+                }
+
                 Spacer().frame(height: 32)
 
                 // Action buttons
