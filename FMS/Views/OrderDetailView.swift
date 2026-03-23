@@ -30,13 +30,9 @@ public struct OrderDetailView: View {
     @State private var currentOrderStatus: String? = nil
     @State private var assignmentDetails: OrderAssignmentDetails? = nil
     @State private var isFetchingAssignment = false
-    @State private var tripId: String? = nil
+    @State private var currentTrip: Trip? = nil // Full trip object for replay
     
-    // Live tracking state
-    @State private var driverCoordinate: CLLocationCoordinate2D? = nil
-    @State private var lastUpdatedAt: Date? = nil
-    @State private var gpsPollTimer: Timer? = nil
-    private let pollInterval: TimeInterval = 5
+    // Live tracking legacy states removed.
     
     private let markerLabels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
     
@@ -96,24 +92,7 @@ public struct OrderDetailView: View {
                             .padding(.horizontal, 16)
                             .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
 
-                        // Live Badge Overlay
-                        if driverCoordinate != nil {
-                            HStack(spacing: 5) {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 8, height: 8)
-                                Text("LIVE")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.green)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.ultraThinMaterial)
-                            .cornerRadius(8)
-                            .padding(12)
-                            .transition(.opacity)
-                            .offset(x: -16, y: 0) // Adjust to be inside the padding
-                        }
+                        // Live Badge Overlay removed as historical Replay View is now primary.
 
                         Button(action: { isMapExpanded = true }) {
                             VStack {
@@ -376,8 +355,6 @@ public struct OrderDetailView: View {
             await fetchRoutes()
             await fetchAssignmentDetails()
         }
-        .onAppear { startGPSPollTimer() }
-        .onDisappear { stopGPSPollTimer() }
         .onChange(of: showingAssignmentSheet) { _, isShowing in
             if !isShowing { Task { await fetchAssignmentDetails() } }
         }
@@ -409,18 +386,20 @@ public struct OrderDetailView: View {
         let isOngoing = (status == "dispatched" || status == "in_transit")
         let isPending = (status == "pending" && assignmentDetails == nil)
         
-        if (isOngoing && tripId != nil) || isPending {
+        if (isOngoing && currentTrip != nil) || isPending {
             VStack(spacing: 0) {
                 Divider()
                     .background(FMSTheme.borderLight)
                 
                 VStack(spacing: 12) {
-                    if isOngoing, let tId = tripId {
-                        NavigationLink(destination: LiveTrackView(order: order, tripId: tId)) {
+                    if let trip = currentTrip {
+                        let isTripOngoing = ["active", "in_progress", "in_transit"].contains(trip.status?.lowercased() ?? "")
+                        
+                        NavigationLink(destination: TripReplayView(trip: trip)) {
                             HStack(spacing: 10) {
-                                Image(systemName: "location.fill")
+                                Image(systemName: isTripOngoing ? "location.fill" : "calendar")
                                     .font(.system(size: 15, weight: .bold))
-                                Text("Track Driver Live")
+                                Text(isTripOngoing ? "Track Driver Live" : "View Scheduled Route")
                                     .font(.system(size: 16, weight: .bold))
                             }
                             .foregroundColor(FMSTheme.obsidian)
@@ -473,24 +452,6 @@ public struct OrderDetailView: View {
                         .clipShape(Circle())
                         .overlay(Circle().stroke(Color.white, lineWidth: 2))
                         .shadow(radius: 3)
-                }
-            }
-            
-            // Live Driver Position
-            if let coord = driverCoordinate {
-                Annotation("Driver", coordinate: coord) {
-                    ZStack {
-                        Circle()
-                            .fill(FMSTheme.amber.opacity(0.3))
-                            .frame(width: 32, height: 32)
-                        Circle()
-                            .fill(FMSTheme.amber)
-                            .frame(width: 18, height: 18)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
-                        Image(systemName: "truck.box.fill")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(FMSTheme.obsidian)
-                    }
                 }
             }
         }
@@ -595,17 +556,20 @@ public struct OrderDetailView: View {
             
             await MainActor.run { self.currentOrderStatus = orderResult.first?.status ?? order.status }
 
-            struct TripQuery: Decodable { let id: String; let driver_id: String?; let vehicle_id: String? }
-            let trips: [TripQuery] = try await SupabaseService.shared.client
+            let activeStatuses = ["active", "in_progress", "in_transit"]
+            let trips: [Trip] = try await SupabaseService.shared.client
                 .from("trips")
-                .select("id, driver_id, vehicle_id")
+                .select()
                 .eq("order_id", value: order.id)
+                .in("status", values: activeStatuses)
+                .order("start_time", ascending: false)
+                .limit(1)
                 .execute()
                 .value
             
-            if let trip = trips.first, let dId = trip.driver_id, let vId = trip.vehicle_id {
-                await MainActor.run { self.tripId = trip.id }
-                print("[OrderDetail] Found tripId=\(trip.id) for order \(order.id), status=\(self.currentOrderStatus ?? "nil")")
+            if let trip = trips.first, let dId = trip.driverId, let vId = trip.vehicleId {
+                await MainActor.run { self.currentTrip = trip }
+                print("[OrderDetail] Found trip=\(trip.id) for order \(order.id), status=\(self.currentOrderStatus ?? "nil")")
 
                 struct DriverQuery: Decodable { let name: String }
                 let drivers: [DriverQuery] = try await SupabaseService.shared.client
@@ -631,63 +595,16 @@ public struct OrderDetailView: View {
                         )
                     }
                 }
+            } else {
+                await MainActor.run {
+                    self.currentTrip = nil
+                    self.assignmentDetails = nil
+                }
             }
         } catch {
             print("Error fetching assignment details: \(error)")
         }
         await MainActor.run { isFetchingAssignment = false }
-    }
-    
-    // MARK: - Live Polling (Timer-based for reliability)
-    private func startGPSPollTimer() {
-        stopGPSPollTimer()
-        print("[OrderDetail] ⏱️ Starting GPS poll timer")
-        // Fetch immediately once
-        Task { await fetchLatestPing() }
-        gpsPollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { _ in
-            Task { @MainActor in
-                await self.fetchLatestPing()
-            }
-        }
-    }
-
-    private func stopGPSPollTimer() {
-        gpsPollTimer?.invalidate()
-        gpsPollTimer = nil
-    }
-
-    @MainActor
-    private func fetchLatestPing() async {
-        guard let tId = tripId else { return }
-        do {
-            struct GPSRow: Decodable {
-                let lat: Double
-                let lng: Double
-                let recorded_at: Date
-            }
-
-            let rows: [GPSRow] = try await SupabaseService.shared.client
-                .from("trip_gps_logs")
-                .select("lat, lng, recorded_at")
-                .eq("trip_id", value: tId)
-                .order("recorded_at", ascending: false)
-                .limit(1)
-                .execute()
-                .value
-
-            if let latest = rows.first {
-                print("[OrderDetail] 📍 GPS ping: lat=\(latest.lat), lng=\(latest.lng)")
-                let coord = CLLocationCoordinate2D(latitude: latest.lat, longitude: latest.lng)
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    self.driverCoordinate = coord
-                }
-                self.lastUpdatedAt = Date()
-            }
-        } catch {
-            let nsError = error as NSError
-            if nsError.domain == NSURLErrorDomain && nsError.code == -999 { return }
-            print("[OrderDetail] ❌ GPS poll failed: \(error.localizedDescription)")
-        }
     }
 }
 

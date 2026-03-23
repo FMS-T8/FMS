@@ -1,10 +1,13 @@
 import SwiftUI
+import Supabase
 
 public struct FleetManagementView: View {
     @Environment(BannerManager.self) private var bannerManager
     @State private var viewModel = FleetViewModel()
     @State private var showingAddVehicle = false
     @State private var selectedVehicle: Vehicle? = nil
+    @State private var trackingTrip: Trip? = nil
+    @State private var isFetchingTrip = false
     
     public init() {}
     
@@ -59,7 +62,13 @@ public struct FleetManagementView: View {
                         ScrollView {
                             LazyVStack(spacing: 12) {
                                 ForEach(viewModel.filteredVehicles) { vehicle in
-                                    VehicleListCard(vehicle: vehicle)
+                                     VehicleListCard(
+                                        vehicle: vehicle,
+                                        onTrack: { v in
+                                            Task { await fetchActiveTrip(for: v) }
+                                        },
+                                        derivedStatus: viewModel.derivedStatus(for: vehicle)
+                                    )
                                         .contentShape(RoundedRectangle(cornerRadius: 14))
                                         .onTapGesture {
                                             selectedVehicle = vehicle
@@ -101,6 +110,9 @@ public struct FleetManagementView: View {
                         try await viewModel.deleteVehicle(id: vehicleId)
                     }
                 )
+            }
+            .navigationDestination(item: $trackingTrip) { trip in
+                TripReplayView(trip: trip)
             }
         }
     }
@@ -192,10 +204,39 @@ public struct FleetManagementView: View {
 
 // MARK: - Summary Helpers
 private extension FleetManagementView {
+    
+    @MainActor
+    func fetchActiveTrip(for vehicle: Vehicle) async {
+        guard !isFetchingTrip else { return }
+        isFetchingTrip = true
+        defer { isFetchingTrip = false }
+        do {
+            let activeStatuses = ["active", "in_progress", "in_transit"]
+            let trips: [Trip] = try await SupabaseService.shared.client
+                .from("trips")
+                .select()
+                .eq("vehicle_id", value: vehicle.id)
+                .in("status", values: activeStatuses)
+                .order("created_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+            if let trip = trips.first {
+                trackingTrip = trip
+            } else {
+                trackingTrip = nil
+                bannerManager.show(type: .warning, message: "No active trip found for \(vehicle.plateNumber).")
+            }
+        } catch {
+            print("[FleetManagementView] Failed to fetch active trip: \(error)")
+            bannerManager.show(type: .error, message: "Failed to fetch active trip for \(vehicle.plateNumber).")
+        }
+    }
+    
     func countForStatus(_ status: String) -> Int {
         let normalizedStatus = normalizeStatus(status)
         return vehiclesMatchingSearch()
-            .filter { normalizeStatus($0.status ?? "") == normalizedStatus }
+            .filter { normalizeStatus(viewModel.derivedStatus(for: $0)) == normalizedStatus }
             .count
     }
     

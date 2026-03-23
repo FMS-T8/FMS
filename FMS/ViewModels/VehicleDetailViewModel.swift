@@ -16,6 +16,48 @@ public class VehicleDetailViewModel {
     public var workOrdersErrorMessage: String? = nil
     public var incidentsErrorMessage: String? = nil
     public var documentsErrorMessage: String? = nil
+    public var derivedStatus: String {
+        // Priority 1: Ongoing Trip (Actually on the road)
+        if ongoingTrip != nil {
+            return "active"
+        }
+        
+        // Priority 2: Open Maintenance
+        if workOrders.contains(where: { order in
+            let s = order.status?.lowercased() ?? ""
+            return s != "completed" && s != "cancelled"
+        }) {
+            return "maintenance"
+        }
+        
+        // Default: In Yard (even if a trip is scheduled but not started)
+        return "inactive"
+    }
+
+    public var ongoingTrip: Trip? {
+        trips.first { trip in
+            let s = trip.status?.lowercased() ?? ""
+            // Based on Trip.statusLabel "In Progress"
+            return (s == "in_progress" || s == "ongoing" || s == "active" || s == "in_transit") && trip.endTime == nil
+        }
+    }
+
+    public var scheduledTrips: [Trip] {
+        trips.filter { trip in
+            let s = trip.status?.lowercased() ?? ""
+            // Based on Trip.statusLabel "Scheduled"
+            return (s == "scheduled" || s == "assigned" || s == "pending") && trip.endTime == nil
+        }
+    }
+
+    public var pastTrips: [Trip] {
+        trips.filter { trip in
+            let s = trip.status?.lowercased() ?? ""
+            // Based on Trip.statusLabel "Completed" or has end time
+            return s == "completed" || trip.endTime != nil || s == "cancelled"
+        }
+    }
+
     public init() {}
     
     @MainActor

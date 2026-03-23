@@ -4,13 +4,13 @@ public struct PastTripsListView: View {
     let trips: [Trip]
     let isLoading: Bool
     let errorMessage: String?
-    
+
     public init(trips: [Trip], isLoading: Bool, errorMessage: String?) {
         self.trips = trips
         self.isLoading = isLoading
         self.errorMessage = errorMessage
     }
-    
+
     public var body: some View {
         ZStack {
             FMSTheme.backgroundPrimary.ignoresSafeArea()
@@ -23,9 +23,25 @@ public struct PastTripsListView: View {
                     } else if trips.isEmpty {
                         emptyRow(text: "No past trips found.")
                     } else {
+                        // Hint label
+                        HStack(spacing: 6) {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(FMSTheme.amber)
+                            Text("Tap a trip to replay its route")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(FMSTheme.textTertiary)
+                        }
+                        .padding(.bottom, 2)
+
                         VStack(spacing: 10) {
                             ForEach(trips) { trip in
-                                tripCardView(trip)
+                                NavigationLink {
+                                    TripReplayView(trip: trip)
+                                } label: {
+                                    tripCardView(trip)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -37,16 +53,31 @@ public struct PastTripsListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
     }
-    
+
     private func tripCardView(_ trip: Trip) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(tripTitleText(trip))
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(FMSTheme.textPrimary)
-                .lineLimit(1)
-            
+            HStack(alignment: .top) {
+                Text(tripTitleText(trip))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(FMSTheme.textPrimary)
+                    .lineLimit(1)
+                Spacer()
+                // Status pill
+                Text((trip.status ?? "Unknown").uppercased())
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(FMSTheme.textSecondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(FMSTheme.backgroundPrimary)
+                    .cornerRadius(5)
+                // Replay affordance
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(FMSTheme.amber)
+            }
+
             tripRouteRow(trip)
-            
+
             HStack(spacing: 14) {
                 infoPill(icon: "calendar", text: tripDateText(trip))
                 infoPill(icon: "map.fill", text: tripDistanceText(trip))
@@ -58,6 +89,7 @@ public struct PastTripsListView: View {
         .cornerRadius(14)
         .shadow(color: FMSTheme.shadowSmall, radius: 4, x: 0, y: 3)
     }
+
     
     private func tripTitleText(_ trip: Trip) -> String {
         trip.displayTitle

@@ -4,7 +4,6 @@ import UserNotifications
 public struct DriverDashboardView: View {
     @State private var viewModel = DriverDashboardViewModel()
     @State private var safetyViewModel = SafetyViewModel()
-    @State private var breakLogViewModel: BreakLogViewModel?
 
     public init() {}
 
@@ -145,18 +144,15 @@ public struct DriverDashboardView: View {
         .onChange(of: viewModel.hasActiveTrip) { _, hasTrip in
             if hasTrip {
                 safetyViewModel.startDriving()
-                updateBreakLogViewModel()
             } else {
                 safetyViewModel.stopDriving()
-                breakLogViewModel?.stopLocationUpdates()
-                breakLogViewModel = nil
+                viewModel.breakLogViewModel.stopLocationUpdates()
             }
         }
         .onAppear {
             requestNotificationPermission()
             if viewModel.hasActiveTrip {
                 safetyViewModel.startDriving()
-                updateBreakLogViewModel()
             }
         }
         .task {
@@ -167,37 +163,12 @@ public struct DriverDashboardView: View {
     // MARK: - Helpers
 
     private var currentBreakLogViewModel: BreakLogViewModel {
-        if let existing = breakLogViewModel { return existing }
-        let vm = BreakLogViewModel(
-            driverId: viewModel.driver.id,
-            tripId: viewModel.activeTrip?.id ?? "",
-            vehicleId: viewModel.assignedVehicle?.id ?? ""
-        )
-        // Persist to @State so the same instance is reused across body re-evaluations
-        breakLogViewModel = vm
-        return vm
+        viewModel.breakLogViewModel
     }
 
-    private func updateBreakLogViewModel() {
-        breakLogViewModel = BreakLogViewModel(
-            driverId: viewModel.driver.id,
-            tripId: viewModel.activeTrip?.id ?? "",
-            vehicleId: viewModel.assignedVehicle?.id ?? ""
-        )
-    }
 
     private func startBreakFromReminder() {
-        // Use existing VM or create one — call startBreak on the same reference
-        let vm = breakLogViewModel ?? {
-            let new = BreakLogViewModel(
-                driverId: viewModel.driver.id,
-                tripId: viewModel.activeTrip?.id ?? "",
-                vehicleId: viewModel.assignedVehicle?.id ?? ""
-            )
-            breakLogViewModel = new
-            return new
-        }()
-        vm.startBreak()
+        viewModel.breakLogViewModel.startBreak()
         safetyViewModel.drivingTimer.startBreak()
     }
 

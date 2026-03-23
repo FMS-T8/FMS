@@ -12,7 +12,6 @@ struct DriverHomeTab: View {
     @State private var showProfile = false
     @State private var selectedTrip: Trip?
     @State private var showLocationConfirmation = false
-    @State private var showBreakLog = false
 
     /// Trip to start after pre-trip inspection completes
     @State private var pendingStartTrip: Trip?
@@ -31,6 +30,9 @@ struct DriverHomeTab: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 32)
+            }
+            .refreshable {
+                await viewModel.fetchLiveDashboardData()
             }
             .background(FMSTheme.backgroundPrimary)
             .fullScreenCover(isPresented: $showPreTripInspection) {
@@ -58,13 +60,6 @@ struct DriverHomeTab: View {
             }
             .sheet(isPresented: $showFuelReceipt) {
                 FuelReceiptScannerEntryView(tripID: viewModel.currentJob?.id)
-            }
-            .sheet(isPresented: $showBreakLog) {
-                BreakLogView(
-                    vm: viewModel.breakLogViewModel,
-                    driverId: viewModel.driver.id,
-                    tripId: viewModel.activeTrip?.id
-                )
             }
             .sheet(isPresented: $showProfile) {
                 DriverProfileTab(viewModel: viewModel)
@@ -180,14 +175,7 @@ struct DriverHomeTab: View {
                         postTripInspectionCompleted = false
                         showPostTripInspection = true
                     },
-                    onLogBreak: {
-                        if viewModel.breakLogViewModel.isOnBreak {
-                            // End break directly — no sheet needed
-                            viewModel.breakLogViewModel.endBreak()
-                        } else {
-                            showBreakLog = true
-                        }
-                    }
+                    onLogBreak: nil
                 )
             } else {
                 NoActiveTripCard()

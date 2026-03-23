@@ -95,7 +95,7 @@ public struct CurrentJobCard: View {
                 }
 
                 // Action buttons
-                if isActive {
+                if isActive, onLogBreak != nil {
                     // Break row: Start Break / End Break toggle
                     breakActionButton
                 }
