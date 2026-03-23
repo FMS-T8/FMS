@@ -554,10 +554,12 @@ public struct OrderDetailView: View {
             
             await MainActor.run { self.currentOrderStatus = orderResult.first?.status ?? order.status }
 
+            let activeStatuses = ["active", "in_progress", "in_transit"]
             let trips: [Trip] = try await SupabaseService.shared.client
                 .from("trips")
                 .select()
                 .eq("order_id", value: order.id)
+                .in("status", values: activeStatuses)
                 .execute()
                 .value
             

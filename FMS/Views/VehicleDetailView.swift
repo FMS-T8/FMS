@@ -83,7 +83,6 @@ public struct VehicleDetailView: View {
             switch target {
             case .pastTrips:
                 PastTripsListView(
-                    vehicleId: currentVehicle.id,
                     trips: pastTrips,
                     isLoading: viewModel.isLoadingTrips,
                     errorMessage: viewModel.tripsErrorMessage
@@ -111,11 +110,7 @@ public struct VehicleDetailView: View {
                     }
                 )
             case .trackLive:
-                if let trip = currentTrip {
-                    TripReplayView(trip: trip)
-                } else {
-                    Text("No active trip to track.")
-                }
+                TripReplayView(trip: currentTrip!)
             }
         }
         .task {
@@ -782,4 +777,3 @@ enum DetailSectionTarget: String, Identifiable {
         VehicleDetailView(vehicle: vehicle)
     }
 }
-

@@ -74,7 +74,8 @@ public final class TripReplayViewModel {
     /// Polyline of points up to and including `currentIndex`.
     public var playedCoordinates: [CLLocationCoordinate2D] {
         guard !gpsPoints.isEmpty else { return [] }
-        let slice = gpsPoints[0...currentIndex]
+        let clampedIndex = min(max(0, currentIndex), gpsPoints.count - 1)
+        let slice = gpsPoints[0...clampedIndex]
         return slice.compactMap { point in
             guard let lat = point.lat, let lng = point.lng else { return nil }
             return CLLocationCoordinate2D(latitude: lat, longitude: lng)
@@ -163,6 +164,11 @@ public final class TripReplayViewModel {
     }
 
     public func seek(to index: Int) {
+        guard totalPoints > 0 else {
+            currentIndex = 0
+            if isPlaying { pause() }
+            return
+        }
         let clamped = max(0, min(index, totalPoints - 1))
         currentIndex = clamped
         // If we were playing and reached end, stop.
@@ -182,7 +188,7 @@ public final class TripReplayViewModel {
     private func scheduleTimer() {
         invalidateTimer()
         let interval = baseFrameInterval / playbackSpeed
-        playTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if self.currentIndex < self.totalPoints - 1 {
@@ -192,6 +198,8 @@ public final class TripReplayViewModel {
                 }
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        playTimer = timer
     }
 
     private func invalidateTimer() {
@@ -203,11 +211,13 @@ public final class TripReplayViewModel {
 
     private func startLivePolling() {
         stopLivePolling()
-        livePollTimer = Timer.scheduledTimer(withTimeInterval: livePollInterval, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: livePollInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 await self?.fetchNewPings()
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        livePollTimer = timer
     }
 
     public func stopLivePolling() {

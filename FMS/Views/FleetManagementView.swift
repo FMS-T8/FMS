@@ -207,19 +207,25 @@ private extension FleetManagementView {
         isFetchingTrip = true
         defer { isFetchingTrip = false }
         do {
+            let activeStatuses = ["active", "in_progress", "in_transit"]
             let trips: [Trip] = try await SupabaseService.shared.client
                 .from("trips")
                 .select()
                 .eq("vehicle_id", value: vehicle.id)
+                .in("status", values: activeStatuses)
                 .order("created_at", ascending: false)
                 .limit(1)
                 .execute()
                 .value
             if let trip = trips.first {
                 trackingTrip = trip
+            } else {
+                trackingTrip = nil
+                bannerManager.show(type: .warning, message: "No active trip found for \(vehicle.plateNumber).")
             }
         } catch {
             print("[FleetManagementView] Failed to fetch active trip: \(error)")
+            bannerManager.show(type: .error, message: "Failed to fetch active trip for \(vehicle.plateNumber).")
         }
     }
     

@@ -1,13 +1,11 @@
 import SwiftUI
 
 public struct PastTripsListView: View {
-    let vehicleId: String
     let trips: [Trip]
     let isLoading: Bool
     let errorMessage: String?
 
-    public init(vehicleId: String, trips: [Trip], isLoading: Bool, errorMessage: String?) {
-        self.vehicleId = vehicleId
+    public init(trips: [Trip], isLoading: Bool, errorMessage: String?) {
         self.trips = trips
         self.isLoading = isLoading
         self.errorMessage = errorMessage

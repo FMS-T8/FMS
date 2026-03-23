@@ -153,7 +153,11 @@ public struct TripReplayView: View {
 
     private var currentPositionMarker: some View {
         let heading = vm.currentPoint?.heading ?? 0
+        let status = positionStatus
         return ZStack {
+            Circle()
+                .stroke(status.color, lineWidth: 3)
+                .frame(width: 32, height: 32)
             Circle()
                 .fill(FMSTheme.amber)
                 .frame(width: 24, height: 24)
@@ -163,6 +167,23 @@ public struct TripReplayView: View {
                 .font(.system(size: 13, weight: .bold))
                 .foregroundColor(FMSTheme.obsidian)
                 .rotationEffect(Angle(degrees: heading))
+        }
+        .accessibilityLabel("Vehicle status: \(status.label)")
+    }
+
+    private var positionStatus: (label: String, color: Color) {
+        guard let kph = vm.currentSpeedKph else {
+            return ("Unknown", FMSTheme.textTertiary)
+        }
+        if kph < 0.5 { return ("Stopped", FMSTheme.textSecondary) }
+        if kph < 5 { return ("Idle", FMSTheme.alertAmber) }
+        switch vm.speedCategory {
+        case .normal:
+            return ("Moving", FMSTheme.alertGreen)
+        case .fast:
+            return ("Moving", FMSTheme.alertAmber)
+        case .speeding:
+            return ("Moving", FMSTheme.alertRed)
         }
     }
 

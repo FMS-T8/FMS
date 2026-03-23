@@ -1,5 +1,4 @@
 import SwiftUI
-import MapKit
 
 /// Floating playback controls panel for Trip Replay.
 public struct TripReplayControlsView: View {
