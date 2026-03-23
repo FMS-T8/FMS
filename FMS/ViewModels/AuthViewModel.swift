@@ -2,7 +2,7 @@
 //  AuthViewModel.swift
 //  FMS
 //
-//  Created by Anish on 11/03/26.
+//  Created by Devanshi on 20/03/26.
 //
 
 import SwiftUI
@@ -97,6 +97,39 @@ public class AuthViewModel {
             }
         } catch {
             bannerManager.show(type: .error, message: "Invalid email or password. Please try again.")
+        }
+    }
+  
+    
+    public func sendPasswordReset(email: String, bannerManager: BannerManager) async -> Bool { // ✅ return Bool
+        
+        // ✅ Add email validation (mirrors login)
+        guard !email.trimmingCharacters(in: .whitespaces).isEmpty else {
+            bannerManager.show(type: .error, message: "Please enter your email address.")
+            return false
+        }
+        
+        guard email.contains("@") && email.contains(".") else {
+            bannerManager.show(type: .error, message: "Please enter a valid email address.")
+            return false
+        }
+        
+        // ✅ Safe URL unwrap instead of force unwrap
+        guard let redirectURL = URL(string: "com.nirvaan.fms://reset-password") else {
+            bannerManager.show(type: .error, message: "Invalid configuration. Please contact support.")
+            return false
+        }
+        
+        do {
+            try await SupabaseService.shared.client.auth.resetPasswordForEmail(
+                email,
+                redirectTo: redirectURL
+            )
+            bannerManager.show(type: .success, message: "Reset link sent to \(email)")
+            return true  // ✅
+        } catch {
+            bannerManager.show(type: .error, message: error.localizedDescription)
+            return false  // ✅
         }
     }
     
