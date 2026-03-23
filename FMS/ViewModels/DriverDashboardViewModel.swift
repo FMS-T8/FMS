@@ -112,6 +112,7 @@ public final class DriverDashboardViewModel {
     public init() {
         self.driver = DriverDisplayItem(id: "", name: "Loading...", employeeID: "", phone: "", availabilityStatus: .offDuty)
         self.todayStats = DriverDayStats(tripsCompleted: 0, totalDistanceKm: 0, drivingTimeMinutes: 0)
+        self.dataSource = MockDriverDashboardDataSource()
     }
 
     // MARK: - Live Data Fetch
@@ -321,6 +322,17 @@ self.issueReports.append(report)
     }
 }
 
+// MARK: - Protocol
+
+public protocol DriverDashboardDataSource {
+    func fetchCurrentDriver() -> DriverDisplayItem
+    func fetchAssignedVehicle() -> Vehicle?
+    func fetchActiveTrip() -> Trip?
+    func fetchUpcomingTrips() -> [Trip]
+    func fetchCompletedTrips() -> [Trip]
+    func fetchTodayStats() -> DriverDayStats
+}
+
 // MARK: - Mock Data Source
 
 public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
@@ -509,4 +521,5 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
         totalDistanceKm: 298,
         drivingTimeMinutes: 425
     )
+    }
 }
