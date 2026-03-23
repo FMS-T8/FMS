@@ -33,7 +33,7 @@ struct BreakLoggingView: View {
 
     private var sectionHeader: some View {
         HStack {
-            Image(systemName: "pause.circle.fill")
+            Image(systemName: "cup.and.saucer.fill")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(FMSTheme.amber)
 
@@ -43,7 +43,7 @@ struct BreakLoggingView: View {
 
             Spacer()
 
-            if drivingTimer.isActive && !drivingTimer.isOnBreak {
+            if !viewModel.isOnBreak && drivingTimer.isActive {
                 Text("Driving: \(drivingTimer.formattedDrivingTime)")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(FMSTheme.textSecondary)
@@ -76,13 +76,37 @@ struct BreakLoggingView: View {
                 }
             }
 
+            // Notes Section
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Notes")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(FMSTheme.textPrimary)
+                    Text("(optional)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(FMSTheme.textTertiary)
+                }
+
+                TextField("E.g. rest stop, highway dhaba...", text: $viewModel.notes, axis: .vertical)
+                    .font(.system(size: 14))
+                    .lineLimit(2...4)
+                    .padding(12)
+                    .background(FMSTheme.backgroundPrimary)
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(FMSTheme.borderLight, lineWidth: 1)
+                    )
+            }
+            .padding(.top, 4)
+
             Button {
                 viewModel.startBreak(driverId: driverId.isEmpty ? nil : driverId,
                                      tripId: tripId.isEmpty ? nil : tripId)
                 drivingTimer.startBreak()
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "pause.fill")
+                    Image(systemName: "cup.and.saucer.fill")
                         .font(.system(size: 14, weight: .bold))
                     Text("Start Break")
                         .font(.system(size: 16, weight: .bold))
@@ -134,7 +158,7 @@ struct BreakLoggingView: View {
                 let _ = drivingTimer.endBreak()
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "play.fill")
+                    Image(systemName: "stop.fill")
                         .font(.system(size: 14, weight: .bold))
                     Text("End Break")
                         .font(.system(size: 16, weight: .bold))
@@ -230,6 +254,14 @@ private struct BreakLogRow: View {
                 Text(formattedTime)
                     .font(.system(size: 12))
                     .foregroundStyle(FMSTheme.textSecondary)
+
+                if let notes = log.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(.system(size: 13))
+                        .foregroundStyle(FMSTheme.textPrimary.opacity(0.8))
+                        .padding(.top, 4)
+                        .lineLimit(2)
+                }
             }
 
             Spacer()

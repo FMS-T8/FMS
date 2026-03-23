@@ -26,6 +26,10 @@ struct DriverSafetyTab: View {
                 .padding(.top, 16)
                 .padding(.bottom, 32)
             }
+            .refreshable {
+                safetyViewModel.checkFatigueWarnings()
+                await breakLogViewModel.fetchBreakHistory()
+            }
             .background(FMSTheme.backgroundPrimary)
         }
     }
@@ -109,12 +113,14 @@ struct DriverSafetyTab: View {
             )
 
             SafetyStatusRow(
-                icon: "timer",
-                title: "Driving Timer",
-                status: safetyViewModel.drivingTimer.isActive
-                    ? safetyViewModel.drivingTimer.formattedDrivingTime
-                    : "Not tracking",
-                isActive: safetyViewModel.drivingTimer.isActive
+                icon: breakLogViewModel.isOnBreak ? "pause.circle.fill" : "timer",
+                title: breakLogViewModel.isOnBreak ? "On Break" : "Driving Timer",
+                status: breakLogViewModel.isOnBreak
+                    ? breakLogViewModel.formattedElapsed
+                    : (safetyViewModel.drivingTimer.isActive
+                        ? safetyViewModel.drivingTimer.formattedDrivingTime
+                        : "Not tracking"),
+                isActive: breakLogViewModel.isOnBreak || safetyViewModel.drivingTimer.isActive
             )
 
             SafetyStatusRow(
