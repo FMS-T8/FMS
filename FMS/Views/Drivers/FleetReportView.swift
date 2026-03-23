@@ -309,4 +309,5 @@ public struct FleetReportView: View {
     NavigationStack {
         FleetReportView()
     }
+    .environment(BannerManager())
 }
