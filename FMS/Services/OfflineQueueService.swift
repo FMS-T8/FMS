@@ -20,13 +20,13 @@ public struct QueuedPayload: Codable, Identifiable {
     public let recordId: String?
 
     public init(type: QueuedPayloadType, tableName: String, jsonData: Data, recordId: String? = nil) {
-        self.id        = UUID().uuidString
-        self.type      = type
-        self.tableName = tableName
-        self.jsonData  = jsonData
-        self.createdAt = Date()
+        self.id         = UUID().uuidString
+        self.type       = type
+        self.tableName  = tableName
+        self.jsonData   = jsonData
+        self.createdAt  = Date()
         self.retryCount = 0
-        self.recordId  = recordId
+        self.recordId   = recordId
     }
 }
 
@@ -90,8 +90,7 @@ public final class OfflineQueueService {
         encoder.dateEncodingStrategy = .iso8601
         guard let jsonData = try? encoder.encode(payload) else { return }
         let queued = QueuedPayload(type: type, tableName: table, jsonData: jsonData, recordId: recordId)
-        // FIX: was `var queue` — never mutated after assignment, changed to `let`
-        let queue = loadQueue()
+        let queue  = loadQueue()
         saveQueue(queue + [queued])
     }
 
@@ -99,7 +98,7 @@ public final class OfflineQueueService {
         guard !isProcessing else { return }
         isProcessing = true
 
-        let queue = loadQueue()
+        let queue        = loadQueue()
         var failedItems: [QueuedPayload] = []
 
         for var item in queue {
@@ -182,9 +181,9 @@ private struct AnyCodable: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let dict = try? container.decode([String: AnyCodable].self) {
-            value = dict.mapValues(\.value)
+            value = dict
         } else if let arr = try? container.decode([AnyCodable].self) {
-            value = arr.map(\.value)
+            value = arr
         } else if let str = try? container.decode(String.self) {
             value = str
         } else if let num = try? container.decode(Double.self) {
@@ -201,12 +200,12 @@ private struct AnyCodable: Codable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch value {
-        case let s as String:             try container.encode(s)
-        case let n as Double:             try container.encode(n)
-        case let b as Bool:               try container.encode(b)
+        case let s as String:               try container.encode(s)
+        case let n as Double:               try container.encode(n)
+        case let b as Bool:                 try container.encode(b)
         case let d as [String: AnyCodable]: try container.encode(d)
-        case let a as [AnyCodable]:       try container.encode(a)
-        default:                          try container.encodeNil()
+        case let a as [AnyCodable]:         try container.encode(a)
+        default:                            try container.encodeNil()
         }
     }
 }
