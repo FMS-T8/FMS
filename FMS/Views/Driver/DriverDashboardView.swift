@@ -173,6 +173,8 @@ public struct DriverDashboardView: View {
             tripId: viewModel.activeTrip?.id ?? "",
             vehicleId: viewModel.assignedVehicle?.id ?? ""
         )
+        // Persist to @State so the same instance is reused across body re-evaluations
+        breakLogViewModel = vm
         return vm
     }
 

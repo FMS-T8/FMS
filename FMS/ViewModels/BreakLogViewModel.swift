@@ -19,6 +19,7 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
     public var breakLogs: [BreakLog] = []
     public var showMinDurationWarning: Bool = false
     public var errorMessage: String? = nil
+    private var isSubmitting: Bool = false
 
     // MARK: - Identity
 
@@ -63,7 +64,8 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
     // MARK: - Public API
 
     public func startBreak(driverId: String? = nil, tripId: String? = nil, lat: Double? = nil, lng: Double? = nil) {
-        guard !isOnBreak else { return }
+        guard !isOnBreak && !isSubmitting else { return }
+        isSubmitting = true
         
         if let dId = driverId { self.driverId = dId }
         if let tId = tripId { self.tripId = tId }
@@ -92,7 +94,10 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
             endLng: nil,
             notes: notes.isEmpty ? nil : notes
         )
-        Task { await saveBreakLog(initialLog) }
+        Task {
+            await saveBreakLog(initialLog)
+            isSubmitting = false
+        }
 
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -104,7 +109,8 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
     }
 
     public func endBreak(lat: Double? = nil, lng: Double? = nil) {
-        guard isOnBreak, let startTime = currentBreakStartTime else { return }
+        guard isOnBreak && !isSubmitting, let startTime = currentBreakStartTime else { return }
+        isSubmitting = true
         timer?.invalidate()
         timer = nil
         isOnBreak = false
@@ -143,6 +149,7 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
 
         Task {
             await saveBreakLog(log, isUpdate: true)
+            isSubmitting = false
         }
     }
 
@@ -233,10 +240,12 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
             struct BreakLogUpdate: Codable {
                 let end_time: Date?
                 let duration_minutes: Int?
+                let notes: String?
             }
             let updatePayload = BreakLogUpdate(
                 end_time: log.endTime,
-                duration_minutes: log.durationMinutes
+                duration_minutes: log.durationMinutes,
+                notes: log.notes
             )
             _ = await OfflineQueueService.shared.updateOrQueue(
                 table: "break_logs",
