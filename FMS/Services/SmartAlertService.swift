@@ -92,24 +92,50 @@ public final class SmartAlertService {
             guard let self = self else { return }
             
             let now = Date()
-            if let first = self.batchFirstIssueTime, now.timeIntervalSince(first) > 600 {
+            
+            if let first = self.batchFirstIssueTime, now.timeIntervalSince(first) >= 600 {
                 // Outside the 10-15 min window, reset
+                self.batchFirstIssueTime = nil
+                self.batchCount = 0
+            }
+            
+            if self.batchFirstIssueTime == nil {
                 self.batchFirstIssueTime = now
-                self.batchCount = 1
-            } else {
-                if self.batchFirstIssueTime == nil {
-                    self.batchFirstIssueTime = now
-                }
-                self.batchCount += 1
-                
-                // If this is the second issue in the window, send a summary
-                if self.batchCount == 2 {
-                    self.sendNotification(
-                        title: "New Vehicle Issues",
-                        body: "Multiple new vehicle issues reported.",
-                        sound: .default,
-                        priority: .passive
-                    )
+            }
+            
+            self.batchCount += 1
+            self.scheduleBatchNotification()
+        }
+    }
+    
+    private func scheduleBatchNotification() {
+        guard let first = batchFirstIssueTime else { return }
+        let count = batchCount
+        
+        // Only notify if multiple issues occurred
+        guard count >= 2 else { return }
+        
+        let elapsed = Date().timeIntervalSince(first)
+        let remaining = max(1.0, 600.0 - elapsed)
+        
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge, .criticalAlert]) { granted, _ in
+            guard granted else { return }
+            
+            let content = UNMutableNotificationContent()
+            content.title = "New Vehicle Issues"
+            content.body = "\(count) new vehicle issues reported in the last 10 minutes."
+            content.sound = .default
+            content.interruptionLevel = .passive
+            // Keep body generic and lock screen safe
+            
+            // Scheduling over the same identifier replaces the pending request, 
+            // essentially acting as a lockless background accumulator
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: remaining, repeats: false)
+            let request = UNNotificationRequest(identifier: "BatchSummary", content: content, trigger: trigger)
+            
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("Error scheduling batch notification: \(error)")
                 }
             }
         }

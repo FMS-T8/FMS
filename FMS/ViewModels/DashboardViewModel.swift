@@ -45,13 +45,18 @@ public class DashboardViewModel {
             print("DEBUG: Fetched \(fetchedDefects.count) defects")
 
             // 4. Fetch drivers to map names
-            let fetchedDrivers: [Driver] = try await client
-                .from("drivers")
-                .select()
+            struct DriverTarget: Decodable {
+                let id: String
+                let name: String
+            }
+            let fetchedDrivers: [DriverTarget] = try await client
+                .from("users")
+                .select("id, name")
+                .eq("role", value: "driver")
                 .execute()
                 .value
             print("DEBUG: Fetched \(fetchedDrivers.count) drivers")
-            let driverMap = Dictionary(uniqueKeysWithValues: fetchedDrivers.map { ($0.id, $0) })
+            let driverMap = Dictionary(uniqueKeysWithValues: fetchedDrivers.map { ($0.id, $0.name) })
             
             // 5. Generate alerts
             self.alerts = generateAlerts(
@@ -74,7 +79,7 @@ public class DashboardViewModel {
         from documents: [VehicleDocument],
         defects: [Defect],
         vehicleMap: [String: Vehicle],
-        driverMap: [String: Driver]
+        driverMap: [String: String]
     ) -> [(title: String, subtitle: String, timeAgo: String, type: AlertType)] {
         let now = Date()
         let calendar = Calendar.current
@@ -127,7 +132,7 @@ public class DashboardViewModel {
             default: type = .info
             }
             
-            let driverName = defect.reportedBy.flatMap { driverMap[$0]?.name } ?? "Driver"
+            let driverName = defect.reportedBy.flatMap { driverMap[$0] } ?? "Driver"
             let title = "\(defect.title)"
             let subtitle = "\(driverName) reported an issue with \(plate): \(defect.description ?? "No description")."
             
