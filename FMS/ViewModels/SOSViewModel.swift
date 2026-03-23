@@ -56,14 +56,18 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
 
         countdownTimer?.invalidate()
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
-            let t = timer
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
             Task { @MainActor [weak self] in
-                guard let self, let target = self.countdownTargetDate else {
-                    t.invalidate(); return
+                guard let self = self, let target = self.countdownTargetDate else {
+                    self?.countdownTimer?.invalidate()
+                    return
                 }
                 let remaining = Int(ceil(target.timeIntervalSinceNow))
                 if remaining <= 0 {
-                    t.invalidate()
+                    self.countdownTimer?.invalidate()
                     self.sendSOS()
                 } else {
                     self.state = .countdown(secondsRemaining: remaining)
@@ -174,20 +178,25 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         pingTimer?.invalidate()
         sendLocationPing()
 
-        // FIX: local `let t` before @Sendable Task boundary
         pingTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] timer in
-            let t = timer
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
             Task { @MainActor [weak self] in
-                guard let self else { t.invalidate(); return }
+                guard let self = self else { return }
                 self.pingCount += 1
                 self.sendLocationPing()
 
                 if self.pingCount >= 30 {
-                    t.invalidate()
+                    self.pingTimer?.invalidate()
                     self.pingTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] timer2 in
-                        let t2 = timer2
+                        guard let self = self else {
+                            timer2.invalidate()
+                            return
+                        }
                         Task { @MainActor [weak self] in
-                            guard let self else { t2.invalidate(); return }
+                            guard let self = self else { return }
                             self.sendLocationPing()
                         }
                     }
@@ -230,12 +239,16 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
 
     private func startStatusPolling() {
         statusPollTimer?.invalidate()
-        // FIX: local `let t` before @Sendable Task boundary
+        
         statusPollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] timer in
-            let t = timer
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
             Task { @MainActor [weak self] in
-                guard let self, let alertId = self.sosAlertId else {
-                    t.invalidate(); return
+                guard let self = self, let alertId = self.sosAlertId else {
+                    self?.statusPollTimer?.invalidate()
+                    return
                 }
                 self.pollAlertStatus(alertId: alertId)
             }
@@ -275,7 +288,6 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         content.body  = body
         content.sound = .default
         let request   = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        // FIX: explicit withCompletionHandler:nil suppresses "result unused" ambiguity
         UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 }
