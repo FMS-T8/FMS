@@ -2,7 +2,6 @@ import Foundation
 import MapKit
 import Observation
 import Supabase
-import SwiftUI
 
 @Observable
 @MainActor
@@ -243,11 +242,8 @@ public final class TripReplayViewModel {
             gpsPoints.append(contentsOf: newPings)
             
             if wasAtEnd || currentIndex == 0 {
-                // Auto-advance if we were sitting at the end of the route (live tracking behavior)
-                // Or if it was previously empty/stuck at index 0.
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    seek(to: gpsPoints.count - 1)
-                }
+                // Auto-advance to the latest point (live tracking behavior).
+                seek(to: gpsPoints.count - 1)
             }
         } catch {
             let nsError = error as NSError
