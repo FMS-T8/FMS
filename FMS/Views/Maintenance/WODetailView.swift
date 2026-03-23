@@ -1,17 +1,31 @@
 import SwiftUI
+import PostgREST
+import Supabase
 
 @MainActor
-struct WODetailView: View {
-    @State var wo: WOItem
+public struct WODetailView: View {
+    @State private var wo: WOItem
     let store: WorkOrderStore
+    var isReadOnly: Bool = false
+    var onUpdate: (() async -> Void)? = nil
+    
+    public init(wo: WOItem, store: WorkOrderStore, isReadOnly: Bool = false, onUpdate: (() async -> Void)? = nil) {
+        self._wo = State(initialValue: wo)
+        self.store = store
+        self.isReadOnly = isReadOnly
+        self.onUpdate = onUpdate
+    }
     @State private var invStore = InventoryStore()
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(BannerManager.self) private var bannerManager
 
     @State private var showingDeleteAlert    = false
     @State private var showingCompleteAlert  = false
     @State private var showingAddPart        = false
     @State private var diagnosticNotes       = ""
+    @State private var serviceOdometerInput: String = ""
+    @State private var vehicle: Vehicle? = nil
 
     // Parts-used add form state
     @State private var selectedPartId: UUID? = nil
@@ -22,7 +36,7 @@ struct WODetailView: View {
         colorScheme == .dark ? Color(red: 28/255, green: 28/255, blue: 30/255) : FMSTheme.cardBackground
     }
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             (colorScheme == .dark ? FMSTheme.obsidian : FMSTheme.backgroundPrimary).ignoresSafeArea()
 
@@ -93,31 +107,88 @@ struct WODetailView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("JOB STATUS").font(.system(size: 11, weight: .bold))
                                     .foregroundColor(FMSTheme.textTertiary).tracking(0.6)
-                                HStack(spacing: 8) {
-                                    ForEach(WOItem.Status.allCases, id: \.self) { s in
-                                        Button {
-                                            let newState = s
-                                            Task {
-                                                do {
-                                                    var updatedWO = wo
-                                                    updatedWO.status = newState
-                                                    try await store.update(updatedWO)
-                                                    await MainActor.run {
-                                                        withAnimation(.spring(response: 0.3)) { wo.status = newState }
+                                    if !isReadOnly {
+                                        HStack(spacing: 8) {
+                                            ForEach(WOItem.Status.allCases, id: \.self) { s in
+                                                let isAllowed: Bool = {
+                                                    switch wo.status {
+                                                    case .pending:
+                                                        // From Pending, can only go to In Progress (or stay Pending). Cannot jump to Completed.
+                                                        return s == .pending || s == .inProgress
+                                                    case .inProgress:
+                                                        // From In Progress, can only go to Completed (or stay InProgress). Cannot go backward to Pending.
+                                                        return s == .inProgress || s == .completed
+                                                    case .completed:
+                                                        // From Completed, cannot go back anywhere.
+                                                        return s == .completed
                                                     }
-                                                } catch {
-                                                    print("Error updating status: \(error)")
+                                                }()
+                                                
+                                                Button {
+                                                    // Strict Flow: Pending -> In Progress -> Completed
+                                                    if !isAllowed { return }
+                                                    
+                                                    let newState = s
+                                                    if newState == .completed && wo.status != .completed {
+                                                        if wo.isService {
+                                                            serviceOdometerInput = vehicle?.odometer != nil ? "\(Int(vehicle!.odometer!))" : ""
+                                                            showingCompleteAlert = true
+                                                            return
+                                                        } else {
+                                                            // For non-service (defect) orders, just complete without odometer
+                                                            Task {
+                                                                do {
+                                                                    try await store.updateStatus(wo.id, status: .completed)
+                                                                    if let onUpdate { await onUpdate() }
+                                                                    await MainActor.run {
+                                                                        withAnimation {
+                                                                            wo.status = .completed
+                                                                            wo.completedAt = Date()
+                                                                        }
+                                                                        bannerManager.show(type: .success, message: "Defect resolved.")
+                                                                    }
+                                                                } catch {
+                                                                    print("Error completing defect: \(error)")
+                                                                }
+                                                            }
+                                                            return
+                                                        }
+                                                    }
+                                                    
+                                                    Task {
+                                                        do {
+                                                            var updatedWO = wo
+                                                            updatedWO.status = newState
+                                                            try await store.update(updatedWO)
+                                                            await MainActor.run {
+                                                                withAnimation(.spring(response: 0.3)) { wo.status = newState }
+                                                            }
+                                                        } catch {
+                                                            print("Error updating status: \(error)")
+                                                        }
+                                                    }
+                                                } label: {
+                                                    Text(s.rawValue).font(.system(size: 12, weight: .semibold))
+                                                        .frame(maxWidth: .infinity).padding(.vertical, 10)
+                                                        .background(wo.status == s ? s.color : Color.gray.opacity(0.1))
+                                                        .foregroundColor(wo.status == s ? .white : (!isAllowed ? FMSTheme.textTertiary : FMSTheme.textSecondary))
+                                                        .cornerRadius(9)
+                                                        .opacity(!isAllowed ? 0.3 : 1.0)
                                                 }
+                                                .disabled(!isAllowed)
                                             }
-                                        } label: {
-                                            Text(s.rawValue).font(.system(size: 12, weight: .semibold))
-                                                .frame(maxWidth: .infinity).padding(.vertical, 10)
-                                                .background(wo.status == s ? s.color : Color.gray.opacity(0.1))
-                                                .foregroundColor(wo.status == s ? .white : FMSTheme.textSecondary)
-                                                .cornerRadius(9)
                                         }
+                                    } else {
+                                        HStack(spacing: 4) {
+                                            Circle().fill(wo.status.color).frame(width: 6, height: 6)
+                                            Text(wo.status.rawValue).font(.system(size: 13, weight: .bold))
+                                                .foregroundColor(wo.status.color)
+                                            Spacer()
+                                        }
+                                        .padding(10)
+                                        .background(wo.status.color.opacity(0.1))
+                                        .cornerRadius(10)
                                     }
-                                }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -130,12 +201,14 @@ struct WODetailView: View {
                                         .font(.system(size: 11, weight: .bold))
                                         .foregroundColor(FMSTheme.textTertiary).tracking(0.6)
                                     Spacer()
-                                    Button {
-                                        withAnimation(.spring(response: 0.3)) { showingAddPart.toggle() }
-                                    } label: {
-                                        Image(systemName: showingAddPart ? "xmark" : "plus")
-                                            .font(.system(size: 12, weight: .bold)).foregroundColor(.black)
-                                            .padding(8).background(FMSTheme.amber).clipShape(Circle())
+                                    if !isReadOnly {
+                                        Button {
+                                            withAnimation(.spring(response: 0.3)) { showingAddPart.toggle() }
+                                        } label: {
+                                            Image(systemName: showingAddPart ? "xmark" : "plus")
+                                                .font(.system(size: 12, weight: .bold)).foregroundColor(.black)
+                                                .padding(8).background(FMSTheme.amber).clipShape(Circle())
+                                        }
                                     }
                                 }
 
@@ -167,35 +240,37 @@ struct WODetailView: View {
                                             }
                                         }
                                         Spacer()
-                                        Button {
-                                            let pId = part.id
-                                            let wId = wo.id
-                                            let qtyToRestore = part.quantity ?? 1
-                                            let matchedPartId = part.partId ?? ""
-                                            Task {
-                                                do {
-                                                    if let p = invStore.parts.first(where: { $0.id.uuidString.lowercased() == matchedPartId.lowercased() }) {
-                                                        try await invStore.reorder(part: p, quantity: qtyToRestore)
-                                                        do {
+                                        if !isReadOnly {
+                                            Button {
+                                                let pId = part.id
+                                                let wId = wo.id
+                                                let qtyToRestore = part.quantity ?? 1
+                                                let matchedPartId = part.partId ?? ""
+                                                Task {
+                                                    do {
+                                                        if let p = invStore.parts.first(where: { $0.id.uuidString.lowercased() == matchedPartId.lowercased() }) {
+                                                            try await invStore.reorder(part: p, quantity: qtyToRestore)
+                                                            do {
+                                                                try await store.removePartUsed(pId, from: wId)
+                                                            } catch {
+                                                                // Roll back the stock restore since removePartUsed failed
+                                                                try? await invStore.reorder(part: p, quantity: -qtyToRestore)
+                                                                throw error
+                                                            }
+                                                        } else {
                                                             try await store.removePartUsed(pId, from: wId)
-                                                        } catch {
-                                                            // Roll back the stock restore since removePartUsed failed
-                                                            try? await invStore.reorder(part: p, quantity: -qtyToRestore)
-                                                            throw error
                                                         }
-                                                    } else {
-                                                        try await store.removePartUsed(pId, from: wId)
+                                                        await MainActor.run {
+                                                            wo.partsUsed.removeAll { $0.id == pId }
+                                                        }
+                                                    } catch {
+                                                        print("Error restoring stock or removing part used: \(error)")
                                                     }
-                                                    await MainActor.run {
-                                                        wo.partsUsed.removeAll { $0.id == pId }
-                                                    }
-                                                } catch {
-                                                    print("Error restoring stock or removing part used: \(error)")
                                                 }
+                                            } label: {
+                                                Image(systemName: "trash").font(.system(size: 12))
+                                                    .foregroundColor(FMSTheme.alertRed)
                                             }
-                                        } label: {
-                                            Image(systemName: "trash").font(.system(size: 12))
-                                                .foregroundColor(FMSTheme.alertRed)
                                         }
                                     }
                                     .padding(10)
@@ -353,6 +428,7 @@ struct WODetailView: View {
                                 ZStack(alignment: .topLeading) {
                                     TextEditor(text: $diagnosticNotes).frame(minHeight: 90)
                                         .font(.system(size: 14)).scrollContentBackground(.hidden).background(Color.clear)
+                                        .disabled(isReadOnly)
                                     if diagnosticNotes.isEmpty {
                                         Text("Add notes, findings, or next steps…")
                                             .font(.system(size: 14))
@@ -389,36 +465,103 @@ struct WODetailView: View {
                 }
 
                 // Bottom bar
-                VStack(spacing: 0) {
-                    Divider().opacity(0.4)
-                    HStack(spacing: 12) {
-                        Button { showingDeleteAlert = true } label: {
-                            Image(systemName: "trash").font(.system(size: 16))
-                                .foregroundColor(FMSTheme.alertRed)
-                                .frame(width: 50, height: 50)
-                                .background(FMSTheme.alertRed.opacity(0.08)).cornerRadius(12)
-                        }
-                        Button {
-                            if wo.status != .completed { showingCompleteAlert = true }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: wo.status == .completed ? "checkmark.circle.fill" : "checkmark.circle")
-                                    .font(.system(size: 16))
-                                Text(wo.status == .completed ? "Completed" : "Complete Job")
-                                    .font(.system(size: 16, weight: .bold))
+                if !isReadOnly {
+                    VStack(spacing: 0) {
+                        Divider().opacity(0.4)
+                        HStack(spacing: 12) {
+                            Button { showingDeleteAlert = true } label: {
+                                Image(systemName: "trash").font(.system(size: 16))
+                                    .foregroundColor(FMSTheme.alertRed)
+                                    .frame(width: 50, height: 50)
+                                    .background(FMSTheme.alertRed.opacity(0.08)).cornerRadius(12)
                             }
-                            .foregroundColor(wo.status == .completed ? FMSTheme.alertGreen : .black)
-                            .frame(maxWidth: .infinity).padding(.vertical, 14)
-                            .background(wo.status == .completed ? FMSTheme.alertGreen.opacity(0.1) : FMSTheme.amber)
-                            .cornerRadius(12)
+                            Button {
+                                if wo.status == .pending {
+                                    // Start Job
+                                    Task {
+                                        do {
+                                            var updatedWO = wo
+                                            updatedWO.status = .inProgress
+                                            try await store.update(updatedWO)
+                                            await MainActor.run {
+                                                withAnimation(.spring(response: 0.3)) { wo.status = .inProgress }
+                                            }
+                                        } catch {
+                                            print("Error starting job: \(error)")
+                                        }
+                                    }
+                                } else if wo.status == .inProgress {
+                                    if wo.isService {
+                                        // Complete Job (via alert for service reset)
+                                        if let woOdo = wo.serviceOdometer {
+                                            serviceOdometerInput = "\(Int(woOdo))"
+                                        } else if let vOdo = vehicle?.odometer {
+                                            serviceOdometerInput = "\(Int(vOdo))"
+                                        } else {
+                                            serviceOdometerInput = ""
+                                        }
+                                        showingCompleteAlert = true
+                                    } else {
+                                        // Direct completion for non-service (defect) orders
+                                        Task {
+                                            do {
+                                                try await store.updateStatus(wo.id, status: .completed)
+                                                if let onUpdate { await onUpdate() }
+                                                await MainActor.run {
+                                                    withAnimation {
+                                                        wo.status = .completed
+                                                        wo.completedAt = Date()
+                                                    }
+                                                    bannerManager.show(type: .success, message: "Defect resolved.")
+                                                }
+                                            } catch {
+                                                print("Error completing defect: \(error)")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if wo.status == .pending {
+                                        Image(systemName: "play.fill")
+                                            .font(.system(size: 14))
+                                        Text("Start Job")
+                                            .font(.system(size: 16, weight: .bold))
+                                    } else {
+                                        Image(systemName: wo.status == .completed ? "checkmark.circle.fill" : "checkmark.circle")
+                                            .font(.system(size: 16))
+                                        Text(wo.status == .completed ? "Completed" : "Complete Job")
+                                            .font(.system(size: 16, weight: .bold))
+                                    }
+                                }
+                                .foregroundColor(wo.status == .completed ? FMSTheme.alertGreen : .black)
+                                .frame(maxWidth: .infinity).padding(.vertical, 14)
+                                .background(wo.status == .completed ? FMSTheme.alertGreen.opacity(0.1) : FMSTheme.amber)
+                                .cornerRadius(12)
+                            }
+                            .disabled(wo.status == .completed)
                         }
+                        .padding(.horizontal, 16).padding(.vertical, 14)
+                        .background(colorScheme == .dark ? FMSTheme.obsidian : FMSTheme.backgroundPrimary)
                     }
-                    .padding(.horizontal, 16).padding(.vertical, 14)
-                    .background(colorScheme == .dark ? FMSTheme.obsidian : FMSTheme.backgroundPrimary)
                 }
             }
         }
         .task {
+            // Fetch vehicle for current odometer
+            do {
+                let v: Vehicle = try await SupabaseService.shared.client
+                    .from("vehicles")
+                    .select()
+                    .eq("id", value: wo.vehicleIdRaw)
+                    .single()
+                    .execute()
+                    .value
+                await MainActor.run { self.vehicle = v }
+            } catch {
+                print("Error fetching vehicle for WO detail: \(error)")
+            }
+            
             await invStore.fetchParts()
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -436,24 +579,46 @@ struct WODetailView: View {
             }
         } message: { Text("Remove \(wo.woNumber)? This cannot be undone.") }
         .alert("Complete Job", isPresented: $showingCompleteAlert) {
+            TextField("Service Odometer", text: $serviceOdometerInput)
+                .keyboardType(.numberPad)
             Button("Cancel", role: .cancel) {}
             Button("Confirm") {
                 let id = wo.id
+                let sanitized = serviceOdometerInput.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces)
+                guard let newOdo = Double(sanitized) else { return }
+                
+                // Validate: reject negative or rollbacks
+                let currentOdo = vehicle?.odometer ?? 0
+                if newOdo < 0 || newOdo < currentOdo {
+                    bannerManager.show(type: .error, message: "Odometer cannot be negative or less than current (\(Int(currentOdo)) km).")
+                    return
+                }
                 Task {
                     do {
-                        try await store.updateStatus(id, status: .completed)
+                        try await store.updateStatus(id, status: .completed, serviceOdometer: newOdo)
+                        if let onUpdate { await onUpdate() }
                         await MainActor.run {
                             withAnimation {
                                 wo.status = .completed
                                 wo.completedAt = Date()
+                                 wo.serviceOdometer = newOdo
                             }
+                        }
+                        await MainActor.run {
+                            bannerManager.show(type: .success, message: "Job completed and tracking reset.")
                         }
                     } catch {
                         print("Error completing work order: \(error)")
+                        await MainActor.run {
+                            bannerManager.show(type: .error, message: "Failed to complete job: \(error.localizedDescription)")
+                        }
                     }
                 }
             }
-        } message: { Text("Mark \(wo.woNumber) as Completed?") }
+        } message: { 
+            let plate = wo.vehicle.components(separatedBy: " · ").last ?? wo.vehicle
+            Text("Enter the current odometer reading for \(plate) to reset maintenance tracking and set status to OK.") 
+        }
     }
 }
 

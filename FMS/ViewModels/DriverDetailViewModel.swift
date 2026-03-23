@@ -208,10 +208,7 @@ public final class DriverDetailViewModel {
         plateNumber: driver.plateNumber ?? "N/A",
         chassisNumber: "CHS-\(driver.id.suffix(4))",
         manufacturer: vMfr,
-        model: vMdl,
-        fuelType: "Diesel",
-        fuelTankCapacity: 300,
-        createdAt: Date()
+        model: vMdl
       )
     }()
 

@@ -11,6 +11,7 @@ public struct MaintenanceWorkOrder: Codable, Identifiable {
     public var estimatedCost: Double?
     public var createdAt: Date?
     public var completedAt: Date?
+    public var serviceOdometer: Double?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -23,5 +24,6 @@ public struct MaintenanceWorkOrder: Codable, Identifiable {
         case estimatedCost = "estimated_cost"
         case createdAt = "created_at"
         case completedAt = "completed_at"
+        case serviceOdometer = "service_odometer"
     }
 }

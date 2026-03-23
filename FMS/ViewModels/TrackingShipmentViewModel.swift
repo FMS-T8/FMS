@@ -32,7 +32,7 @@ public class TrackingShipmentViewModel {
     
     // Formatting helpers for the UI
     public var formattedEstimatedDate: String {
-        guard let durationMin = trip?.estimatedDurationMin,
+        guard let durationMin = trip?.estimatedDurationMinutes,
               let startTime = trip?.startTime else { return "Calculating..." }
         
         let estimatedEnd = startTime.addingTimeInterval(TimeInterval(durationMin * 60))
@@ -52,7 +52,7 @@ public class TrackingShipmentViewModel {
             endLat: 12.84,
             endLng: 77.66,
             endName: "Tech Park Phase 2, Electronic City, Bengaluru",
-            estimatedDurationMin: 180,
+            estimatedDurationMinutes: 180,
             startTime: Date()
         )
         self.driver = Driver(companyID: "CMP-01", name: "David Reynolds", employeeID: "EMP-492")

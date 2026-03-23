@@ -163,17 +163,17 @@ public struct OrdersListView: View {
                 if count > 0 {
                     Text("\(count)")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(isSelected ? Color.black : .white)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
-                        .background(isSelected ? Color.white.opacity(0.3) : badgeColor)
+                        .background(isSelected ? Color.black.opacity(0.12) : badgeColor)
                         .clipShape(Capsule())
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 9)
-            .foregroundColor(isSelected ? .white : FMSTheme.textPrimary)
-            .background(isSelected ? (filter == .all ? FMSTheme.amber : badgeColor) : FMSTheme.cardBackground)
+            .foregroundColor(isSelected ? Color.black : FMSTheme.textPrimary)
+            .background(isSelected ? FMSTheme.amber : FMSTheme.cardBackground)
             .clipShape(Capsule())
             .overlay(
                 Capsule().stroke(isSelected ? Color.clear : FMSTheme.borderLight, lineWidth: 1)

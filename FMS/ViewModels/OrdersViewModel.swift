@@ -92,7 +92,7 @@ public final class OrdersViewModel {
                     .select("driver_id, vehicle_id, orders!trips_order_id_fkey!inner(requested_pickup_at)")
                     .gte("orders.requested_pickup_at", value: startStr)
                     .lt("orders.requested_pickup_at", value: endStr)
-                    .neq("status", value: "cancelled")
+                    .in("status", values: ["scheduled", "active"])
                     .execute()
                     .value
 

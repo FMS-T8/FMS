@@ -645,10 +645,10 @@ public struct VehicleDetailView: View {
     }
     
     private func tripDurationText(_ trip: Trip) -> String {
-        if let actual = trip.actualDurationMin {
+        if let actual = trip.actualDurationMinutes {
             return "\(actual) min"
         }
-        if let estimated = trip.estimatedDurationMin {
+        if let estimated = trip.estimatedDurationMinutes {
             return "\(estimated) min"
         }
         return "-- min"
@@ -771,3 +771,4 @@ enum DetailSectionTarget: String, Identifiable {
         VehicleDetailView(vehicle: vehicle)
     }
 }
+

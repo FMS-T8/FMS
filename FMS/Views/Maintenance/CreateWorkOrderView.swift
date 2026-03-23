@@ -5,6 +5,7 @@ import Supabase
 @MainActor
 struct CreateWorkOrderView: View {
     let prefillVehicle: String
+    let prefillDescription: String
     /// Callback delivers a real MaintenanceWorkOrder ready for persistence
     let onAdd: (MaintenanceWorkOrder) async throws -> Void
 
@@ -25,8 +26,9 @@ struct CreateWorkOrderView: View {
 
     private var canSubmit: Bool { !vehicle.isEmpty && !description.isEmpty }
 
-    init(prefillVehicle: String = "", onAdd: @escaping (MaintenanceWorkOrder) async throws -> Void) {
+    init(prefillVehicle: String = "", prefillDescription: String = "", onAdd: @escaping (MaintenanceWorkOrder) async throws -> Void) {
         self.prefillVehicle = prefillVehicle
+        self.prefillDescription = prefillDescription
         self.onAdd = onAdd
     }
 
@@ -54,6 +56,7 @@ struct CreateWorkOrderView: View {
                                         }
                                         .pickerStyle(.menu)
                                         .tint(colorScheme == .dark ? .white : FMSTheme.textPrimary)
+                                        .disabled(!prefillVehicle.isEmpty)
                                         Spacer()
                                     }
                                 }
@@ -178,7 +181,10 @@ struct CreateWorkOrderView: View {
                     Button("Cancel") { dismiss() }.foregroundColor(FMSTheme.textSecondary)
                 }
             }
-            .onAppear { if !prefillVehicle.isEmpty { vehicle = prefillVehicle } }
+            .onAppear { 
+                if !prefillVehicle.isEmpty { vehicle = prefillVehicle }
+                if !prefillDescription.isEmpty { description = prefillDescription }
+            }
             .task {
                 await fetchData()
             }

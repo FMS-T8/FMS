@@ -3,23 +3,28 @@ import PostgREST
 import Supabase
 
 // MARK: - WOItem (UI display model — wraps MaintenanceWorkOrder)
-struct WOItem: Identifiable {
-    var id: String { woNumber }
-    var woNumber:    String
-    var vehicleIdRaw: String
-    var vehicle:     String
-    var assignedTo:  String?
-    var description: String
-    var priority:    Priority
-    var status:      Status
-    var estimatedCost: Double?
-    var createdAt:   Date
-    var completedAt: Date?
+public struct WOItem: Identifiable {
+    public var id: String { woNumber }
+    public var woNumber:    String
+    public var vehicleIdRaw: String
+    public var vehicle:     String
+    public var assignedTo:  String?
+    public var description: String
+    public var priority:    Priority
+    public var status:      Status
+    public var estimatedCost: Double?
+    public var createdAt:   Date
+    public var completedAt: Date?
+    public var serviceOdometer: Double?
 
     // Extra for UI
-    var partsUsed: [MaintenancePartsUsed] = []
+    public var partsUsed: [MaintenancePartsUsed] = []
 
-    var createdAgo: String {
+    public var isService: Bool {
+        description.hasPrefix("[SERVICE]")
+    }
+    
+    public var createdAgo: String {
         let diff = Int(Date().timeIntervalSince(createdAt))
         if diff < 3600  { return "\(diff / 60)m ago" }
         if diff < 86400 { return "\(diff / 3600)h ago" }
@@ -29,7 +34,7 @@ struct WOItem: Identifiable {
     }
 
     // MARK: Convert from real DB model
-    init(from wo: MaintenanceWorkOrder) {
+    public init(from wo: MaintenanceWorkOrder) {
         self.woNumber     = wo.id
         self.vehicleIdRaw = wo.vehicleId ?? "Unknown"
         self.vehicle      = wo.vehicleId ?? "Unknown Vehicle"
@@ -40,10 +45,11 @@ struct WOItem: Identifiable {
         self.estimatedCost = wo.estimatedCost
         self.createdAt    = wo.createdAt ?? Date()
         self.completedAt  = wo.completedAt
+        self.serviceOdometer = wo.serviceOdometer
     }
 
     // MARK: Convert to DB model (for persistence)
-    func toMaintenanceWorkOrder() -> MaintenanceWorkOrder {
+    public func toMaintenanceWorkOrder() -> MaintenanceWorkOrder {
         MaintenanceWorkOrder(
             id:            woNumber,
             vehicleId:     vehicleIdRaw,
@@ -54,14 +60,16 @@ struct WOItem: Identifiable {
             status:        status.dbValue,
             estimatedCost: estimatedCost,
             createdAt:     createdAt,
-            completedAt:   completedAt
+            completedAt:   completedAt,
+            serviceOdometer: serviceOdometer
         )
     }
 
     // Manual memberwise init (for in-app creation without a DB round-trip)
-    init(woNumber: String, vehicleIdRaw: String, vehicle: String, assignedTo: String? = nil,
-         description: String, priority: Priority, status: Status,
-         estimatedCost: Double? = nil, createdAt: Date, completedAt: Date? = nil) {
+    public init(woNumber: String, vehicleIdRaw: String, vehicle: String, assignedTo: String? = nil,
+          description: String, priority: Priority, status: Status,
+          estimatedCost: Double? = nil, createdAt: Date, completedAt: Date? = nil,
+          serviceOdometer: Double? = nil) {
         self.woNumber     = woNumber
         self.vehicleIdRaw = vehicleIdRaw
         self.vehicle      = vehicle
@@ -72,15 +80,16 @@ struct WOItem: Identifiable {
         self.estimatedCost = estimatedCost
         self.createdAt    = createdAt
         self.completedAt  = completedAt
+        self.serviceOdometer = serviceOdometer
     }
 
     // MARK: - Enums
-    enum Priority: String, CaseIterable {
+    public enum Priority: String, CaseIterable {
         case high   = "high"
         case medium = "medium"
         case low    = "low"
 
-        var color: Color {
+        public var color: Color {
             switch self {
             case .high:   return FMSTheme.alertRed
             case .medium: return FMSTheme.alertOrange
@@ -88,7 +97,7 @@ struct WOItem: Identifiable {
             }
         }
 
-        static func from(_ raw: String?) -> Priority {
+        public static func from(_ raw: String?) -> Priority {
             switch raw?.lowercased() {
             case "high":   return .high
             case "low":    return .low
@@ -97,12 +106,12 @@ struct WOItem: Identifiable {
         }
     }
 
-    enum Status: String, CaseIterable {
+    public enum Status: String, CaseIterable {
         case pending    = "Pending"
         case inProgress = "In Progress"
         case completed  = "Completed"
 
-        var color: Color {
+        public var color: Color {
             switch self {
             case .pending:    return FMSTheme.textSecondary
             case .inProgress: return FMSTheme.alertOrange
@@ -111,7 +120,7 @@ struct WOItem: Identifiable {
         }
 
         /// Maps to DB string values
-        var dbValue: String {
+        public var dbValue: String {
             switch self {
             case .pending:    return "pending"
             case .inProgress: return "in_progress"
@@ -119,7 +128,7 @@ struct WOItem: Identifiable {
             }
         }
 
-        static func from(_ raw: String?) -> Status {
+        public static func from(_ raw: String?) -> Status {
             switch raw?.lowercased() {
             case "in_progress", "in progress": return .inProgress
             case "completed":                  return .completed
@@ -132,9 +141,9 @@ struct WOItem: Identifiable {
 // MARK: - Work Order Store
 @MainActor
 @Observable
-class WorkOrderStore {
-    var orders: [WOItem] = []
-    var isLoading: Bool = false
+public class WorkOrderStore {
+    public var orders: [WOItem] = []
+    public var isLoading: Bool = false
 
     private var supabaseDecoder: JSONDecoder {
         let decoder = JSONDecoder()
@@ -159,7 +168,7 @@ class WorkOrderStore {
         return decoder
     }
 
-    func fetchWorkOrders() async {
+    public func fetchWorkOrders() async {
         isLoading = true
         defer { isLoading = false }
         
@@ -205,7 +214,7 @@ class WorkOrderStore {
             
             self.orders = mappedItems
         } catch {
-            print("Error fetching work orders or parts or vehicles: \(error)")
+            print("❌ WORKORDER_STORE_ERROR: \(error)")
         }
     }
 
@@ -216,7 +225,7 @@ class WorkOrderStore {
     }
 
     // Accept a real MaintenanceWorkOrder → convert + insert
-    func add(_ wo: MaintenanceWorkOrder) async throws -> MaintenanceWorkOrder {
+    public func add(_ wo: MaintenanceWorkOrder) async throws -> MaintenanceWorkOrder {
         let response = try await SupabaseService.shared.client
             .from("maintenance_work_orders")
             .insert(wo)
@@ -236,7 +245,7 @@ class WorkOrderStore {
     }
 
     // Convenience: add from a WOItem directly (used internally / defect linking)
-    func addItem(_ item: WOItem) async throws -> MaintenanceWorkOrder {
+    public func addItem(_ item: WOItem) async throws -> MaintenanceWorkOrder {
         let dbModel = item.toMaintenanceWorkOrder()
         let response = try await SupabaseService.shared.client
             .from("maintenance_work_orders")
@@ -254,11 +263,27 @@ class WorkOrderStore {
         return inserted
     }
 
-    func updateStatus(_ id: String, status: WOItem.Status) async throws {
+    public func updateStatus(_ id: String, status: WOItem.Status, serviceOdometer: Double? = nil) async throws {
         guard let idx = orders.firstIndex(where: { $0.id == id }) else { return }
         var updatedItem = orders[idx]
         updatedItem.status = status
         updatedItem.completedAt = (status == .completed) ? Date() : nil
+        if let odo = serviceOdometer {
+            updatedItem.serviceOdometer = odo
+        } else if status == .completed {
+            // Keep existing if not provided
+        } else if status != .completed {
+             updatedItem.serviceOdometer = nil
+        }
+        
+        if status == .completed && updatedItem.isService {
+            // Require a concrete odometer for completion of service orders
+            guard let odo = serviceOdometer else {
+                throw NSError(domain: "WorkOrderStore", code: 400, userInfo: [NSLocalizedDescriptionKey: "Service odometer is required to complete this job."])
+            }
+            updatedItem.serviceOdometer = odo
+        }
+        
         let dbModel = updatedItem.toMaintenanceWorkOrder()
         
         try await SupabaseService.shared.client
@@ -267,13 +292,44 @@ class WorkOrderStore {
             .eq("id", value: dbModel.id)
             .execute()
         
+        if status == .completed && updatedItem.isService {
+            // Reset vehicle odometer record
+            // We use the odometer provided at completion, but we don't save it to the WO table
+            try await updateVehicleServiceRecords(vehicleId: updatedItem.vehicleIdRaw, odometer: serviceOdometer)
+        }
+        
         if let freshIdx = self.orders.firstIndex(where: { $0.id == id }) {
             self.orders[freshIdx].status = status
             self.orders[freshIdx].completedAt = updatedItem.completedAt
+            self.orders[freshIdx].serviceOdometer = updatedItem.serviceOdometer
         }
     }
 
-    func update(_ wo: WOItem) async throws {
+
+
+    private struct VehicleServiceUpdate: Encodable {
+        let last_service_date: String
+        let last_service_odometer: Double?
+        let odometer: Double?
+        let status: String
+    }
+    
+    private func updateVehicleServiceRecords(vehicleId: String, odometer: Double?) async throws {
+        let updateData = VehicleServiceUpdate(
+            last_service_date: ISO8601DateFormatter().string(from: Date()),
+            last_service_odometer: odometer,
+            odometer: odometer,
+            status: "active"
+        )
+        
+        try await SupabaseService.shared.client
+            .from("vehicles")
+            .update(updateData)
+            .eq("id", value: vehicleId)
+            .execute()
+    }
+
+    public func update(_ wo: WOItem) async throws {
         let dbModel = wo.toMaintenanceWorkOrder()
         try await SupabaseService.shared.client
             .from("maintenance_work_orders")
@@ -285,7 +341,7 @@ class WorkOrderStore {
         }
     }
 
-    func delete(id: String) async throws {
+    public func delete(id: String) async throws {
         guard let item = orders.first(where: { $0.id == id }) else { return }
         try await SupabaseService.shared.client
             .from("maintenance_work_orders")
@@ -295,7 +351,7 @@ class WorkOrderStore {
         self.orders.removeAll { $0.id == id }
     }
 
-    func addPartUsed(_ part: MaintenancePartsUsed, to woId: String) async throws {
+    public func addPartUsed(_ part: MaintenancePartsUsed, to woId: String) async throws {
         try await SupabaseService.shared.client
             .from("maintenance_parts_used")
             .insert(part)
@@ -306,7 +362,7 @@ class WorkOrderStore {
         }
     }
 
-    func removePartUsed(_ partId: String, from woId: String) async throws {
+    public func removePartUsed(_ partId: String, from woId: String) async throws {
         try await SupabaseService.shared.client
             .from("maintenance_parts_used")
             .delete()
@@ -318,7 +374,7 @@ class WorkOrderStore {
         }
     }
 
-    var pendingCount:    Int { orders.filter { $0.status == .pending }.count }
-    var inProgressCount: Int { orders.filter { $0.status == .inProgress }.count }
-    var completedCount:  Int { orders.filter { $0.status == .completed }.count }
+    public var pendingCount:    Int { orders.filter { $0.status == .pending }.count }
+    public var inProgressCount: Int { orders.filter { $0.status == .inProgress }.count }
+    public var completedCount:  Int { orders.filter { $0.status == .completed }.count }
 }
