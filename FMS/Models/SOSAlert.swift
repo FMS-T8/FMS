@@ -24,15 +24,6 @@ public struct SOSAlert: Codable, Identifiable {
     public var acknowledgedAt: Date?
     public var resolvedAt: Date?
 
-    // Joined fields (from Supabase select with drivers/vehicles)
-    public var drivers: SOSDriverJoin?
-    public var vehicles: SOSVehicleJoin?
-
-    // Convenience accessors
-    public var driverName: String? { drivers?.name }
-    public var driverPhone: String? { drivers?.phone }
-    public var vehiclePlate: String? { vehicles?.plateNumber }
-
     public init(
         id: String = UUID().uuidString,
         driverId: String,
@@ -71,23 +62,6 @@ public struct SOSAlert: Codable, Identifiable {
         case status
         case acknowledgedAt = "acknowledged_at"
         case resolvedAt = "resolved_at"
-        case drivers
-        case vehicles
-    }
-}
-
-// MARK: - Join Models
-
-public struct SOSDriverJoin: Codable {
-    public var name: String?
-    public var phone: String?
-}
-
-public struct SOSVehicleJoin: Codable {
-    public var plateNumber: String?
-
-    enum CodingKeys: String, CodingKey {
-        case plateNumber = "plate_number"
     }
 }
 
