@@ -37,8 +37,6 @@ public struct FleetManagerDashboardView: View {
 // MARK: - Home Tab Content
 struct FleetManagerHomeTab: View {
     @State private var navigateToLiveFleet = false
-    @State private var navigateToPreTrip = false
-    @State private var navigateToPostTrip = false
     @State private var navigateToProfile = false
     @State private var navigateToOrders = false
     @State private var activeSOSAlerts: [SOSAlert] = []
@@ -86,9 +84,6 @@ struct FleetManagerHomeTab: View {
                             navigateToOrders = true
                         }
                     )
-
-                    // Inspection Actions
-                    inspectionSection
 
                     // Recent Alerts Section
                     alertsSection
@@ -253,29 +248,6 @@ struct FleetManagerHomeTab: View {
                     type: alert.type
                 )
             }
-        }
-    }
-
-    // MARK: - Inspection Section
-    private var inspectionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Vehicle Inspections")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(FMSTheme.textPrimary)
-
-            QuickActionCard(
-                icon: "checkmark.shield.fill",
-                title: "Pre-trip Inspection",
-                subtitle: "Complete before starting a route",
-                action: { navigateToPreTrip = true }
-            )
-
-            QuickActionCard(
-                icon: "flag.checkered",
-                title: "Post-trip Inspection",
-                subtitle: "Log vehicle condition after route",
-                action: { navigateToPostTrip = true }
-            )
         }
     }
 
