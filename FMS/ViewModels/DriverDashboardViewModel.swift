@@ -49,6 +49,7 @@ public final class DriverDashboardViewModel {
     // MARK: - Services
     public let locationManager: LocationManager
     private let pingService: LocationPingService
+    private let dataSource: DriverDashboardDataSource
 
     // MARK: - UI State
     public var isLoading: Bool = false
@@ -302,6 +303,7 @@ public final class DriverDashboardViewModel {
     }
 
     // MARK: - Issue Reporting
+    // MARK: - Issue Reporting
     public func submitIssueReport(_ report: IssueReport) async throws {
         struct DefectCreatePayload: Encodable {
             let vehicle_id: String?
@@ -311,49 +313,50 @@ public final class DriverDashboardViewModel {
             let category: String
             let priority: String
             let status: String
+            let image_urls: [String]?
         }
 
-let payload = DefectCreatePayload(
-    vehicle_id: report.vehicleId,
-    reported_by: report.driverId,
-    title: "\(report.category.rawValue) Issue",
-    description: report.description,
-    category: report.category.rawValue.lowercased(),
-    priority: report.severity.rawValue.lowercased(),
-    status: "open"
-)
+        // Upload photos first
+        var uploadedUrls: [String] = []
+        if let photos = report.photoData, !photos.isEmpty {
+            let defectId = UUID().uuidString
+            for (index, imageData) in photos.enumerated() {
+                let path = "defects/\(defectId)/photo-\(index).jpg"
 
-// Upload photos
-var uploadedUrls: [String] = []
-if let photos = report.photoData, !photos.isEmpty {
-    let defectId = UUID().uuidString
-    for (index, imageData) in photos.enumerated() {
-        let path = "defects/\(defectId)/photo-\(index).jpg"
+                try await SupabaseService.shared.client.storage
+                    .from("report-issue-driver")
+                    .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg"))
 
-        try await SupabaseService.shared.client.storage
-            .from("report-issue-driver")
-            .upload(path, data: imageData, options: FileOptions(contentType: "image/jpeg"))
+                let publicURL = try SupabaseService.shared.client.storage
+                    .from("report-issue-driver")
+                    .getPublicURL(path: path)
 
-        let publicURL = try SupabaseService.shared.client.storage
-            .from("report-issue-driver")
-            .getPublicURL(path: path)
+                uploadedUrls.append(publicURL.absoluteString)
+            }
+        }
 
-        uploadedUrls.append(publicURL.absoluteString)
-    }
-}
+        let payload = DefectCreatePayload(
+            vehicle_id: report.vehicleId,
+            reported_by: report.driverId,
+            title: "\(report.category.rawValue) Issue",
+            description: report.description,
+            category: report.category.rawValue.lowercased(),
+            priority: report.severity.rawValue.lowercased(),
+            status: "open",
+            image_urls: uploadedUrls.isEmpty ? nil : uploadedUrls
+        )
 
-// Insert into DB
-try await SupabaseService.shared.client
-    .from("defects")
-    .insert(payload)
-    .execute()
+        // Insert into DB
+        try await SupabaseService.shared.client
+            .from("defects")
+            .insert(payload)
+            .execute()
 
-// Trigger alerts
-SmartAlertService.shared.handleNewIssue(report)
+        // Trigger alerts
+        SmartAlertService.shared.handleNewIssue(report)
 
-// Update UI
-self.issueReports.append(report) 
-       
+        // Update UI
+        self.issueReports.append(report)
     }
 
     /// Returns the string only if it's a valid UUID, otherwise nil.
@@ -362,19 +365,7 @@ self.issueReports.append(report)
         return string
     }
 
-    // MARK: - Init
 
-    private let dataSource: DriverDashboardDataSource
-
-    public init(dataSource: DriverDashboardDataSource = MockDriverDashboardDataSource()) {
-        self.dataSource = dataSource
-        self.driver = dataSource.fetchCurrentDriver()
-        self.assignedVehicle = dataSource.fetchAssignedVehicle()
-        self.activeTrip = dataSource.fetchActiveTrip()
-        self.upcomingTrips = dataSource.fetchUpcomingTrips()
-        self.completedTrips = dataSource.fetchCompletedTrips()
-        self.todayStats = dataSource.fetchTodayStats()
-    }
 }
 
 // MARK: - Protocol
@@ -437,7 +428,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
             endLng: 73.8567,
             endName: "Pune Distribution Center",
             distanceKm: 148,
-            estimatedDurationMin: 210,
+            estimatedDurationMinutes: 210,
             status: "active",
             startTime: Date().addingTimeInterval(-2 * 3600)
         )
@@ -460,7 +451,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
                 startName: "Mumbai Warehouse",
                 endLat: 19.9975, endLng: 73.7898,
                 endName: "Nashik Hub",
-                distanceKm: 167, estimatedDurationMin: 250,
+                distanceKm: 167, estimatedDurationMinutes: 250,
                 status: "scheduled",
                 startTime: calendar.date(bySettingHour: 8, minute: 0, second: 0, of: tomorrow)
             ),
@@ -471,7 +462,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
                 startName: "Mumbai Warehouse",
                 endLat: 16.7050, endLng: 74.2433,
                 endName: "Kolhapur Depot",
-                distanceKm: 230, estimatedDurationMin: 330,
+                distanceKm: 230, estimatedDurationMinutes: 330,
                 status: "scheduled",
                 startTime: calendar.date(bySettingHour: 7, minute: 30, second: 0, of: dayAfter)
             ),
@@ -482,7 +473,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
                 startName: "Mumbai Warehouse",
                 endLat: 19.8762, endLng: 75.3433,
                 endName: "Aurangabad Center",
-                distanceKm: 335, estimatedDurationMin: 420,
+                distanceKm: 335, estimatedDurationMinutes: 420,
                 status: "scheduled",
                 startTime: calendar.date(bySettingHour: 6, minute: 0, second: 0, of: threeDays)
             ),
@@ -493,7 +484,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
                 startName: "Mumbai Warehouse",
                 endLat: 21.1458, endLng: 79.0882,
                 endName: "Nagpur Distribution Hub",
-                distanceKm: 810, estimatedDurationMin: 720,
+                distanceKm: 810, estimatedDurationMinutes: 720,
                 status: "scheduled",
                 startTime: calendar.date(bySettingHour: 5, minute: 0, second: 0, of: fourDays)
             ),
@@ -504,7 +495,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
                 startName: "Nashik Hub",
                 endLat: 21.1702, endLng: 72.8311,
                 endName: "Surat Terminal",
-                distanceKm: 260, estimatedDurationMin: 310,
+                distanceKm: 260, estimatedDurationMinutes: 310,
                 status: "scheduled",
                 startTime: calendar.date(bySettingHour: 7, minute: 0, second: 0, of: fiveDays)
             ),
@@ -515,7 +506,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
                 startName: "Pune Distribution Center",
                 endLat: 15.2993, endLng: 74.1240,
                 endName: "Goa Warehouse",
-                distanceKm: 450, estimatedDurationMin: 480,
+                distanceKm: 450, estimatedDurationMinutes: 480,
                 status: "scheduled",
                 startTime: calendar.date(bySettingHour: 6, minute: 30, second: 0, of: sixDays)
             ),
@@ -530,7 +521,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
             Trip(
                 id: "trip-095", vehicleId: "0254c00e-1aa5-430c-8069-4e0df7acaf9a", driverId: "drv-8821",
                 startName: "Mumbai Warehouse", endName: "Pune Distribution Center",
-                distanceKm: 148, actualDurationMin: 200,
+                distanceKm: 148, actualDurationMinutes: 200,
                 status: "completed",
                 startTime: calendar.date(byAdding: .day, value: -1, to: today)!.addingTimeInterval(8 * 3600),
                 endTime: calendar.date(byAdding: .day, value: -1, to: today)!.addingTimeInterval(11.33 * 3600)
@@ -538,7 +529,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
             Trip(
                 id: "trip-091", vehicleId: "0254c00e-1aa5-430c-8069-4e0df7acaf9a", driverId: "drv-8821",
                 startName: "Pune Distribution Center", endName: "Mumbai Warehouse",
-                distanceKm: 150, actualDurationMin: 225,
+                distanceKm: 150, actualDurationMinutes: 225,
                 status: "completed",
                 startTime: calendar.date(byAdding: .day, value: -2, to: today)!.addingTimeInterval(9 * 3600),
                 endTime: calendar.date(byAdding: .day, value: -2, to: today)!.addingTimeInterval(12.75 * 3600)
@@ -546,7 +537,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
             Trip(
                 id: "trip-088", vehicleId: "0254c00e-1aa5-430c-8069-4e0df7acaf9a", driverId: "drv-8821",
                 startName: "Mumbai Warehouse", endName: "Nashik Hub",
-                distanceKm: 167, actualDurationMin: 250,
+                distanceKm: 167, actualDurationMinutes: 250,
                 status: "completed",
                 startTime: calendar.date(byAdding: .day, value: -3, to: today)!.addingTimeInterval(7 * 3600),
                 endTime: calendar.date(byAdding: .day, value: -3, to: today)!.addingTimeInterval(11.17 * 3600)
@@ -554,7 +545,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
             Trip(
                 id: "trip-085", vehicleId: "0254c00e-1aa5-430c-8069-4e0df7acaf9a", driverId: "drv-8821",
                 startName: "Nashik Hub", endName: "Mumbai Warehouse",
-                distanceKm: 170, actualDurationMin: 270,
+                distanceKm: 170, actualDurationMinutes: 270,
                 status: "completed",
                 startTime: calendar.date(byAdding: .day, value: -4, to: today)!.addingTimeInterval(8 * 3600),
                 endTime: calendar.date(byAdding: .day, value: -4, to: today)!.addingTimeInterval(12.5 * 3600)
@@ -562,7 +553,7 @@ public final class MockDriverDashboardDataSource: DriverDashboardDataSource {
             Trip(
                 id: "trip-080", vehicleId: "0254c00e-1aa5-430c-8069-4e0df7acaf9a", driverId: "drv-8821",
                 startName: "Mumbai Warehouse", endName: "Surat Terminal",
-                distanceKm: 284, actualDurationMin: 375,
+                distanceKm: 284, actualDurationMinutes: 375,
                 status: "completed",
                 startTime: calendar.date(byAdding: .day, value: -7, to: today)!.addingTimeInterval(6 * 3600),
                 endTime: calendar.date(byAdding: .day, value: -7, to: today)!.addingTimeInterval(12.25 * 3600)
