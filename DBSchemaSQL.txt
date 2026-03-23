@@ -270,10 +270,10 @@ CREATE TABLE public.trips (
   order_id uuid,
   CONSTRAINT trips_pkey PRIMARY KEY (id),
   CONSTRAINT trips_vehicle_id_fkey FOREIGN KEY (vehicle_id) REFERENCES public.vehicles(id),
-  CONSTRAINT trips_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.users(id),
   CONSTRAINT trips_assignment_id_fkey FOREIGN KEY (assignment_id) REFERENCES public.driver_vehicle_assignments(id),
   CONSTRAINT trips_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
-  CONSTRAINT trips_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id)
+  CONSTRAINT trips_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
+  CONSTRAINT trips_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.users (
   id uuid NOT NULL,

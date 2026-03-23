@@ -46,15 +46,15 @@ public final class DriverDashboardViewModel {
     // MARK: - Stats
     public var todayStats: DriverDayStats
 
+    // MARK: - Services
+    public let locationManager: LocationManager
+    private let pingService: LocationPingService
+
     // MARK: - UI State
     public var isLoading: Bool = false
     public var searchText: String = ""
     public var selectedTripFilter: TripFilterOption = .all
     public var selectedSegment: TripSegment = .upcoming
-    // issueReports holds IssueReport values (the local domain model, not DefectCreatePayload).
-    // IssueReportView reads this array indirectly via the viewModel — no view currently
-    // binds directly to issueReports, but it's observable so any future observer will
-    // react immediately when a new report is appended here after a successful insert.
     public var issueReports: [IssueReport] = []
     public var errorMessage: String? = nil
 
@@ -112,12 +112,16 @@ public final class DriverDashboardViewModel {
     public init() {
         self.driver = DriverDisplayItem(id: "", name: "Loading...", employeeID: "", phone: "", availabilityStatus: .offDuty)
         self.todayStats = DriverDayStats(tripsCompleted: 0, totalDistanceKm: 0, drivingTimeMinutes: 0)
+        let lm = LocationManager()
+        self.locationManager = lm
+        self.pingService = LocationPingService(locationManager: lm)
     }
 
     // MARK: - Live Data Fetch
     public func fetchLiveDashboardData() async {
         self.isLoading = true
         self.errorMessage = nil
+        locationManager.requestWhenInUsePermission()
         do {
             let session = try await SupabaseService.shared.client.auth.session
             let currentUserId = session.user.id.uuidString
@@ -168,6 +172,13 @@ public final class DriverDashboardViewModel {
                 .filter { completedStatuses.contains($0.status?.lowercased() ?? "") }
                 .sorted { ($0.endTime ?? Date.distantPast) > ($1.endTime ?? Date.distantPast) }
 
+            // Resume pinging if there is an active trip on app launch
+            if let active = self.activeTrip {
+                print("[DriverDashboard] Resuming active trip \(active.id) on launch — starting ping service")
+                locationManager.startUpdating()
+                pingService.start(tripId: active.id)
+            }
+
             if let vehicleId = activeTrip?.vehicleId ?? upcomingTrips.first?.vehicleId {
                 let vehicles: [Vehicle] = try await SupabaseService.shared.client
                     .from("vehicles")
@@ -194,42 +205,71 @@ public final class DriverDashboardViewModel {
         started.startTime = Date()
         self.activeTrip = started
         self.upcomingTrips.removeAll { $0.id == trip.id }
-        self.driver.availabilityStatus = .onTrip
 
         Task {
             do {
-                struct TripUpdate: Encodable { let status: String }
+                struct TripUpdate: Encodable {
+                    let status: String
+                    let start_time: Date
+                }
+                let update = TripUpdate(status: "active", start_time: started.startTime ?? Date())
                 try await SupabaseService.shared.client
-                    .from("trips").update(TripUpdate(status: "active")).eq("id", value: trip.id).execute()
+                    .from("trips").update(update).eq("id", value: trip.id).execute()
+
+                print("[DriverDashboard] Trip persisted as active — starting location updates and ping service")
+                locationManager.startUpdating()
+                pingService.start(tripId: trip.id)
 
                 struct UserUpdate: Encodable { let operational_status: String }
                 try await SupabaseService.shared.client
                     .from("users").update(UserUpdate(operational_status: "on_trip")).eq("id", value: driver.id).execute()
+                
+                self.driver.availabilityStatus = .onTrip
 
                 if let orderId = trip.orderId {
                     struct OrderUpdate: Encodable { let status: String }
                     try await SupabaseService.shared.client
                         .from("orders").update(OrderUpdate(status: "in_transit")).eq("id", value: orderId).execute()
                 }
-            } catch { print("Failed to start trip in DB: \(error)") }
+            } catch {
+                print("Failed to start trip in DB: \(error)")
+                locationManager.stopUpdating()
+                pingService.stop()
+            }
         }
     }
 
     public func endTrip() {
         guard var trip = activeTrip else { return }
 
-        trip.status = "completed"
         trip.endTime = Date()
         self.completedTrips.insert(trip, at: 0)
         self.activeTrip = nil
         self.todayStats.tripsCompleted += 1
-        self.driver.availabilityStatus = .available
 
         Task {
             do {
-                struct TripUpdate: Encodable { let status: String }
+                let endTime = trip.endTime ?? Date()
+                let duration: Int? = if let start = trip.startTime {
+                    Int(endTime.timeIntervalSince(start) / 60)
+                } else { nil }
+
+                struct TripUpdate: Encodable {
+                    let status: String
+                    let end_time: Date
+                    let actual_duration_minutes: Int?
+                }
+                let update = TripUpdate(
+                    status: "completed",
+                    end_time: endTime,
+                    actual_duration_minutes: duration
+                )
                 try await SupabaseService.shared.client
-                    .from("trips").update(TripUpdate(status: "completed")).eq("id", value: trip.id).execute()
+                    .from("trips").update(update).eq("id", value: trip.id).execute()
+
+                print("[DriverDashboard] Trip persisted as completed — stopping ping service")
+                pingService.stop()
+                locationManager.stopUpdating()
 
                 if let orderId = trip.orderId {
                     struct OrderUpdate: Encodable { let status: String }
@@ -240,8 +280,16 @@ public final class DriverDashboardViewModel {
                 struct UserUpdate: Encodable { let operational_status: String }
                 try await SupabaseService.shared.client
                     .from("users").update(UserUpdate(operational_status: "available")).eq("id", value: driver.id).execute()
+                
+                // Update local status after successful backend write
+                self.driver.availabilityStatus = .available
 
-            } catch { print("Failed to complete trip in DB: \(error)") }
+            } catch {
+                print("Failed to complete trip in DB: \(error)")
+                // If fail, we still likely want to stop tracking as the driver thinks it's ended
+                pingService.stop()
+                locationManager.stopUpdating()
+            }
         }
     }
 

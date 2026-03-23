@@ -142,8 +142,8 @@ struct DriverTripDetailView: View {
                 infoRow(label: "End Time", value: formatDateTime(end))
             }
 
-            if let duration = trip.actualDurationMin ?? trip.estimatedDurationMin {
-                let label = trip.actualDurationMin != nil ? "Duration" : "Est. Duration"
+            if let duration = trip.actualDurationMinutes ?? trip.estimatedDurationMinutes {
+                let label = trip.actualDurationMinutes != nil ? "Duration" : "Est. Duration"
                 infoRow(label: label, value: duration.formattedDuration)
             }
         }

@@ -25,9 +25,18 @@ public struct OrderDetailView: View {
     @State private var isMapExpanded: Bool = false
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var showingAssignmentSheet = false
+    @State private var showLiveTrack = false
 
+    @State private var currentOrderStatus: String? = nil
     @State private var assignmentDetails: OrderAssignmentDetails? = nil
     @State private var isFetchingAssignment = false
+    @State private var tripId: String? = nil
+    
+    // Live tracking state
+    @State private var driverCoordinate: CLLocationCoordinate2D? = nil
+    @State private var lastUpdatedAt: Date? = nil
+    @State private var gpsPollTimer: Timer? = nil
+    private let pollInterval: TimeInterval = 5
     
     private let markerLabels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
     
@@ -76,30 +85,55 @@ public struct OrderDetailView: View {
             VStack(spacing: 20) {
                 // MARK: - Map Preview
                 if allCoordinates.count >= 2 {
-                    Button(action: { isMapExpanded = true }) {
+                    ZStack(alignment: .topTrailing) {
                         mapContent
                             .frame(height: 220)
-                            .cornerRadius(16)
-                            .padding(.horizontal, 16)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
                             .overlay(
-                                VStack {
-                                    Spacer()
-                                    HStack {
-                                        Spacer()
-                                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(.black)
-                                            .padding(8)
-                                            .background(Color.white.opacity(0.9))
-                                            .clipShape(Circle())
-                                            .shadow(color: .black.opacity(0.15), radius: 4)
-                                            .padding(24)
-                                    }
-                                }
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(FMSTheme.borderLight, lineWidth: 1)
                             )
+                            .padding(.horizontal, 16)
                             .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+
+                        // Live Badge Overlay
+                        if driverCoordinate != nil {
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 8, height: 8)
+                                Text("LIVE")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.green)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.ultraThinMaterial)
+                            .cornerRadius(8)
+                            .padding(12)
+                            .transition(.opacity)
+                            .offset(x: -16, y: 0) // Adjust to be inside the padding
+                        }
+
+                        Button(action: { isMapExpanded = true }) {
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.black)
+                                        .padding(8)
+                                        .background(Color.white.opacity(0.9))
+                                        .clipShape(Circle())
+                                        .shadow(color: .black.opacity(0.15), radius: 4)
+                                        .padding(24)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16) // Apply padding to the button's interactive area
                     }
-                    .buttonStyle(.plain)
                 }
                 
                 // MARK: - Estimates
@@ -279,7 +313,8 @@ public struct OrderDetailView: View {
                 .background(FMSTheme.cardBackground)
                 .cornerRadius(16)
                 .padding(.horizontal, 16)
-                
+
+
                 // MARK: - Customer & Cargo Info
                 VStack(spacing: 0) {
                     detailRow(title: "Customer", value: order.customerName, icon: "person.fill")
@@ -327,24 +362,13 @@ public struct OrderDetailView: View {
                 .cornerRadius(16)
                 .padding(.horizontal, 16)
                 
-                // MARK: - Action Button
-                if order.isPending && assignmentDetails == nil {
-                    Button(action: { showingAssignmentSheet = true }) {
-                        Text("Assign Trip to Driver")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(FMSTheme.backgroundPrimary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(FMSTheme.amber)
-                            .cornerRadius(12)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-                }
             }
             .padding(.vertical, 20)
         }
         .background(FMSTheme.backgroundPrimary.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            bottomStickyButton
+        }
         .navigationTitle(order.orderNumber ?? "Order Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
@@ -352,6 +376,8 @@ public struct OrderDetailView: View {
             await fetchRoutes()
             await fetchAssignmentDetails()
         }
+        .onAppear { startGPSPollTimer() }
+        .onDisappear { stopGPSPollTimer() }
         .onChange(of: showingAssignmentSheet) { _, isShowing in
             if !isShowing { Task { await fetchAssignmentDetails() } }
         }
@@ -377,6 +403,58 @@ public struct OrderDetailView: View {
         }
     }
     
+    @ViewBuilder
+    private var bottomStickyButton: some View {
+        let status = currentOrderStatus?.lowercased() ?? order.status?.lowercased()
+        let isOngoing = (status == "dispatched" || status == "in_transit")
+        let isPending = (status == "pending" && assignmentDetails == nil)
+        
+        if (isOngoing && tripId != nil) || isPending {
+            VStack(spacing: 0) {
+                Divider()
+                    .background(FMSTheme.borderLight)
+                
+                VStack(spacing: 12) {
+                    if isOngoing, let tId = tripId {
+                        NavigationLink(destination: LiveTrackView(order: order, tripId: tId)) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "location.fill")
+                                    .font(.system(size: 15, weight: .bold))
+                                Text("Track Driver Live")
+                                    .font(.system(size: 16, weight: .bold))
+                            }
+                            .foregroundColor(FMSTheme.obsidian)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(FMSTheme.amber)
+                            .cornerRadius(14)
+                            .shadow(color: FMSTheme.amber.opacity(0.3), radius: 8, y: 4)
+                        }
+                    } else if isPending {
+                        Button(action: { showingAssignmentSheet = true }) {
+                            Text("Assign Trip to Driver")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(FMSTheme.backgroundPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(FMSTheme.amber)
+                                .cornerRadius(14)
+                                .shadow(color: FMSTheme.amber.opacity(0.3), radius: 8, y: 4)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 12) // Plus safe area
+                .background(
+                    Rectangle()
+                        .fill(.thinMaterial)
+                        .ignoresSafeArea(edges: .bottom)
+                )
+            }
+        }
+    }
+    
     private var mapContent: some View {
         Map(position: $cameraPosition) {
             ForEach(Array(routeSegments.enumerated()), id: \.offset) { index, route in
@@ -395,6 +473,24 @@ public struct OrderDetailView: View {
                         .clipShape(Circle())
                         .overlay(Circle().stroke(Color.white, lineWidth: 2))
                         .shadow(radius: 3)
+                }
+            }
+            
+            // Live Driver Position
+            if let coord = driverCoordinate {
+                Annotation("Driver", coordinate: coord) {
+                    ZStack {
+                        Circle()
+                            .fill(FMSTheme.amber.opacity(0.3))
+                            .frame(width: 32, height: 32)
+                        Circle()
+                            .fill(FMSTheme.amber)
+                            .frame(width: 18, height: 18)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                        Image(systemName: "truck.box.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(FMSTheme.obsidian)
+                    }
                 }
             }
         }
@@ -488,15 +584,29 @@ public struct OrderDetailView: View {
     private func fetchAssignmentDetails() async {
         await MainActor.run { isFetchingAssignment = true }
         do {
-            struct TripQuery: Decodable { let driver_id: String?; let vehicle_id: String? }
+            // Refresh order status to handle staleness
+            struct OrderStatusQuery: Decodable { let status: String? }
+            let orderResult: [OrderStatusQuery] = try await SupabaseService.shared.client
+                .from("orders")
+                .select("status")
+                .eq("id", value: order.id)
+                .execute()
+                .value
+            
+            await MainActor.run { self.currentOrderStatus = orderResult.first?.status ?? order.status }
+
+            struct TripQuery: Decodable { let id: String; let driver_id: String?; let vehicle_id: String? }
             let trips: [TripQuery] = try await SupabaseService.shared.client
                 .from("trips")
-                .select("driver_id, vehicle_id")
+                .select("id, driver_id, vehicle_id")
                 .eq("order_id", value: order.id)
                 .execute()
                 .value
             
             if let trip = trips.first, let dId = trip.driver_id, let vId = trip.vehicle_id {
+                await MainActor.run { self.tripId = trip.id }
+                print("[OrderDetail] Found tripId=\(trip.id) for order \(order.id), status=\(self.currentOrderStatus ?? "nil")")
+
                 struct DriverQuery: Decodable { let name: String }
                 let drivers: [DriverQuery] = try await SupabaseService.shared.client
                     .from("users")
@@ -523,9 +633,61 @@ public struct OrderDetailView: View {
                 }
             }
         } catch {
-            print("Failed to fetch assignment details: \(error)")
+            print("Error fetching assignment details: \(error)")
         }
         await MainActor.run { isFetchingAssignment = false }
+    }
+    
+    // MARK: - Live Polling (Timer-based for reliability)
+    private func startGPSPollTimer() {
+        stopGPSPollTimer()
+        print("[OrderDetail] ⏱️ Starting GPS poll timer")
+        // Fetch immediately once
+        Task { await fetchLatestPing() }
+        gpsPollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { _ in
+            Task { @MainActor in
+                await self.fetchLatestPing()
+            }
+        }
+    }
+
+    private func stopGPSPollTimer() {
+        gpsPollTimer?.invalidate()
+        gpsPollTimer = nil
+    }
+
+    @MainActor
+    private func fetchLatestPing() async {
+        guard let tId = tripId else { return }
+        do {
+            struct GPSRow: Decodable {
+                let lat: Double
+                let lng: Double
+                let recorded_at: Date
+            }
+
+            let rows: [GPSRow] = try await SupabaseService.shared.client
+                .from("trip_gps_logs")
+                .select("lat, lng, recorded_at")
+                .eq("trip_id", value: tId)
+                .order("recorded_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+
+            if let latest = rows.first {
+                print("[OrderDetail] 📍 GPS ping: lat=\(latest.lat), lng=\(latest.lng)")
+                let coord = CLLocationCoordinate2D(latitude: latest.lat, longitude: latest.lng)
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    self.driverCoordinate = coord
+                }
+                self.lastUpdatedAt = Date()
+            }
+        } catch {
+            let nsError = error as NSError
+            if nsError.domain == NSURLErrorDomain && nsError.code == -999 { return }
+            print("[OrderDetail] ❌ GPS poll failed: \(error.localizedDescription)")
+        }
     }
 }
 

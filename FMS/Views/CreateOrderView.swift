@@ -148,6 +148,41 @@ public struct CreateOrderView: View {
     private var trimmedOrigin: String { originName.trimmingCharacters(in: .whitespaces) }
     private var trimmedDestination: String { destinationName.trimmingCharacters(in: .whitespaces) }
     private var isSameLocation: Bool { !trimmedOrigin.isEmpty && !trimmedDestination.isEmpty && trimmedOrigin.lowercased() == trimmedDestination.lowercased() }
+    private var geofencePoints: [GeofenceMapPoint] {
+        var points: [GeofenceMapPoint] = []
+
+        if let originLat, let originLng {
+            points.append(
+                GeofenceMapPoint(
+                    kind: .pickup,
+                    name: originName.isEmpty ? "Pickup" : originName,
+                    coordinate: CLLocationCoordinate2D(latitude: originLat, longitude: originLng)
+                )
+            )
+        }
+
+        for (index, waypoint) in waypoints.enumerated() {
+            points.append(
+                GeofenceMapPoint(
+                    kind: .stop(index: index),
+                    name: waypoint.name,
+                    coordinate: CLLocationCoordinate2D(latitude: waypoint.lat, longitude: waypoint.lng)
+                )
+            )
+        }
+
+        if let destinationLat, let destinationLng {
+            points.append(
+                GeofenceMapPoint(
+                    kind: .destination,
+                    name: destinationName.isEmpty ? "Destination" : destinationName,
+                    coordinate: CLLocationCoordinate2D(latitude: destinationLat, longitude: destinationLng)
+                )
+            )
+        }
+
+        return points
+    }
     
     private var isFormValid: Bool {
         let baseValid = !customerName.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -199,6 +234,12 @@ public struct CreateOrderView: View {
                     locationPickerRow(title: "Destination *", placeholder: "Search drop-off location", icon: "mappin.and.ellipse", value: destinationName) { showingDestinationSearch = true }
 
                     if isSameLocation { Label("Origin and destination cannot be the same.", systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundColor(.red).listRowBackground(Color(.secondarySystemGroupedBackground)) }
+
+                    if !geofencePoints.isEmpty {
+                        GeofenceSelectorMap(points: geofencePoints, radiusMeters: 400)
+                            .padding(.vertical, 6)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    }
 
                     DatePicker("Requested Pickup", selection: $pickupDate, in: Date()..., displayedComponents: [.date, .hourAndMinute])
                         .onChange(of: pickupDate) { _, newPickup in if deliveryDate < newPickup.addingTimeInterval(60) { deliveryDate = newPickup.addingTimeInterval(60) } }
