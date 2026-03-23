@@ -226,13 +226,13 @@ public final class FleetReportViewModel {
             let session = try await SupabaseService.shared.client.auth.session
             let userId = session.user.id.uuidString
             
-            let subs: [ReportEmailSubscription] = try await SupabaseService.shared.client
+            let response = try await SupabaseService.shared.client
                 .from("report_email_subscriptions")
                 .select()
                 .eq("user_id", value: userId)
                 .limit(1)
                 .execute()
-                .value
+            let subs = try JSONDecoder.supabase().decode([ReportEmailSubscription].self, from: response.data)
             
             if let sub = subs.first {
                 self.subscriptionId = sub.id
