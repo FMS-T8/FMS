@@ -7,7 +7,7 @@ import Network
 public enum QueuedPayloadType: String, Codable {
     case sosAlert = "sos_alert"
     case breakLog = "break_log"
-    case defect = "defect"
+    case defect   = "defect"
 }
 
 public struct QueuedPayload: Codable, Identifiable {
@@ -17,17 +17,16 @@ public struct QueuedPayload: Codable, Identifiable {
     public let jsonData: Data
     public let createdAt: Date
     public var retryCount: Int
-    /// For update payloads: the DB row id to patch. nil means this is an insert.
     public let recordId: String?
 
     public init(type: QueuedPayloadType, tableName: String, jsonData: Data, recordId: String? = nil) {
-        self.id = UUID().uuidString
-        self.type = type
+        self.id        = UUID().uuidString
+        self.type      = type
         self.tableName = tableName
-        self.jsonData = jsonData
+        self.jsonData  = jsonData
         self.createdAt = Date()
         self.retryCount = 0
-        self.recordId = recordId
+        self.recordId  = recordId
     }
 }
 
@@ -37,8 +36,8 @@ public struct QueuedPayload: Codable, Identifiable {
 public final class OfflineQueueService {
     public static let shared = OfflineQueueService()
 
-    private let storageKey = "fms_offline_queue"
-    private let maxRetries = 5
+    private let storageKey  = "fms_offline_queue"
+    private let maxRetries  = 5
     private var networkMonitor: NWPathMonitor?
     private var isProcessing = false
 
@@ -66,7 +65,6 @@ public final class OfflineQueueService {
         }
     }
 
-    /// Attempt Supabase update. On failure, queue the payload for retry via processQueue.
     public func updateOrQueue<T: Encodable>(
         table: String,
         payload: T,
@@ -87,36 +85,32 @@ public final class OfflineQueueService {
         }
     }
 
-    /// Queue a payload directly (without attempting insert first).
     public func enqueue<T: Encodable>(table: String, payload: T, type: QueuedPayloadType, recordId: String? = nil) {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         guard let jsonData = try? encoder.encode(payload) else { return }
         let queued = QueuedPayload(type: type, tableName: table, jsonData: jsonData, recordId: recordId)
-        var queue = loadQueue()
-        queue.append(queued)
-        saveQueue(queue)
+        // FIX: was `var queue` — never mutated after assignment, changed to `let`
+        let queue = loadQueue()
+        saveQueue(queue + [queued])
     }
 
-    /// Process all queued payloads.
     public func processQueue() async {
         guard !isProcessing else { return }
         isProcessing = true
 
-        var queue = loadQueue()
+        let queue = loadQueue()
         var failedItems: [QueuedPayload] = []
 
         for var item in queue {
             do {
                 if let recordId = item.recordId {
-                    // This was a failed update — replay as PATCH using the original row id
                     try await SupabaseService.shared.client
                         .from(item.tableName)
                         .update(AnyJSON(item.jsonData))
                         .eq("id", value: recordId)
                         .execute()
                 } else {
-                    // This was a failed insert — replay as INSERT
                     try await SupabaseService.shared.client
                         .from(item.tableName)
                         .insert(AnyJSON(item.jsonData))
@@ -127,7 +121,6 @@ public final class OfflineQueueService {
                 if item.retryCount < maxRetries {
                     failedItems.append(item)
                 }
-                // Items exceeding maxRetries are dropped
             }
         }
 
@@ -153,7 +146,7 @@ public final class OfflineQueueService {
         networkMonitor?.start(queue: DispatchQueue(label: "fms.network.monitor"))
     }
 
-    // MARK: - Persistence (UserDefaults)
+    // MARK: - Persistence
 
     private func loadQueue() -> [QueuedPayload] {
         guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
@@ -172,15 +165,13 @@ public final class OfflineQueueService {
 private struct AnyJSON: Encodable {
     let data: Data
 
-    init(_ data: Data) {
-        self.data = data
-    }
+    init(_ data: Data) { self.data = data }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        let dict = try JSONSerialization.jsonObject(with: data)
+        let dict      = try JSONSerialization.jsonObject(with: data)
         let reEncoded = try JSONSerialization.data(withJSONObject: dict)
-        let json = try JSONDecoder().decode(AnyCodable.self, from: reEncoded)
+        let json      = try JSONDecoder().decode(AnyCodable.self, from: reEncoded)
         try container.encode(json)
     }
 }
@@ -210,20 +201,12 @@ private struct AnyCodable: Codable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         switch value {
-        case let str as String: try container.encode(str)
-        case let num as Double: try container.encode(num)
-        case let num as Int: try container.encode(num)
-        case let bool as Bool: try container.encode(bool)
-        case let dict as [String: Any]:
-            try container.encode(dict.mapValues { AnyCodable(value: $0) })
-        case let arr as [Any]:
-            try container.encode(arr.map { AnyCodable(value: $0) })
-        case is NSNull: try container.encodeNil()
-        default: try container.encodeNil()
+        case let s as String:             try container.encode(s)
+        case let n as Double:             try container.encode(n)
+        case let b as Bool:               try container.encode(b)
+        case let d as [String: AnyCodable]: try container.encode(d)
+        case let a as [AnyCodable]:       try container.encode(a)
+        default:                          try container.encodeNil()
         }
-    }
-
-    init(value: Any) {
-        self.value = value
     }
 }

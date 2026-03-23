@@ -177,15 +177,15 @@ public final class SafetyViewModel {
         flowState = .awaitingConfirmation(secondsRemaining: confirmationTimeoutSeconds)
 
         confirmationTimer?.invalidate()
-        confirmationTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
+        confirmationTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, let target = self.confirmationTargetDate else {
-                    timer.invalidate()
+                    self?.confirmationTimer?.invalidate()
                     return
                 }
                 let remaining = Int(ceil(target.timeIntervalSinceNow))
                 if remaining <= 0 {
-                    timer.invalidate()
+                    self.confirmationTimer?.invalidate()
                     self.confirmationTimedOut()
                 } else {
                     self.flowState = .awaitingConfirmation(secondsRemaining: remaining)
