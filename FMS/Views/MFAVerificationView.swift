@@ -40,7 +40,7 @@ struct MFAVerificationView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
-                    authViewModel.logout()
+                    Task { await authViewModel.logout() }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
@@ -147,7 +147,11 @@ struct MFAVerificationView: View {
         VStack(spacing: 16) {
             if recoveryMode == .none {
                 Button("Lost your device?") {
-                    withAnimation { recoveryMode = .email }
+                    withAnimation {
+                        recoveryMode = .email
+                        code = ""
+                    }
+                    Task { await authViewModel.initiateEmailRecovery() }
                 }
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(FMSTheme.textTertiary)
@@ -159,6 +163,7 @@ struct MFAVerificationView: View {
                                 recoveryMode = .email
                                 code = ""
                             }
+                            Task { await authViewModel.initiateEmailRecovery() }
                         }
                     }
                     

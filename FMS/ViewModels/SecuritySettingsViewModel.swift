@@ -43,6 +43,9 @@ public final class SecuritySettingsViewModel {
                 self.isTwoFactorEnabled = row.two_factor_enabled ?? false
             }
         } catch {
+            if String(describing: error).contains("sessionMissing") {
+                return
+            }
             print("Failed to load security state: \(error)")
         }
     }
@@ -88,12 +91,13 @@ public final class SecuritySettingsViewModel {
         do {
             self.recoveryCodes = try await MFARecoveryService.shared.generateAndStoreBackupCodes(userId: self.userId)
             bannerManager.show(type: .success, message: "Two-factor authentication enabled.")
+            await setTwoFactorEnabled(true)
+            return true
         } catch {
             bannerManager.show(type: .warning, message: "MFA Activated, but failed to save backup codes. \(error.localizedDescription)")
+            await setTwoFactorEnabled(false)
+            return false
         }
-        
-        await setTwoFactorEnabled(true)
-        return true
     }
     
     public func unenrollAllMFAFactors(bannerManager: BannerManager) async {

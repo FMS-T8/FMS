@@ -206,11 +206,7 @@ public struct ProfileTabView: View {
     private var logoutButton: some View {
         Button {
             Task {
-                do {
-                    try await authViewModel.logout()
-                } catch {
-                    print("Logout error: \(error)")
-                }
+                await authViewModel.logout()
             }
         } label: {
             HStack(spacing: 8) {
@@ -289,4 +285,5 @@ private struct MaintProfileInfoRow: View {
 #Preview {
     MaintenanceTabView()
         .environment(AuthViewModel())
+        .environment(BannerManager())
 }

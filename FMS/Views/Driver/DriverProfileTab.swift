@@ -518,7 +518,7 @@ struct DriverProfileTab: View {
 
     private var logoutButton: some View {
         Button {
-            withAnimation { authViewModel.logout() }
+            Task { await authViewModel.logout() }
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "rectangle.portrait.and.arrow.right")

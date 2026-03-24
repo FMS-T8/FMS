@@ -23,7 +23,7 @@ public class AuthViewModel {
     public var currentUser: User?
     public var isMFARequired: Bool = false
     public var mfaFactorId: String?
-    public var mfaEmail: String = ""
+    public var mfaEmail: String? = nil
     private var bannerManager: BannerManager?
     
     public init(selectedRole: Role? = nil, isAuthenticated: Bool = false, currentUser: User? = nil) {
@@ -66,6 +66,14 @@ public class AuthViewModel {
                     self.mfaFactorId = firstFactor.id
                     self.isMFARequired = true
                     // Do not set isAuthenticated yet
+                    return
+                } else {
+                    self.isMFARequired = true
+                    self.mfaFactorId = nil
+                    bannerManager.show(
+                        type: .error,
+                        message: "MFA required but no TOTP factors available. Please contact admin."
+                    )
                     return
                 }
             }
@@ -136,7 +144,11 @@ public class AuthViewModel {
             )
             
             // Successfully verified! Completing login.
-            try await completeLogin(email: mfaEmail, bannerManager: bannerManager)
+            guard let email = mfaEmail, !email.isEmpty else {
+                bannerManager.show(type: .error, message: "Missing MFA email context. Please log in again.")
+                return
+            }
+            try await completeLogin(email: email, bannerManager: bannerManager)
         } catch {
             bannerManager.show(type: .error, message: "Invalid 2FA code. Please try again.")
         }
@@ -144,8 +156,12 @@ public class AuthViewModel {
     
     public func initiateEmailRecovery() async {
         guard let bannerManager = bannerManager else { return }
+        guard let email = mfaEmail, !email.isEmpty else {
+            bannerManager.show(type: .error, message: "Missing MFA email context. Please log in again.")
+            return
+        }
         do {
-            try await MFARecoveryService.shared.sendRecoveryOTP(to: mfaEmail)
+            try await MFARecoveryService.shared.sendRecoveryOTP(to: email)
             bannerManager.show(type: .success, message: "Recovery code sent to your email.")
         } catch {
             bannerManager.show(type: .error, message: "Failed to send recovery email: \(error.localizedDescription)")
@@ -154,11 +170,15 @@ public class AuthViewModel {
     
     public func verifyEmailRecovery(code: String) async {
         guard let bannerManager = bannerManager else { return }
+        guard let email = mfaEmail, !email.isEmpty else {
+            bannerManager.show(type: .error, message: "Missing MFA email context. Please log in again.")
+            return
+        }
         do {
-            let success = try await MFARecoveryService.shared.verifyEmailRecoveryAndResetMFA(email: mfaEmail, code: code)
+            let success = try await MFARecoveryService.shared.verifyEmailRecoveryAndResetMFA(email: email, code: code)
             if success {
                 bannerManager.show(type: .success, message: "MFA has been reset. Please log in again.")
-                logout() // Return to login screen
+                await logout() // Return to login screen
             } else {
                 bannerManager.show(type: .error, message: "Invalid recovery code.")
             }
@@ -177,7 +197,11 @@ public class AuthViewModel {
             
             if success {
                 bannerManager.show(type: .success, message: "Backup code verified successfully. Logging you in.")
-                try await completeLogin(email: mfaEmail, bannerManager: bannerManager)
+                guard let email = mfaEmail, !email.isEmpty else {
+                    bannerManager.show(type: .error, message: "Missing MFA email context. Please log in again.")
+                    return
+                }
+                try await completeLogin(email: email, bannerManager: bannerManager)
             } else {
                 bannerManager.show(type: .error, message: "Invalid or already used backup code.")
             }
@@ -219,9 +243,18 @@ public class AuthViewModel {
         }
     }
     
-    public func logout() {
+    public func logout() async {
+        do {
+            try await SupabaseService.shared.client.auth.signOut()
+        } catch {
+            print("Auth signOut failed: \(error)")
+        }
         selectedRole = nil
         isAuthenticated = false
         currentUser = nil
+        isMFARequired = false
+        mfaFactorId = nil
+        mfaEmail = nil
+        bannerManager = nil
     }
 }

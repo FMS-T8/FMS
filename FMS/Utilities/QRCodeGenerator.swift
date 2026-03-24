@@ -9,7 +9,6 @@ import CoreImage.CIFilterBuiltins
 /// A utility to generate QR code images from strings.
 public enum QRCodeGenerator {
     private static let context = CIContext()
-    private static let filter = CIFilter.qrCodeGenerator()
 
     /// Generates a QR code image for the given string.
     /// - Parameters:
@@ -17,6 +16,7 @@ public enum QRCodeGenerator {
     ///   - size: The target size for the output image.
     /// - Returns: A `UIImage` if successful, otherwise `nil`.
     public static func generate(from string: String, size: CGSize = CGSize(width: 200, height: 200)) -> UIImage? {
+        let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(string.utf8)
 
         if let outputImage = filter.outputImage {

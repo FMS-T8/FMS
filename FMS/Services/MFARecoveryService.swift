@@ -44,33 +44,18 @@ public final class MFARecoveryService {
     ///   - code: The 10-character recovery code.
     /// - Returns: True if the code is valid and unused.
     public func verifyBackupCode(userId: String, code: String) async throws -> Bool {
-        struct RecoveryCode: Decodable {
-            let id: UUID
-        }
+        struct Updates: Encodable { let used_at: Date }
         
-        // Query the custom `mfa_recovery_codes` table.
-        let codes: [RecoveryCode] = try await client
+        // Mark the code as used only if it hasn't been used yet.
+        let response = try await client
             .from("mfa_recovery_codes")
-            .select("id")
+            .update(Updates(used_at: Date()), returning: .minimal, count: .exact)
             .eq("user_id", value: userId)
             .eq("code", value: code)
             .filter("used_at", operator: "is", value: "null")
             .execute()
-            .value
         
-        if !codes.isEmpty {
-            // Mark the code as used
-            struct Updates: Encodable { let used_at: Date }
-            try await client
-                .from("mfa_recovery_codes")
-                .update(Updates(used_at: Date()))
-                .eq("user_id", value: userId)
-                .eq("code", value: code)
-                .execute()
-            
-            return true
-        }
-        return false
+        return (response.count ?? 0) == 1
     }
     
     /// Generates a set of 8 random backup codes for a user.
@@ -81,6 +66,15 @@ public final class MFARecoveryService {
         for _ in 0..<8 {
             codes.append(UUID().uuidString.prefix(10).lowercased())
         }
+        
+        // Invalidate any existing unused recovery codes before inserting new ones.
+        struct Updates: Encodable { let used_at: Date }
+        try await client
+            .from("mfa_recovery_codes")
+            .update(Updates(used_at: Date()), returning: .minimal)
+            .eq("user_id", value: userId)
+            .filter("used_at", operator: "is", value: "null")
+            .execute()
         
         // Store them in the custom table (assuming it exists or will be created)
         let entries = codes.map { ["user_id": userId, "code": $0] }
