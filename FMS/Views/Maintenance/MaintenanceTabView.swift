@@ -45,8 +45,12 @@ public struct MaintenanceTabView: View {
 // MARK: - Profile Tab
 public struct ProfileTabView: View {
     @Environment(AuthViewModel.self) private var authViewModel
+    @Environment(BannerManager.self) private var bannerManager
     @Environment(\.colorScheme) private var colorScheme
     @State private var notificationsEnabled = true
+    
+    @State private var securityVM = SecuritySettingsViewModel()
+    @State private var showMFAEnrollment = false
 
     public var body: some View {
         NavigationStack {
@@ -61,6 +65,7 @@ public struct ProfileTabView: View {
                         VStack(spacing: 20) {
                             profileHeaderCard
                             basicInfoCard
+                            securityCard
                             preferencesCard
                             logoutButton
                         }
@@ -71,6 +76,12 @@ public struct ProfileTabView: View {
                 }
             }
             .navigationBarHidden(true)
+            .task {
+                await securityVM.loadSecurityState()
+            }
+            .sheet(isPresented: $showMFAEnrollment) {
+                MFAEnrollmentView(vm: securityVM, bannerManager: bannerManager)
+            }
         }
     }
 
@@ -119,6 +130,45 @@ public struct ProfileTabView: View {
                 MaintProfileInfoRow(icon: "envelope.fill", label: "Email", value: authViewModel.currentUser?.email ?? "tech@fleetms.com")
                 MaintProfileInfoRow(icon: "phone.fill",    label: "Phone", value: authViewModel.currentUser?.phone ?? "Not Provided")
                 MaintProfileInfoRow(icon: "building.2.fill", label: "Department", value: authViewModel.currentUser?.role.capitalized ?? "Maintenance")
+            }
+        }
+    }
+
+    private var securityCard: some View {
+        MaintProfileCard {
+            VStack(alignment: .leading, spacing: 14) {
+                MaintProfileSectionHeader(title: "Security")
+                Divider().background(FMSTheme.borderLight)
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Two-Factor Authentication")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(FMSTheme.textPrimary)
+                        Text(securityVM.isTwoFactorEnabled ? "Active" : "Secure your account")
+                            .font(.system(size: 12))
+                            .foregroundStyle(securityVM.isTwoFactorEnabled ? FMSTheme.amber : FMSTheme.textTertiary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { securityVM.isTwoFactorEnabled },
+                        set: { newValue in
+                            if newValue {
+                                Task {
+                                    await securityVM.initiateMFAEnrollment()
+                                    if securityVM.mfaEnrollmentResponse != nil {
+                                        showMFAEnrollment = true
+                                    } else {
+                                        bannerManager.show(type: .error, message: securityVM.errorMessage ?? "Failed to start 2FA setup.")
+                                    }
+                                }
+                            } else {
+                                Task { await securityVM.unenrollAllMFAFactors(bannerManager: bannerManager) }
+                            }
+                        }
+                    ))
+                    .tint(FMSTheme.amber)
+                }
             }
         }
     }

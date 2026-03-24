@@ -8,9 +8,13 @@ public final class SupabaseService {
     public let client: SupabaseClient
 
     private init() {
+        let options = SupabaseClientOptions(
+            auth: .init(emitLocalSessionAsInitialSession: true)
+        )
         self.client = SupabaseClient(
             supabaseURL: SupabaseConfig.fullURL,
-            supabaseKey: SupabaseConfig.publishableKey
+            supabaseKey: SupabaseConfig.publishableKey,
+            options: options
         )
     }
 }

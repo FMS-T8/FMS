@@ -4,6 +4,10 @@ import PhotosUI
 struct DriverProfileTab: View {
     @Bindable var viewModel: DriverDashboardViewModel
     @Environment(AuthViewModel.self) private var authViewModel
+    @Environment(BannerManager.self) private var bannerManager
+    
+    @State private var securityVM = SecuritySettingsViewModel()
+    @State private var showMFAEnrollment = false
 
     @State private var showDocumentPicker = false
     @State private var selectedDocType: DocumentType = .drivingLicense
@@ -21,6 +25,7 @@ struct DriverProfileTab: View {
                 VStack(spacing: 20) {
                     profileHeader
                     documentsSection
+                    securitySection
                     vehicleCard
                     logoutButton
                 }
@@ -34,6 +39,12 @@ struct DriverProfileTab: View {
             }
             .sheet(item: $selectedDocument) { doc in
                 documentDetailSheet(doc: doc)
+            }
+            .sheet(isPresented: $showMFAEnrollment) {
+                MFAEnrollmentView(vm: securityVM, bannerManager: bannerManager)
+            }
+            .task {
+                await securityVM.loadSecurityState()
             }
             .onChange(of: selectedPhoto) { _, newValue in
                 guard let item = newValue else { return }
@@ -401,6 +412,55 @@ struct DriverProfileTab: View {
                 ("Coverage", "Comprehensive"),
                 ("Valid Until", "Dec 2025"),
             ]
+        }
+    }
+
+    // MARK: - Security Section
+    
+    private var securitySection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Security")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(FMSTheme.textPrimary)
+            
+            VStack {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Two-Factor Authentication")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(FMSTheme.textPrimary)
+                        Text(securityVM.isTwoFactorEnabled ? "Active" : "Secure your account")
+                            .font(.system(size: 12))
+                            .foregroundStyle(securityVM.isTwoFactorEnabled ? FMSTheme.amber : FMSTheme.textTertiary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { securityVM.isTwoFactorEnabled },
+                        set: { newValue in
+                            if newValue {
+                                Task {
+                                    await securityVM.initiateMFAEnrollment()
+                                    if securityVM.mfaEnrollmentResponse != nil {
+                                        showMFAEnrollment = true
+                                    } else {
+                                        bannerManager.show(type: .error, message: securityVM.errorMessage ?? "Failed to start 2FA setup.")
+                                    }
+                                }
+                            } else {
+                                Task { await securityVM.unenrollAllMFAFactors(bannerManager: bannerManager) }
+                            }
+                        }
+                    ))
+                    .tint(FMSTheme.amber)
+                }
+            }
+            .padding(14)
+            .background(FMSTheme.cardBackground)
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(FMSTheme.borderLight, lineWidth: 1)
+            )
         }
     }
 
