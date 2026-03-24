@@ -92,8 +92,8 @@ public final class SecuritySettingsViewModel {
             
         do {
             self.recoveryCodes = try await MFARecoveryService.shared.generateAndStoreBackupCodes(userId: self.userId)
+            try await setTwoFactorEnabled(true)
             bannerManager.show(type: .success, message: "Two-factor authentication enabled.")
-            await setTwoFactorEnabled(true)
             return true
         } catch {
             bannerManager.show(type: .warning, message: "MFA Activated, but failed to save backup codes. \(error.localizedDescription)")
@@ -104,7 +104,8 @@ public final class SecuritySettingsViewModel {
             } catch {
                 print("Failed to rollback MFA factor: \(error)")
             }
-            await setTwoFactorEnabled(false)
+            try? await setTwoFactorEnabled(false)
+            recoveryCodes = []
             return false
         }
     }
@@ -116,25 +117,21 @@ public final class SecuritySettingsViewModel {
                 try await SupabaseService.shared.client.auth.mfa.unenroll(params: MFAUnenrollParams(factorId: factor.id))
             }
             
-            await setTwoFactorEnabled(false)
+            try await setTwoFactorEnabled(false)
             bannerManager.show(type: .success, message: "Two-factor authentication disabled limitlessly.")
         } catch {
             bannerManager.show(type: .error, message: "Failed to disable MFA: \(error.localizedDescription)")
-            await setTwoFactorEnabled(true)
+            try? await setTwoFactorEnabled(true)
         }
     }
     
-    private func setTwoFactorEnabled(_ enabled: Bool) async {
+    private func setTwoFactorEnabled(_ enabled: Bool) async throws {
+        struct Updates: Encodable { let two_factor_enabled: Bool }
+        try await SupabaseService.shared.client
+            .from("users")
+            .update(Updates(two_factor_enabled: enabled))
+            .eq("id", value: self.userId)
+            .execute()
         self.isTwoFactorEnabled = enabled
-        do {
-            struct Updates: Encodable { let two_factor_enabled: Bool }
-            try await SupabaseService.shared.client
-                .from("users")
-                .update(Updates(two_factor_enabled: enabled))
-                .eq("id", value: self.userId)
-                .execute()
-        } catch {
-            print("Failed to save 2FA preference: \(error)")
-        }
     }
 }

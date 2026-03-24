@@ -38,15 +38,37 @@ public final class MFARecoveryService {
         return true
     }
     
-    /// Verifies a backup recovery code.
+    /// Validates a backup recovery code without consuming it.
     /// - Parameters:
     ///   - userId: The ID of the user.
     ///   - code: The 10-character recovery code.
     /// - Returns: True if the code is valid and unused.
-    public func verifyBackupCode(userId: String, code: String) async throws -> Bool {
+    public func validateBackupCode(userId: String, code: String) async throws -> Bool {
+        struct RecoveryCode: Decodable {
+            let id: UUID
+        }
+        
+        let codes: [RecoveryCode] = try await client
+            .from("mfa_recovery_codes")
+            .select("id")
+            .eq("user_id", value: userId)
+            .eq("code", value: code)
+            .filter("used_at", operator: "is", value: "null")
+            .limit(1)
+            .execute()
+            .value
+        
+        return !codes.isEmpty
+    }
+
+    /// Consumes a backup recovery code (marks as used).
+    /// - Parameters:
+    ///   - userId: The ID of the user.
+    ///   - code: The 10-character recovery code.
+    /// - Returns: True if the code was successfully consumed.
+    public func consumeBackupCode(userId: String, code: String) async throws -> Bool {
         struct Updates: Encodable { let used_at: Date }
         
-        // Mark the code as used only if it hasn't been used yet.
         let response = try await client
             .from("mfa_recovery_codes")
             .update(Updates(used_at: Date()), returning: .minimal, count: .exact)

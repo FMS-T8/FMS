@@ -53,10 +53,15 @@ public class AuthViewModel {
                 email: email,
                 password: password
             )
-            
-            self.bannerManager = bannerManager
-            self.mfaEmail = email
-            
+        } catch {
+            bannerManager.show(type: .error, message: "Invalid email or password. Please try again.")
+            return
+        }
+        
+        self.bannerManager = bannerManager
+        self.mfaEmail = email
+        
+        do {
             // Check for MFA requirement
             let mfaStatus = try await SupabaseService.shared.client.auth.mfa.getAuthenticatorAssuranceLevel()
             if mfaStatus.nextLevel == "aal2" {
@@ -82,18 +87,24 @@ public class AuthViewModel {
             }
             
             // If no MFA required, proceed to load user record
-            try await completeLogin(email: email, bannerManager: bannerManager)
-            
+            try await completeLogin(bannerManager: bannerManager)
         } catch {
-            bannerManager.show(type: .error, message: "Invalid email or password. Please try again.")
+            try? await SupabaseService.shared.client.auth.signOut()
+            bannerManager.show(
+                type: .error,
+                message: "An error occurred during post-authentication. Please try again."
+            )
         }
     }
     
-    private func completeLogin(email: String, bannerManager: BannerManager) async throws {
+    private func completeLogin(bannerManager: BannerManager) async throws {
+        let session = try await SupabaseService.shared.client.auth.session
+        let userId = session.user.id.uuidString
         let response = try await SupabaseService.shared.client
             .from("users")
             .select()
-            .eq("email", value: email)
+            .eq("id", value: userId)
+            .limit(1)
             .execute()
             
         let decoder = JSONDecoder()
@@ -136,6 +147,7 @@ public class AuthViewModel {
             self.isMFARequired = false
         } else {
             bannerManager.show(type: .error, message: "Account not configured. Please contact admin.")
+            await logout()
         }
     }
 
@@ -148,11 +160,7 @@ public class AuthViewModel {
             )
             
             // Successfully verified! Completing login.
-            guard let email = mfaEmail, !email.isEmpty else {
-                bannerManager.show(type: .error, message: "Missing MFA email context. Please log in again.")
-                return
-            }
-            try await completeLogin(email: email, bannerManager: bannerManager)
+            try await completeLogin(bannerManager: bannerManager)
         } catch {
             bannerManager.show(type: .error, message: "Invalid 2FA code. Please try again.")
         }
@@ -197,15 +205,17 @@ public class AuthViewModel {
             // We need the user ID for backup code verification. 
             // Since we're partially logged in, we can get it from the session.
             let session = try await SupabaseService.shared.client.auth.session
-            let success = try await MFARecoveryService.shared.verifyBackupCode(userId: session.user.id.uuidString, code: code)
+            let userId = session.user.id.uuidString
+            let valid = try await MFARecoveryService.shared.validateBackupCode(userId: userId, code: code)
             
-            if success {
-                bannerManager.show(type: .success, message: "Backup code verified successfully. Logging you in.")
-                guard let email = mfaEmail, !email.isEmpty else {
-                    bannerManager.show(type: .error, message: "Missing MFA email context. Please log in again.")
-                    return
+            if valid {
+                try await completeLogin(bannerManager: bannerManager)
+                let consumed = try await MFARecoveryService.shared.consumeBackupCode(userId: userId, code: code)
+                if consumed {
+                    bannerManager.show(type: .success, message: "Backup code verified successfully. Logging you in.")
+                } else {
+                    bannerManager.show(type: .warning, message: "Logged in, but failed to consume backup code. Please contact admin.")
                 }
-                try await completeLogin(email: email, bannerManager: bannerManager)
             } else {
                 bannerManager.show(type: .error, message: "Invalid or already used backup code.")
             }
