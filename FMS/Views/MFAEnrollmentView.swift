@@ -143,6 +143,13 @@ struct MFAEnrollmentView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(FMSTheme.amber.opacity(0.3), lineWidth: 1)
                 )
+                .onChange(of: verificationCode) { _, newValue in
+                    let filtered = newValue.filter { $0.isNumber }
+                    let limited = String(filtered.prefix(6))
+                    if limited != newValue {
+                        verificationCode = limited
+                    }
+                }
             
             Button {
                 Task {
@@ -167,7 +174,7 @@ struct MFAEnrollmentView: View {
             .frame(height: 52)
             .background(FMSTheme.amber)
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .disabled(verificationCode.count < 6 || isVerifying)
+            .disabled(verificationCode.count != 6 || isVerifying)
         }
     }
     

@@ -90,6 +90,22 @@ struct MFAVerificationView: View {
             )
             .textInputAutocapitalization(recoveryMode == .backupCode ? .never : .characters)
             .autocorrectionDisabled()
+            .onChange(of: code) { _, newValue in
+                guard recoveryMode != .backupCode else { return }
+                let filtered = newValue.filter { $0.isNumber }
+                let limited = String(filtered.prefix(6))
+                if limited != newValue {
+                    code = limited
+                }
+            }
+            .onChange(of: recoveryMode) { _, newValue in
+                if newValue != .backupCode {
+                    let filtered = code.filter { $0.isNumber }
+                    code = String(filtered.prefix(6))
+                } else {
+                    code = ""
+                }
+            }
     }
     
     // MARK: - Verify Button
@@ -122,7 +138,7 @@ struct MFAVerificationView: View {
         .frame(height: 54)
         .background(FMSTheme.amber)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .disabled(code.isEmpty || isVerifying)
+        .disabled((code.isEmpty || isVerifying) || (recoveryMode != .backupCode && code.count != 6))
     }
     
     // MARK: - Recovery Options
