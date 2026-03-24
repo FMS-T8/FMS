@@ -82,9 +82,8 @@ final class ManagerProfileViewModel {
     var role: String        = ""
     var employeeId: String  = "—"
 
-    // -- Security
-    var isTwoFactorEnabled: Bool = false
-
+    // -- Security (managed by SecuritySettingsViewModel now)
+    
     // -- Preferences
     var mapPreference: MapPreference = .standard
     var distanceUnit: DistanceUnit   = .km
@@ -139,7 +138,6 @@ final class ManagerProfileViewModel {
                 phone      = row.phone
                 role       = row.role.capitalized
                 employeeId = row.employeeId ?? "—"
-                isTwoFactorEnabled = row.twoFactorEnabled ?? false
                 mapPreference = MapPreference(rawValue: row.mapPreference ?? "standard") ?? .standard
                 distanceUnit  = DistanceUnit(rawValue: row.units ?? "km") ?? .km
             }
@@ -194,8 +192,7 @@ final class ManagerProfileViewModel {
                 .from("users")
                 .update([
                     "map_preference"     : mapPreference.rawValue,
-                    "units"              : distanceUnit.rawValue,
-                    "two_factor_enabled" : isTwoFactorEnabled ? "true" : "false"
+                    "units"              : distanceUnit.rawValue
                 ])
                 .eq("email", value: userEmail)
                 .execute()

@@ -34,7 +34,8 @@ public struct FMSBanner: View {
                 Text(banner.message)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(FMSTheme.textPrimary)
-                    .lineLimit(2)
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
                 
                 Spacer()
                 
