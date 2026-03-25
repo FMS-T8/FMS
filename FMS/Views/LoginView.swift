@@ -14,6 +14,7 @@ public struct LoginView: View {
     @State private var password: String = ""
     @State private var isLoading: Bool = false
     @State private var showForgotPassword: Bool = false
+    @State private var isPasswordVisible: Bool = false
     
     // ✅ Check if form is valid
     private var isFormValid: Bool {
@@ -86,17 +87,42 @@ public struct LoginView: View {
                             )
                             .foregroundColor(FMSTheme.textPrimary)
                             .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
                         
                         
                         // Password
                         
-                        SecureField("Password", text: $password)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(FMSTheme.pillBackground)
-                            )
-                            .foregroundColor(FMSTheme.textPrimary)
+                        HStack {
+                            if isPasswordVisible {
+                                TextField("Password", text: $password)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            } else {
+                                SecureField("Password", text: $password)
+                                    .textInputAutocapitalization(.never)
+                            }
+                            
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isPasswordVisible.toggle()
+                                }
+                            }) {
+                                // Corrected UX mapping: Open eye when visible, slashed eye when hidden
+                                Image(systemName: isPasswordVisible ? "eye" : "eye.slash")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(isPasswordVisible ? FMSTheme.amber : FMSTheme.textSecondary)
+                                    .frame(width: 32, height: 32)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(isPasswordVisible ? "Hide password" : "Show password")
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(FMSTheme.pillBackground)
+                        )
+                        .foregroundColor(FMSTheme.textPrimary)
                         
                         
                         // Login Button
