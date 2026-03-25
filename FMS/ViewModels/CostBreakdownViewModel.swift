@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import PostgREST
 import Supabase
 
 /// ViewModel for consolidated spend analytics.
@@ -155,7 +156,11 @@ public final class CostBreakdownViewModel {
           .value
         self.tollSpend = tollRows.compactMap(\.amount).reduce(0, +)
       } catch {
-        self.tollSpend = 0
+        if isMissingTableError(error, tableName: "toll_logs") {
+          self.tollSpend = 0
+        } else {
+          throw error
+        }
       }
 
     } catch {
@@ -164,5 +169,34 @@ public final class CostBreakdownViewModel {
         print("Error fetching cost summary: \(error)")
       #endif
     }
+  }
+
+  private func isMissingTableError(_ error: Error, tableName: String) -> Bool {
+    let message = String(describing: error).lowercased()
+    let table = tableName.lowercased()
+
+    if message.contains("42p01") && message.contains(table) {
+      return true
+    }
+
+    if message.contains("schema cache") && message.contains(table) {
+      return true
+    }
+
+    if message.contains("does not exist") && message.contains(table) {
+      return true
+    }
+
+    if let postgrestError = error as? PostgrestError {
+      let postgrestMessage = String(describing: postgrestError).lowercased()
+      return postgrestMessage.contains(table)
+        && (
+          postgrestMessage.contains("42p01")
+            || postgrestMessage.contains("schema cache")
+            || postgrestMessage.contains("does not exist")
+        )
+    }
+
+    return false
   }
 }

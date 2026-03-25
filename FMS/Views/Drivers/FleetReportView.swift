@@ -417,14 +417,13 @@ public struct FleetReportView: View {
                 Toggle("", isOn: Binding(
                     get: { viewModel.isSubscribedToEmail },
                     set: { newValue in
-                        // Instantly update the UI natively
-                        viewModel.isSubscribedToEmail = newValue
-                        // Trigger the background sync
+                        guard !viewModel.isTogglingSubscription else { return }
                         Task { await viewModel.syncEmailSubscription(newValue) }
                     }
                 ))
                 .labelsHidden()
                 .tint(FMSTheme.amber)
+                .disabled(viewModel.isTogglingSubscription)
             }
             .padding(16)
         }

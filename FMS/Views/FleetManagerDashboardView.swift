@@ -36,17 +36,14 @@ public struct FleetManagerDashboardView: View {
 
 // MARK: - Home Tab Content
 struct FleetManagerHomeTab: View {
+  @State private var viewModel = FleetManagerHomeViewModel()
   @State private var navigateToLiveFleet = false
   @State private var navigateToProfile = false
   @State private var navigateToOrders = false
   @State private var activeSOSAlerts: [SOSAlert] = []
   @State private var sosPollingTimer: Timer?
   @State private var sosExpanded: Bool = false
-
-  // Mock data
-  private let managerName = "Manager"
-  private let activeVehicles = 14
-  private let pendingOrders = 12
+  @State private var isFetchingSOS = false
 
   private let alerts: [(title: String, subtitle: String, timeAgo: String, type: AlertType)] = [
     (
@@ -77,7 +74,7 @@ struct FleetManagerHomeTab: View {
 
           // Fleet Status Card
           FleetStatusCard(
-            activeCount: activeVehicles,
+            activeCount: viewModel.activeVehicleCount,
             subtitle: "Vehicles in transit",
             onViewMap: {
               navigateToLiveFleet = true
@@ -88,7 +85,10 @@ struct FleetManagerHomeTab: View {
           QuickActionCard(
             icon: "shippingbox.fill",
             title: "Orders",
-            subtitle: "Manage fleet orders and dispatch",
+            subtitle:
+              viewModel.pendingOrderCount > 0
+              ? "\(viewModel.pendingOrderCount) pending orders"
+              : "Manage fleet orders and dispatch",
             action: {
               navigateToOrders = true
             }
@@ -112,6 +112,9 @@ struct FleetManagerHomeTab: View {
       }
       .onAppear {
         startSOSPolling()
+        Task {
+          await viewModel.loadDashboardData()
+        }
       }
       .onDisappear {
         sosPollingTimer?.invalidate()
@@ -182,31 +185,33 @@ struct FleetManagerHomeTab: View {
 
   // MARK: - SOS Polling
   private func startSOSPolling() {
-    fetchSOSAlerts()
+    Task { await fetchSOSAlerts() }
     sosPollingTimer?.invalidate()
     sosPollingTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
       Task { @MainActor in
-        fetchSOSAlerts()
+        await fetchSOSAlerts()
       }
     }
   }
 
-  private func fetchSOSAlerts() {
-    Task {
-      do {
-        let response = try await SupabaseService.shared.client
-          .from("sos_alerts")
-          .select()
-          .eq("status", value: SOSAlertStatus.active.rawValue)
-          .order("timestamp", ascending: false)
-          .limit(10)
-          .execute()
+  private func fetchSOSAlerts() async {
+    guard !isFetchingSOS else { return }
+    isFetchingSOS = true
+    defer { isFetchingSOS = false }
 
-        let alerts = try JSONDecoder.supabase().decode([SOSAlert].self, from: response.data)
-        activeSOSAlerts = alerts
-      } catch {
-        print("[FMS] fetchSOSAlerts failed: \(error)")
-      }
+    do {
+      let response = try await SupabaseService.shared.client
+        .from("sos_alerts")
+        .select()
+        .eq("status", value: SOSAlertStatus.active.rawValue)
+        .order("timestamp", ascending: false)
+        .limit(10)
+        .execute()
+
+      let alerts = try JSONDecoder.supabase().decode([SOSAlert].self, from: response.data)
+      activeSOSAlerts = alerts
+    } catch {
+      print("[FMS] fetchSOSAlerts failed: \(error)")
     }
   }
 
@@ -214,7 +219,7 @@ struct FleetManagerHomeTab: View {
   private var headerSection: some View {
     HStack {
       VStack(alignment: .leading, spacing: 4) {
-        Text("Welcome, \(managerName)")
+        Text("Welcome, \(viewModel.managerName)")
           .font(.system(size: 24, weight: .bold))
           .foregroundStyle(FMSTheme.textPrimary)
 

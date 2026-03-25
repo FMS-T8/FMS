@@ -112,7 +112,6 @@ public final class FleetReportViewModel {
 
   public init() {
     applyPresetDates()
-    selectedWeekStart = Self.monday(for: Date())
   }
 
   public var weekLabel: String {
@@ -148,29 +147,21 @@ public final class FleetReportViewModel {
 
     switch selectedPreset {
     case .thisWeek:
-      // Assuming week starts on Monday for business logic
-      var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
-      comps.weekday = 2  // Monday
-      if let start = cal.date(from: comps) {
-        startDate = start
-        endDate = cal.date(byAdding: .day, value: 6, to: start) ?? now
-        selectedWeekStart = start
-      }
+      let start = Self.monday(for: now)
+      startDate = start
+      endDate = cal.date(byAdding: .day, value: 6, to: start) ?? now
+      selectedWeekStart = start
     case .lastWeek:
-      var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
-      comps.weekOfYear = (comps.weekOfYear ?? 1) - 1
-      comps.weekday = 2  // Monday
-      if let start = cal.date(from: comps),
-        let end = cal.date(byAdding: .day, value: 7, to: start)?.addingTimeInterval(-1)
-      {
-        startDate = start
-        endDate = end
-        selectedWeekStart = start
-      }
+      let previousWeekDate = cal.date(byAdding: .day, value: -7, to: now) ?? now
+      let start = Self.monday(for: previousWeekDate)
+      startDate = start
+      endDate = cal.date(byAdding: .day, value: 6, to: start) ?? now
+      selectedWeekStart = start
     case .last30Days:
       if let start = cal.date(byAdding: .day, value: -30, to: now) {
         startDate = start
         endDate = now
+        selectedWeekStart = Self.monday(for: start)
       }
     case .custom:
       break
@@ -211,7 +202,7 @@ public final class FleetReportViewModel {
     let isoFormatter = ISO8601DateFormatter()
     isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     let startStr = isoFormatter.string(from: startDate)
-    let endStr = isoFormatter.string(from: endDate)
+    let endStr = isoFormatter.string(from: Self.endOfDay(for: endDate))
 
     do {
       // Because vehicle_events uses text type for vehicle_id instead of uuid natively, we need to pass a string.
@@ -228,10 +219,17 @@ public final class FleetReportViewModel {
       // 2. FUEL LOGS (using logged_at)
       // Note: fuel_logs lacks vehicle_id. If a vehicle is selected, we can't reliably filter it directly
       // unless we only use driver filters. We apply the driver filter if present.
-      var fuelQ = builder.from("fuel_logs").select("fuel_volume, amount_paid")
-        .gte("logged_at", value: startStr)
-        .lte("logged_at", value: endStr)
-      if let dId = selectedDriverId { fuelQ = fuelQ.eq("driver_id", value: dId) }
+      let canScopeFuelMetrics = selectedVehicleId == nil || selectedDriverId != nil
+      let fuel: [FuelRow]
+      if canScopeFuelMetrics {
+        var fuelQ = builder.from("fuel_logs").select("fuel_volume, amount_paid")
+          .gte("logged_at", value: startStr)
+          .lte("logged_at", value: endStr)
+        if let dId = selectedDriverId { fuelQ = fuelQ.eq("driver_id", value: dId) }
+        fuel = try await fuelQ.execute().value
+      } else {
+        fuel = []
+      }
 
       // 3. INCIDENTS (using created_at)
       var incidentsQ = builder.from("incidents").select("id")
@@ -240,26 +238,34 @@ public final class FleetReportViewModel {
       if let vId = selectedVehicleId { incidentsQ = incidentsQ.eq("vehicle_id", value: vId) }
       if let dId = selectedDriverId { incidentsQ = incidentsQ.eq("driver_id", value: dId) }
 
-      // 4. VEHICLE EVENTS (using timestamp, text vehicle_id)
-      var eventsQ = builder.from("vehicle_events").select("id")
-        .gte("timestamp", value: startStr)
-        .lte("timestamp", value: endStr)
-        .in("event_type", values: ["HarshBraking", "RapidAcceleration"])
-      if let vId = selectedVehicleId { eventsQ = eventsQ.eq("vehicle_id", value: vId) }
-      // vehicle_events lacks driver_id
+      let canScopeSafetyEvents = selectedDriverId == nil
+      let canScopeMaintenance = selectedDriverId == nil
 
-      // 5. MAINTENANCE (using created_at)
-      var maintenanceQ = builder.from("maintenance_work_orders").select("status")
-        .gte("created_at", value: startStr)
-        .lte("created_at", value: endStr)
-      if let vId = selectedVehicleId { maintenanceQ = maintenanceQ.eq("vehicle_id", value: vId) }
-      // lacks driver_id mapping natively on this table (only assigned_to/created_by)
+      let events: [IDRow]
+      if canScopeSafetyEvents {
+        var eventsQ = builder.from("vehicle_events").select("id")
+          .gte("timestamp", value: startStr)
+          .lte("timestamp", value: endStr)
+          .in("event_type", values: ["HarshBraking", "RapidAcceleration"])
+        if let vId = selectedVehicleId { eventsQ = eventsQ.eq("vehicle_id", value: vId) }
+        events = try await eventsQ.execute().value
+      } else {
+        events = []
+      }
+
+      let maintenance: [StatusRow]
+      if canScopeMaintenance {
+        var maintenanceQ = builder.from("maintenance_work_orders").select("status")
+          .gte("created_at", value: startStr)
+          .lte("created_at", value: endStr)
+        if let vId = selectedVehicleId { maintenanceQ = maintenanceQ.eq("vehicle_id", value: vId) }
+        maintenance = try await maintenanceQ.execute().value
+      } else {
+        maintenance = []
+      }
 
       let trips: [TripRow] = try await tripsQ.execute().value
-      let fuel: [FuelRow] = try await fuelQ.execute().value
       let incidents: [IDRow] = try await incidentsQ.execute().value
-      let events: [IDRow] = try await eventsQ.execute().value
-      let maintenance: [StatusRow] = try await maintenanceQ.execute().value
 
       // Driver ranking query intentionally includes only fields needed for scoring.
       var driverTripQ = builder.from("trips").select("driver_id, distance_km, fuel_used_liters")
@@ -355,15 +361,43 @@ public final class FleetReportViewModel {
     let header = "section,driver_id,driver_name,behavior_score,distance_km,fuel_liters"
 
     let topLines = topDrivers.map {
-      "top,\($0.id),\($0.name),\(String(format: "%.2f", $0.behaviorScore)),\(String(format: "%.2f", $0.distanceKm)),\(String(format: "%.2f", $0.fuelLiters))"
+      [
+        csvField("top"),
+        csvField($0.id),
+        csvField($0.name),
+        csvField(String(format: "%.2f", $0.behaviorScore)),
+        csvField(String(format: "%.2f", $0.distanceKm)),
+        csvField(String(format: "%.2f", $0.fuelLiters)),
+      ].joined(separator: ",")
     }
 
     let bottomLines = bottomDrivers.map {
-      "bottom,\($0.id),\($0.name),\(String(format: "%.2f", $0.behaviorScore)),\(String(format: "%.2f", $0.distanceKm)),\(String(format: "%.2f", $0.fuelLiters))"
+      [
+        csvField("bottom"),
+        csvField($0.id),
+        csvField($0.name),
+        csvField(String(format: "%.2f", $0.behaviorScore)),
+        csvField(String(format: "%.2f", $0.distanceKm)),
+        csvField(String(format: "%.2f", $0.fuelLiters)),
+      ].joined(separator: ",")
     }
 
-    let summary = "summary,,,,avg_behavior_score,\(String(format: "%.2f", averageBehaviorScore))"
+    let summary = [
+      csvField("summary"),
+      csvField(""),
+      csvField(""),
+      csvField(""),
+      csvField("avg_behavior_score"),
+      csvField(String(format: "%.2f", averageBehaviorScore)),
+    ].joined(separator: ",")
     return ([header, summary] + topLines + bottomLines).joined(separator: "\n")
+  }
+
+  private func csvField(_ value: String) -> String {
+    let escaped = value.replacingOccurrences(of: "\"", with: "\"\"")
+    let requiresQuotes = escaped.contains(",") || escaped.contains("\n") || escaped.contains("\r")
+      || escaped.contains("\"")
+    return requiresQuotes ? "\"\(escaped)\"" : escaped
   }
 
   // MARK: - Email Subscription
@@ -394,47 +428,51 @@ public final class FleetReportViewModel {
   }
 
   public func syncEmailSubscription(_ newValue: Bool) async {
+    guard !isTogglingSubscription else { return }
     isTogglingSubscription = true
     defer { isTogglingSubscription = false }
 
-    // MOCK FOR UI TESTING:
-    // Because the backend table isn't set up yet, we'll mock the network delay.
-    // The UI state is already instantly updated via the View's Binding.
-    // If this backend call failed, we would revert it: `self.isSubscribedToEmail = !newValue`
-    try? await Task.sleep(nanoseconds: 500_000_000)
-
-    /* --- DEFERRED REAL SUPABASE IMPLEMENTATION ---
     do {
-        let session = try await SupabaseService.shared.client.auth.session
-        let userId = session.user.id.uuidString
-        let userEmail = session.user.email ?? ""
-    
-        if let id = subscriptionId {
-            // Update existing
-            struct UpdatePayload: Encodable { let is_active: Bool }
-            try await SupabaseService.shared.client
-                .from("report_email_subscriptions")
-                .update(UpdatePayload(is_active: newValue))
-                .eq("id", value: id)
-                .execute()
-        } else {
-            // Insert new
-            struct InsertPayload: Encodable { let user_id: String; let email: String; let is_active: Bool }
-            let inserted: ReportEmailSubscription = try await SupabaseService.shared.client
-                .from("report_email_subscriptions")
-                .insert(InsertPayload(user_id: userId, email: userEmail, is_active: newValue))
-                .select()
-                .single()
-                .execute()
-                .value
-    
-            self.subscriptionId = inserted.id
+      let session = try await SupabaseService.shared.client.auth.session
+      let userId = session.user.id.uuidString
+      let userEmail = session.user.email ?? ""
+
+      if let id = subscriptionId {
+        struct UpdatePayload: Encodable { let is_active: Bool }
+        try await SupabaseService.shared.client
+          .from("report_email_subscriptions")
+          .update(UpdatePayload(is_active: newValue))
+          .eq("id", value: id)
+          .execute()
+      } else {
+        struct InsertPayload: Encodable {
+          let user_id: String
+          let email: String
+          let is_active: Bool
+          let day_of_week: Int
         }
+        let inserted: ReportEmailSubscription = try await SupabaseService.shared.client
+          .from("report_email_subscriptions")
+          .insert(
+            InsertPayload(user_id: userId, email: userEmail, is_active: newValue, day_of_week: 1))
+          .select()
+          .single()
+          .execute()
+          .value
+
+        self.subscriptionId = inserted.id
+      }
+
+      self.isSubscribedToEmail = newValue
+      self.errorMessage = nil
     } catch {
-        print("Failed to sync email sub: \(error)")
-        // Revert UI on failure
-        self.isSubscribedToEmail = !newValue
+      self.errorMessage = "Could not update email subscription. Please try again."
+      print("Failed to sync email sub: \(error)")
     }
-    */
+  }
+
+  private static func endOfDay(for date: Date) -> Date {
+    let calendar = Calendar.current
+    return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) ?? date
   }
 }

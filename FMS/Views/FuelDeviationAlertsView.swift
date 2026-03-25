@@ -51,11 +51,16 @@ public struct FuelDeviationAlertsView: View {
                         .foregroundStyle(FMSTheme.amber)
                 }
 
-                Slider(value: $viewModel.thresholdPercent, in: 5...40, step: 1)
-                    .tint(FMSTheme.amber)
-                    .onChange(of: viewModel.thresholdPercent) { _, _ in
+                Slider(
+                    value: $viewModel.thresholdPercent,
+                    in: 5...40,
+                    step: 1,
+                    onEditingChanged: { isEditing in
+                        guard !isEditing else { return }
                         Task { await viewModel.runDeviationCheck() }
                     }
+                )
+                    .tint(FMSTheme.amber)
             }
 
             Section("Alerts") {
@@ -94,13 +99,17 @@ public struct FuelDeviationAlertsView: View {
 
             HStack(spacing: 10) {
                 Button("Acknowledge") {
-                    viewModel.updateStatus(alertId: alert.id, status: .acknowledged)
+                    Task {
+                        await viewModel.updateStatus(alertId: alert.id, status: .acknowledged)
+                    }
                 }
                 .buttonStyle(.bordered)
                 .tint(FMSTheme.alertOrange)
 
                 Button("Resolve") {
-                    viewModel.updateStatus(alertId: alert.id, status: .resolved)
+                    Task {
+                        await viewModel.updateStatus(alertId: alert.id, status: .resolved)
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(FMSTheme.alertGreen)

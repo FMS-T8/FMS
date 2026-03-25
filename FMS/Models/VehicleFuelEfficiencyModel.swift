@@ -1,7 +1,7 @@
 import Foundation
 
 /// Maps the `vehicle_fuel_efficiency` Supabase view.
-public struct VehicleFuelEfficiency: Decodable, Identifiable {
+public struct VehicleFuelEfficiency: Codable, Identifiable {
   public var id: String { vehicleId }
   public let vehicleId: String
   public let plateNumber: String
@@ -39,6 +39,15 @@ public struct VehicleFuelEfficiency: Decodable, Identifiable {
     kmPerLiter = try container.decodeIfPresent(Double.self, forKey: .kmPerLiter) ?? 0
     baselineKmPerLiter =
       try container.decodeIfPresent(Double.self, forKey: .baselineKmPerLiter) ?? kmPerLiter
+  }
+
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(vehicleId, forKey: .vehicleId)
+    try container.encode(plateNumber, forKey: .plateNumber)
+    try container.encode(totalTrips, forKey: .totalTrips)
+    try container.encode(kmPerLiter, forKey: .kmPerLiter)
+    try container.encode(baselineKmPerLiter, forKey: .baselineKmPerLiter)
   }
 
   /// Color tier based on efficiency value.

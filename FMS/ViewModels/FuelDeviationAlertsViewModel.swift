@@ -6,6 +6,20 @@ import Supabase
 @MainActor
 public final class FuelDeviationAlertsViewModel {
 
+    private actor DeviationRunGate {
+        private var isRunning = false
+
+        func beginIfIdle() -> Bool {
+            guard !isRunning else { return false }
+            isRunning = true
+            return true
+        }
+
+        func end() {
+            isRunning = false
+        }
+    }
+
     private struct TripRow: Decodable {
         let vehicleId: String?
         let distanceKm: Double?
@@ -36,6 +50,11 @@ public final class FuelDeviationAlertsViewModel {
     public var thresholdPercent: Double = 15
 
     private var pollingTimer: Timer?
+    private let deviationRunGate = DeviationRunGate()
+
+    private struct AlertStatusUpdatePayload: Encodable {
+        let status: String
+    }
 
     public init() {}
 
@@ -55,9 +74,14 @@ public final class FuelDeviationAlertsViewModel {
     }
 
     public func runDeviationCheck() async {
+        guard await deviationRunGate.beginIfIdle() else { return }
+
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            Task { await deviationRunGate.end() }
+        }
 
         do {
             let now = Date()
@@ -144,8 +168,22 @@ public final class FuelDeviationAlertsViewModel {
         }
     }
 
-    public func updateStatus(alertId: String, status: FuelDeviationAlertStatus) {
+    public func updateStatus(alertId: String, status: FuelDeviationAlertStatus) async {
         guard let index = alerts.firstIndex(where: { $0.id == alertId }) else { return }
+
+        let previousStatus = alerts[index].status
         alerts[index].status = status
+
+        do {
+            try await SupabaseService.shared.client
+                .from("fuel_deviation_alerts")
+                .update(AlertStatusUpdatePayload(status: status.rawValue))
+                .eq("id", value: alertId)
+                .execute()
+            errorMessage = nil
+        } catch {
+            alerts[index].status = previousStatus
+            errorMessage = "Failed to update alert status. Please try again."
+        }
     }
 }

@@ -26,11 +26,16 @@ public struct FuelCostReportView: View {
         ScrollView {
             VStack(spacing: 16) {
                 filters
-                tableHeader
-                ForEach(viewModel.filteredRows) { row in
-                    reportRow(row)
+                ScrollView(.horizontal, showsIndicators: true) {
+                    VStack(spacing: 8) {
+                        tableHeader
+                        ForEach(viewModel.filteredRows) { row in
+                            reportRow(row)
+                        }
+                        totalsRow
+                    }
+                    .frame(minWidth: 720, alignment: .leading)
                 }
-                totalsRow
             }
             .padding(16)
         }

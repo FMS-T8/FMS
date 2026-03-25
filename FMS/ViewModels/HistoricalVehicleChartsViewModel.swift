@@ -95,6 +95,7 @@ public final class HistoricalVehicleChartsViewModel {
     public var points: [MetricPoint] = []
     public var isLoading = false
     public var errorMessage: String?
+    private var fetchGeneration: Int = 0
 
     public init() {
         let now = Date()
@@ -155,6 +156,10 @@ public final class HistoricalVehicleChartsViewModel {
             return
         }
 
+        fetchGeneration += 1
+        let generation = fetchGeneration
+        let metric = selectedMetric
+
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -162,7 +167,7 @@ public final class HistoricalVehicleChartsViewModel {
         do {
             let iso = ISO8601DateFormatter()
             let from = iso.string(from: customStartDate)
-            let to = iso.string(from: customEndDate)
+            let to = iso.string(from: Self.endOfDay(for: customEndDate))
 
             let trips: [TripRow] = try await SupabaseService.shared.client
                 .from("trips")
@@ -173,9 +178,11 @@ public final class HistoricalVehicleChartsViewModel {
                 .order("start_time", ascending: true)
                 .execute().value
 
+            guard generation == fetchGeneration else { return }
+
             let tripIds = trips.map(\.id)
             var gpsRows: [TripGPSRow] = []
-            if !tripIds.isEmpty {
+            if needsGPSRows(for: metric), !tripIds.isEmpty {
                 gpsRows = try await SupabaseService.shared.client
                     .from("trip_gps_logs")
                     .select("trip_id, speed, recorded_at")
@@ -183,10 +190,26 @@ public final class HistoricalVehicleChartsViewModel {
                     .execute().value
             }
 
-            points = buildSeries(metric: selectedMetric, trips: trips, gpsRows: gpsRows)
+            guard generation == fetchGeneration else { return }
+
+            points = buildSeries(metric: metric, trips: trips, gpsRows: gpsRows)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func needsGPSRows(for metric: Metric) -> Bool {
+        switch metric {
+        case .speed, .idleTime:
+            return true
+        case .fuelConsumption, .engineHours:
+            return false
+        }
+    }
+
+    private static func endOfDay(for date: Date) -> Date {
+        let calendar = Calendar.current
+        return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) ?? date
     }
 
     private func buildSeries(metric: Metric, trips: [TripRow], gpsRows: [TripGPSRow]) -> [MetricPoint] {

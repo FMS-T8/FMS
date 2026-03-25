@@ -100,9 +100,11 @@ public final class FuelCostReportViewModel {
         defer { isLoading = false }
 
         do {
+            let calendar = Calendar.current
             let iso = ISO8601DateFormatter()
             let from = iso.string(from: startDate)
-            let to = iso.string(from: endDate)
+            let rangeEnd = Self.endOfDay(for: endDate)
+            let to = iso.string(from: rangeEnd)
 
             var vehiclesQuery = SupabaseService.shared.client
                 .from("vehicles")
@@ -139,14 +141,19 @@ public final class FuelCostReportViewModel {
             }
 
             // Budget approximation based on 90-day historical spend trend.
-            let ninetyDaysAgo = Calendar.current.date(byAdding: .day, value: -90, to: endDate) ?? startDate
+            let ninetyDaysAgo = calendar.date(byAdding: .day, value: -90, to: startDate) ?? startDate
+            let baselineEnd = startDate.addingTimeInterval(-1)
             let historicalFrom = iso.string(from: ninetyDaysAgo)
+            let historicalTo = iso.string(from: baselineEnd)
             let historicalTrips: [TripFuelRow] = try await SupabaseService.shared.client
                 .from("trips")
                 .select("vehicle_id, fuel_used_liters, start_time")
                 .gte("start_time", value: historicalFrom)
-                .lte("start_time", value: to)
+                .lte("start_time", value: historicalTo)
                 .execute().value
+
+            let baselineDays = max(1, (calendar.dateComponents([.day], from: ninetyDaysAgo, to: baselineEnd).day ?? 0) + 1)
+            let reportDays = max(1, (calendar.dateComponents([.day], from: startDate, to: rangeEnd).day ?? 0) + 1)
 
             var historicalLitersByVehicle: [String: Double] = [:]
             for row in historicalTrips {
@@ -158,8 +165,8 @@ public final class FuelCostReportViewModel {
                 let liters = litersByVehicle[vehicle.id, default: 0]
                 let spend = liters * avgCostPerLiter
                 let historicalSpend = historicalLitersByVehicle[vehicle.id, default: 0] * avgCostPerLiter
-                let monthlyHistorical = historicalSpend / 3.0
-                let budget = max(0, monthlyHistorical * 1.10)
+                let dailyHistoricalSpend = historicalSpend / Double(baselineDays)
+                let budget = max(0, dailyHistoricalSpend * Double(reportDays) * 1.10)
 
                 return Row(
                     id: vehicle.id,
@@ -173,5 +180,10 @@ public final class FuelCostReportViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private static func endOfDay(for date: Date) -> Date {
+        let calendar = Calendar.current
+        return calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) ?? date
     }
 }

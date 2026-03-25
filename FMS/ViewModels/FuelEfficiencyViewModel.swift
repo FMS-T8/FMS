@@ -20,6 +20,10 @@ public final class FuelEfficiencyViewModel {
     }
   }
 
+  private struct VehicleIdRow: Decodable {
+    let id: String
+  }
+
   // MARK: - State
   public var vehicles: [VehicleFuelEfficiency] = []
   public var isLoading = false
@@ -45,9 +49,16 @@ public final class FuelEfficiencyViewModel {
     defer { isLoading = false }
 
     do {
+      let visibleVehicleIds = try await fetchVisibleVehicleIds()
+      guard !visibleVehicleIds.isEmpty else {
+        self.vehicles = []
+        return
+      }
+
       let fetched: [VehicleFuelEfficiency] = try await SupabaseService.shared.client
         .from("vehicle_fuel_efficiency")
         .select()
+        .in("vehicle_id", values: visibleVehicleIds)
         .execute()
         .value
       self.vehicles = try await enrichWithDerivedBaselineIfNeeded(fetched)
@@ -67,8 +78,10 @@ public final class FuelEfficiencyViewModel {
   }
 
   private func enrichWithDerivedBaselineIfNeeded(_ list: [VehicleFuelEfficiency]) async throws -> [VehicleFuelEfficiency] {
-    let needsDerivedBaseline = list.allSatisfy { $0.baselineKmPerLiter == $0.kmPerLiter }
-    guard needsDerivedBaseline else { return list }
+    let idsNeedingBaseline = list
+      .filter { $0.baselineKmPerLiter == $0.kmPerLiter }
+      .map(\.vehicleId)
+    guard !idsNeedingBaseline.isEmpty else { return list }
 
     let now = Date()
     guard
@@ -82,6 +95,7 @@ public final class FuelEfficiencyViewModel {
     let rows: [TripEfficiencySample] = try await SupabaseService.shared.client
       .from("trips")
       .select("vehicle_id, distance_km, fuel_used_liters, start_time")
+      .in("vehicle_id", values: idsNeedingBaseline)
       .gte("start_time", value: iso.string(from: windowStart))
       .lte("start_time", value: iso.string(from: now))
       .execute()
@@ -108,6 +122,7 @@ public final class FuelEfficiencyViewModel {
     }
 
     return list.map { vehicle in
+      guard idsNeedingBaseline.contains(vehicle.vehicleId) else { return vehicle }
       guard let acc = previous[vehicle.vehicleId], acc.fuel > 0 else { return vehicle }
       let baseline = acc.distance / acc.fuel
       return VehicleFuelEfficiency(
@@ -118,5 +133,14 @@ public final class FuelEfficiencyViewModel {
         baselineKmPerLiter: baseline
       )
     }
+  }
+
+  private func fetchVisibleVehicleIds() async throws -> [String] {
+    let rows: [VehicleIdRow] = try await SupabaseService.shared.client
+      .from("vehicles")
+      .select("id")
+      .execute()
+      .value
+    return rows.map(\.id)
   }
 }

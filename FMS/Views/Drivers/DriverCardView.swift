@@ -259,16 +259,24 @@ private struct CallButton: View {
   let phoneNumber: String?
   @Environment(\.openURL) var openURL
 
+  private var hasPhone: Bool {
+    !(phoneNumber?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+  }
+
+  private var canTrigger: Bool {
+    hasPhone || action != nil
+  }
+
   var body: some View {
     Button {
-      if let phone = phoneNumber, !phone.isEmpty {
+      if hasPhone, let phone = phoneNumber {
         let cleanedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
         if let url = URL(string: "tel:\(cleanedPhone)") {
           openURL(url)
+          return
         }
-      } else {
-        action?()
       }
+      action?()
     } label: {
       Label("Call", systemImage: "phone.fill")
         .font(.subheadline.weight(.semibold))
@@ -277,14 +285,8 @@ private struct CallButton: View {
         .padding(.vertical, 9)
         .background(FMSTheme.amber, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
-    .disabled(
-      phoneNumber == nil
-        || phoneNumber?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
-    )
-    .opacity(
-      (phoneNumber == nil
-        || phoneNumber?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true) ? 0.5 : 1.0
-    )
+    .disabled(!canTrigger)
+    .opacity(canTrigger ? 1.0 : 0.5)
   }
 }
 
