@@ -23,6 +23,10 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
     public var alertStatus: SOSAlertStatus = .active
     public var isAcknowledged: Bool { alertStatus == .acknowledged }
     public var isResolved: Bool     { alertStatus == .resolved }
+    
+    // MARK: - Error Handling State
+    public var errorMessage: String? = nil
+    public var showError: Bool = false
 
     public let countdownDuration = 10
 
@@ -86,6 +90,8 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         countdownTargetDate = nil
         state               = .sending
         sendFailed          = false
+        errorMessage        = nil
+        showError           = false
 
         beginBackgroundTask()
 
@@ -152,8 +158,18 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
                     .update(["status": SOSAlertStatus.cancelled.rawValue])
                     .eq("id", value: alertId)
                     .execute()
-            } catch {}
-            deactivateSOS()
+                deactivateSOS()
+            } catch {
+                #if DEBUG
+                print("[SOSViewModel] cancelSOS error: \(error)")
+                #endif
+                
+                self.errorMessage = "Failed to cancel SOS alert. Please try again or contact dispatch directly."
+                self.showError = true
+                
+                // Fallback to deactivate locally anyway to clear the screen
+                deactivateSOS()
+            }
         }
     }
 
@@ -176,19 +192,25 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         sendLocationPing()
 
         pingTask = Task { @MainActor [weak self] in
-            var interval: UInt64 = 10_000_000_000
-            
             while let self = self {
-                try? await Task.sleep(nanoseconds: interval)
-                
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
                 if Task.isCancelled { break }
                 
                 self.pingCount += 1
                 self.sendLocationPing()
 
-                // Switch to 30-second intervals after 30 rapid pings (~5 mins)
                 if self.pingCount >= 30 {
-                    interval = 30_000_000_000
+                    break // exit 10 sec loop to switch logic
+                }
+            }
+            
+            guard let self = self, !Task.isCancelled else { return }
+            
+            self.pingTask = Task { @MainActor [weak self] in
+                while let self = self {
+                    try? await Task.sleep(nanoseconds: 30_000_000_000)
+                    if Task.isCancelled { break }
+                    self.sendLocationPing()
                 }
             }
         }
@@ -263,7 +285,11 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
                     statusPollTask?.cancel()
                     statusPollTask = nil
                 }
-            } catch {}
+            } catch {
+                #if DEBUG
+                print("[SOSViewModel] pollAlertStatus error: \(error)")
+                #endif
+            }
         }
     }
 
