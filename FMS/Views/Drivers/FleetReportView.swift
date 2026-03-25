@@ -103,25 +103,13 @@ public struct FleetReportView: View {
         .toolbar {
           ToolbarItem(placement: .topBarLeading) {
             Button("Cancel") {
-              if let csvExportURL {
-                ShareLink(
-                  item: csvExportURL,
-                  subject: Text("Weekly Fleet Performance Report"),
-                  message: Text("Exported weekly report")
-                ) {
-                  Label("Export CSV", systemImage: "square.and.arrow.up")
-                }
-              } else {
-                Button {
-                  do {
-                    csvExportURL = try createCSVExportFile(from: viewModel.weeklyCSVReport())
-                  } catch {
-                    bannerManager.show(type: .error, message: "Could not prepare CSV export.")
-                  }
-                } label: {
-                  Label("Export CSV", systemImage: "square.and.arrow.up")
-                }
+              showDatePicker = false
+            }
+          }
+          ToolbarItem(placement: .topBarTrailing) {
+            Button("Apply") {
               viewModel.endDate = draftEndDate
+              viewModel.startDate = draftStartDate
               showDatePicker = false
               viewModel.selectedPreset = .custom
               Task { await loadData() }

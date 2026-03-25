@@ -150,12 +150,10 @@ public final class FuelCostReportViewModel {
       let totalVolume = fuelRows.compactMap(\.fuelVolume).reduce(0, +)
       let globalAvgCostPerLiter = totalVolume > 0 ? totalPaid / totalVolume : 0
 
-      let tripVehicleByTripId = Dictionary(
-        uniqueKeysWithValues: trips.compactMap { trip in
-          guard let vehicleId = trip.vehicleId else { return nil }
-          return (trip.id, vehicleId)
-        }
-      )
+      let tripVehicleByTripId: [String: String] = trips.reduce(into: [:]) { partial, trip in
+        guard let vehicleId = trip.vehicleId else { return }
+        partial[trip.id] = vehicleId
+      }
 
       typealias FuelAgg = (paid: Double, volume: Double)
       var fuelAggByVehicle: [String: FuelAgg] = [:]

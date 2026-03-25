@@ -68,6 +68,26 @@ public final class FuelDeviationAlertsViewModel {
     let status: String
   }
 
+  private struct AlertInsertPayload: Encodable {
+    let vehicleId: String
+    let vehicleLabel: String
+    let currentRate: Double
+    let baselineRate: Double
+    let deviationPercent: Double
+    let timestamp: String
+    let status: String
+
+    enum CodingKeys: String, CodingKey {
+      case vehicleId = "vehicle_id"
+      case vehicleLabel = "vehicle_label"
+      case currentRate = "current_rate"
+      case baselineRate = "baseline_rate"
+      case deviationPercent = "deviation_percent"
+      case timestamp
+      case status
+    }
+  }
+
   public init() {}
 
   public func startPolling() {
@@ -149,6 +169,10 @@ public final class FuelDeviationAlertsViewModel {
           continue
         }
 
+        // NOTE: `sliderDelta` here is a derived consistency signal from `manualFuelByTrip`
+        // (aggregated `FuelLog.fuelVolume`) versus trip fuel (`Trip.fuelUsedLiters`), not actual
+        // slider telemetry. `FuelReceiptParserService` currently validates slider input but does not
+        // persist it to `Trip` or `FuelLog`, so true slider-based verification is not yet available.
         let manualFuel = max(0, manualFuelByTrip[row.id] ?? 0)
         let sliderDelta = manualFuel > 0 ? abs(manualFuel - fuel) : 0
 
@@ -172,6 +196,7 @@ public final class FuelDeviationAlertsViewModel {
       }
 
       var nextAlerts: [FuelDeviationAlert] = []
+      let existingByVehicle = Dictionary(uniqueKeysWithValues: alerts.map { ($0.vehicleId, $0) })
       for (vehicleId, current) in currentAgg {
         guard let baseline = baselineAgg[vehicleId], baseline.gpsFuel > 0 else { continue }
 
@@ -188,18 +213,43 @@ public final class FuelDeviationAlertsViewModel {
           sliderDelta: current.sliderDelta,
           thresholdPercent: thresholdPercent
         ) {
-          let existingStatus = alerts.first(where: { $0.vehicleId == vehicleId })?.status ?? .active
-          nextAlerts.append(
-            FuelDeviationAlert(
-              vehicleId: vehicleId,
-              vehicleLabel: labelByVehicle[vehicleId] ?? vehicleId,
-              currentRate: currentRate,
-              baselineRate: baselineRate,
-              deviationPercent: deviation,
-              timestamp: now,
-              status: existingStatus
-            )
+          let existingStatus = existingByVehicle[vehicleId]?.status ?? .active
+          let alert = FuelDeviationAlert(
+            vehicleId: vehicleId,
+            vehicleLabel: labelByVehicle[vehicleId] ?? vehicleId,
+            currentRate: currentRate,
+            baselineRate: baselineRate,
+            deviationPercent: deviation,
+            timestamp: now,
+            status: existingStatus
           )
+
+          // Persist only newly generated alerts; existing alerts are already in storage.
+          if existingByVehicle[vehicleId] == nil {
+            let insertPayload = AlertInsertPayload(
+              vehicleId: alert.vehicleId,
+              vehicleLabel: alert.vehicleLabel,
+              currentRate: alert.currentRate,
+              baselineRate: alert.baselineRate,
+              deviationPercent: alert.deviationPercent,
+              timestamp: iso.string(from: alert.timestamp),
+              status: alert.status.rawValue
+            )
+
+            do {
+              try await SupabaseService.shared.client
+                .from("fuel_deviation_alerts")
+                .insert(insertPayload)
+                .execute()
+            } catch {
+              if errorMessage == nil {
+                errorMessage = "Failed to persist one or more fuel deviation alerts."
+              }
+              continue
+            }
+          }
+
+          nextAlerts.append(alert)
         }
       }
 

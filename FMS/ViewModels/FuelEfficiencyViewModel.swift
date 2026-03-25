@@ -116,13 +116,20 @@ public final class FuelEfficiencyViewModel {
       .execute()
       .value
 
-    let fuelLogRows: [FuelLogSample] = try await SupabaseService.shared.client
-      .from("fuel_logs")
-      .select("trip_id, fuel_volume")
-      .gte("logged_at", value: iso.string(from: windowStart))
-      .lte("logged_at", value: iso.string(from: now))
-      .execute()
-      .value
+    let relevantTripIDs = Array(Set(rows.map(\.id)))
+    let fuelLogRows: [FuelLogSample]
+    if relevantTripIDs.isEmpty {
+      fuelLogRows = []
+    } else {
+      fuelLogRows = try await SupabaseService.shared.client
+        .from("fuel_logs")
+        .select("trip_id, fuel_volume")
+        .in("trip_id", values: relevantTripIDs)
+        .gte("logged_at", value: iso.string(from: windowStart))
+        .lte("logged_at", value: iso.string(from: now))
+        .execute()
+        .value
+    }
 
     let manualFuelByTripId = Self.buildManualFuelByTripId(fuelLogRows)
 
