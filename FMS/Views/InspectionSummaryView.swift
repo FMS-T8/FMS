@@ -33,6 +33,9 @@ public struct InspectionSummaryView: View {
                         .foregroundStyle(FMSTheme.amber)
                 }
             }
+            .task {
+                await viewModel.fetchDisplayDetails()
+            }
             .sheet(isPresented: exportSheetPresented) {
                 if let url = viewModel.exportURL {
                     ShareSheet(items: [url])
@@ -62,9 +65,19 @@ public struct InspectionSummaryView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                detailRow(label: "Vehicle", value: viewModel.checklist.vehicleId)
-                detailRow(label: "Driver", value: viewModel.checklist.driverId)
+                // Use friendly names if available, otherwise fallback to shortened UUIDs
+                let vehicleDisplay = viewModel.vehiclePlate ?? String(viewModel.checklist.vehicleId.prefix(8).uppercased())
+                
+                detailRow(label: "Vehicle", value: vehicleDisplay)
+                
+                if let driverName = viewModel.driverName {
+                    detailRow(label: "Driver", value: driverName)
+                } else {
+                    detailRow(label: "Driver ID", value: String(viewModel.checklist.driverId.prefix(8).uppercased()))
+                }
+                
                 detailRow(label: "Date", value: viewModel.formattedDate(viewModel.checklist.createdAt))
+                
                 if let completed = viewModel.checklist.completedAt {
                     detailRow(label: "Completed", value: viewModel.formattedDate(completed))
                 }
@@ -193,13 +206,18 @@ public struct InspectionSummaryView: View {
             viewModel.prepareExport(includeTimestamp: false)
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("Export Report")
-                    .font(.headline.weight(.bold))
+                if viewModel.isLoadingDetails {
+                    ProgressView().tint(FMSTheme.obsidian)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Export Report")
+                        .font(.headline.weight(.bold))
+                }
             }
         }
         .buttonStyle(.fmsPrimary)
+        .disabled(viewModel.isLoadingDetails)
         .padding(.bottom, 24)
     }
 

@@ -27,8 +27,54 @@ public class InspectionViewModel {
     public var exportURL: URL?
     public var exportErrorMessage: String?
 
+    // MARK: - Display Details (Friendly Names)
+    public var vehiclePlate: String?
+    public var driverName: String?
+    public var driverEmployeeId: String?
+    public var isLoadingDetails: Bool = false
+
     public init(vehicleId: String = "VH-001", driverId: String = "DR-001", type: InspectionType = .preTrip) {
         self.checklist = InspectionChecklist(vehicleId: vehicleId, driverId: driverId, type: type)
+    }
+
+    // MARK: - Fetch Friendly Names
+    public func fetchDisplayDetails() async {
+        guard !isLoadingDetails else { return }
+        isLoadingDetails = true
+
+        do {
+            // Fetch Vehicle Plate
+            struct VehicleQuery: Decodable { let plate_number: String }
+            let vehicles: [VehicleQuery] = try await SupabaseService.shared.client
+                .from("vehicles")
+                .select("plate_number")
+                .eq("id", value: checklist.vehicleId)
+                .execute()
+                .value
+            
+            if let plate = vehicles.first?.plate_number {
+                self.vehiclePlate = plate
+            }
+
+            // Fetch Driver Name
+            struct DriverQuery: Decodable { let name: String }
+            let drivers: [DriverQuery] = try await SupabaseService.shared.client
+                .from("users")
+                .select("name")
+                .eq("id", value: checklist.driverId)
+                .execute()
+                .value
+            
+            if let name = drivers.first?.name {
+                self.driverName = name
+                self.driverEmployeeId = "DRV-\(checklist.driverId.prefix(4).uppercased())"
+            }
+
+        } catch {
+            print("Failed to fetch display details for inspection: \(error)")
+        }
+
+        isLoadingDetails = false
     }
 
     // MARK: - Item Actions
@@ -192,14 +238,18 @@ public class InspectionViewModel {
 
     public func generateReport() -> Data {
         let checklist = self.checklist
+        
+        let displayVehicle = vehiclePlate ?? String(checklist.vehicleId.prefix(8).uppercased())
+        let displayDriver = driverName ?? "Driver ID: \(String(checklist.driverId.prefix(8).uppercased()))"
+        
         var report = """
         ══════════════════════════════════════════════
                     FMS VEHICLE INSPECTION REPORT
         ══════════════════════════════════════════════
 
         Type:           \(checklist.inspectionType.rawValue) Inspection
-        Vehicle ID:     \(checklist.vehicleId)
-        Driver ID:      \(checklist.driverId)
+        Vehicle:        \(displayVehicle)
+        Driver:         \(displayDriver)
         Date:           \(formattedDate(checklist.createdAt))
         Completed:      \(checklist.completedAt.map { formattedDate($0) } ?? "In Progress")
         Status:         \(vehicleStatus)
