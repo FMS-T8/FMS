@@ -395,7 +395,8 @@ public final class FleetReportViewModel {
 
   private func csvField(_ value: String) -> String {
     let escaped = value.replacingOccurrences(of: "\"", with: "\"\"")
-    let requiresQuotes = escaped.contains(",") || escaped.contains("\n") || escaped.contains("\r")
+    let requiresQuotes =
+      escaped.contains(",") || escaped.contains("\n") || escaped.contains("\r")
       || escaped.contains("\"")
     return requiresQuotes ? "\"\(escaped)\"" : escaped
   }
@@ -454,7 +455,8 @@ public final class FleetReportViewModel {
         let inserted: ReportEmailSubscription = try await SupabaseService.shared.client
           .from("report_email_subscriptions")
           .insert(
-            InsertPayload(user_id: userId, email: userEmail, is_active: newValue, day_of_week: 1))
+            InsertPayload(user_id: userId, email: userEmail, is_active: newValue, day_of_week: 1)
+          )
           .select()
           .single()
           .execute()

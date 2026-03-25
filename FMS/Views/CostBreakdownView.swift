@@ -32,7 +32,9 @@ public struct CostBreakdownView: View {
       NavigationStack {
         Form {
           DatePicker("From", selection: $viewModel.customStartDate, displayedComponents: .date)
-          DatePicker("To", selection: $viewModel.customEndDate, in: viewModel.customStartDate..., displayedComponents: .date)
+          DatePicker(
+            "To", selection: $viewModel.customEndDate, in: viewModel.customStartDate...,
+            displayedComponents: .date)
         }
         .navigationTitle("Custom Range")
         .navigationBarTitleDisplayMode(.inline)

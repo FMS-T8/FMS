@@ -77,8 +77,11 @@ public final class FuelEfficiencyViewModel {
     }
   }
 
-  private func enrichWithDerivedBaselineIfNeeded(_ list: [VehicleFuelEfficiency]) async throws -> [VehicleFuelEfficiency] {
-    let idsNeedingBaseline = list
+  private func enrichWithDerivedBaselineIfNeeded(_ list: [VehicleFuelEfficiency]) async throws
+    -> [VehicleFuelEfficiency]
+  {
+    let idsNeedingBaseline =
+      list
       .filter { $0.baselineKmPerLiter == $0.kmPerLiter }
       .map(\.vehicleId)
     guard !idsNeedingBaseline.isEmpty else { return list }

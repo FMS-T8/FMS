@@ -63,7 +63,8 @@ public final class CostBreakdownViewModel {
   public init() {
     let now = Date()
     let calendar = Calendar.current
-    let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+    let startOfMonth =
+      calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
     self.customStartDate = startOfMonth
     self.customEndDate = now
   }
@@ -100,11 +101,14 @@ public final class CostBreakdownViewModel {
 
     switch preset {
     case .thisWeek:
-      let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)) ?? now
+      let weekStart =
+        calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))
+        ?? now
       customStartDate = weekStart
       customEndDate = now
     case .thisMonth:
-      let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+      let monthStart =
+        calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
       customStartDate = monthStart
       customEndDate = now
     case .custom:
@@ -190,11 +194,9 @@ public final class CostBreakdownViewModel {
     if let postgrestError = error as? PostgrestError {
       let postgrestMessage = String(describing: postgrestError).lowercased()
       return postgrestMessage.contains(table)
-        && (
-          postgrestMessage.contains("42p01")
-            || postgrestMessage.contains("schema cache")
-            || postgrestMessage.contains("does not exist")
-        )
+        && (postgrestMessage.contains("42p01")
+          || postgrestMessage.contains("schema cache")
+          || postgrestMessage.contains("does not exist"))
     }
 
     return false
