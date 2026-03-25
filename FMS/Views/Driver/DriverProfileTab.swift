@@ -213,97 +213,127 @@ struct DriverProfileTab: View {
     }
 
     private var documentUploadSheet: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                if availableDocumentTypes.isEmpty {
-                    Spacer()
-                    VStack(spacing: 12) {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(FMSTheme.alertGreen)
-                        Text("All Documents Uploaded")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(FMSTheme.textPrimary)
-                        Text("All required documents have been added.")
-                            .font(.system(size: 14))
+            NavigationStack {
+                ZStack {
+                    FMSTheme.backgroundPrimary.ignoresSafeArea(edges: .bottom)
+                    
+                    VStack(spacing: 24) {
+                        if availableDocumentTypes.isEmpty {
+                            Spacer()
+                            VStack(spacing: 16) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 56))
+                                    .foregroundStyle(FMSTheme.alertGreen)
+                                Text("All Documents Uploaded")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(FMSTheme.textPrimary)
+                                Text("All required documents have been added to your profile.")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(FMSTheme.textSecondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            Spacer()
+                        } else {
+                            VStack(alignment: .leading, spacing: 16) {
+                                Text("Document Type")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(FMSTheme.textSecondary)
+                                    .textCase(.uppercase)
+                                    .padding(.horizontal, 4)
+
+                                VStack(spacing: 12) {
+                                    ForEach(availableDocumentTypes) { type in
+                                        let isSelected = selectedDocType == type
+                                        Button {
+                                            withAnimation(.snappy) {
+                                                selectedDocType = type
+                                            }
+                                        } label: {
+                                            HStack(spacing: 16) {
+                                                ZStack {
+                                                    Circle()
+                                                        .fill(isSelected ? FMSTheme.amber.opacity(0.15) : FMSTheme.backgroundPrimary)
+                                                        .frame(width: 40, height: 40)
+                                                    Image(systemName: type.icon)
+                                                        .font(.system(size: 18, weight: .medium))
+                                                        .foregroundStyle(isSelected ? FMSTheme.amber : FMSTheme.textSecondary)
+                                                }
+                                                
+                                                Text(type.displayName)
+                                                    .font(.system(size: 16, weight: .semibold))
+                                                    .foregroundStyle(isSelected ? FMSTheme.textPrimary : FMSTheme.textSecondary)
+                                                
+                                                Spacer()
+                                                
+                                                if isSelected {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .font(.system(size: 20))
+                                                        .foregroundStyle(FMSTheme.amber)
+                                                } else {
+                                                    Circle()
+                                                        .stroke(FMSTheme.borderLight, lineWidth: 2)
+                                                        .frame(width: 20, height: 20)
+                                                }
+                                            }
+                                            .padding(12)
+                                            .background(FMSTheme.cardBackground)
+                                            .cornerRadius(16)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .stroke(isSelected ? FMSTheme.amber.opacity(0.5) : FMSTheme.borderLight, lineWidth: 1)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+
+                            Spacer()
+
+                            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "photo.on.rectangle.angled")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text("Choose from Library")
+                                        .font(.system(size: 16, weight: .bold))
+                                }
+                                .foregroundStyle(FMSTheme.obsidian)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(FMSTheme.amber)
+                                .cornerRadius(14)
+                            }
+                            .padding(.bottom, 8)
+                        }
+                    }
+                    .padding(20)
+                }
+                .navigationTitle("Upload Document")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(FMSTheme.backgroundPrimary, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Cancel") { showDocumentPicker = false }
                             .foregroundStyle(FMSTheme.textSecondary)
                     }
-                    Spacer()
-                } else {
-                    Text("Select Document Type")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(FMSTheme.textPrimary)
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        ForEach(availableDocumentTypes) { type in
-                            let isSelected = selectedDocType == type
-                            Button {
-                                selectedDocType = type
-                            } label: {
-                                VStack(spacing: 8) {
-                                    Image(systemName: type.icon)
-                                        .font(.system(size: 24, weight: .semibold))
-                                    Text(type.displayName)
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .multilineTextAlignment(.center)
-                                }
-                                .foregroundStyle(isSelected ? FMSTheme.obsidian : FMSTheme.textSecondary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 18)
-                                .background(isSelected ? FMSTheme.amber : FMSTheme.cardBackground)
-                                .cornerRadius(14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(isSelected ? Color.clear : FMSTheme.borderLight, lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "doc.badge.plus")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Choose Photo")
-                                .font(.system(size: 15, weight: .bold))
-                        }
-                        .foregroundStyle(FMSTheme.obsidian)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(FMSTheme.amber)
-                        .cornerRadius(12)
+                }
+                .onAppear {
+                    if let first = availableDocumentTypes.first {
+                        selectedDocType = first
                     }
                 }
-
-                Spacer()
             }
-            .padding(20)
-            .background(FMSTheme.backgroundPrimary)
-            .navigationTitle("Upload Document")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { showDocumentPicker = false }
-                        .foregroundStyle(FMSTheme.textSecondary)
+            .presentationBackground(FMSTheme.backgroundPrimary)
+            .presentationDetents([.fraction(0.6), .large])
+            .alert("Unable to Upload Document", isPresented: documentLoadErrorPresented) {
+                Button("OK", role: .cancel) {
+                    documentLoadErrorMessage = nil
                 }
-            }
-            .onAppear {
-                // Auto-select first available type
-                if let first = availableDocumentTypes.first {
-                    selectedDocType = first
-                }
+            } message: {
+                Text(documentLoadErrorMessage ?? "Please try again.")
             }
         }
-        .presentationDetents([.medium])
-        .alert("Unable to Upload Document", isPresented: documentLoadErrorPresented) {
-            Button("OK", role: .cancel) {
-                documentLoadErrorMessage = nil
-            }
-        } message: {
-            Text(documentLoadErrorMessage ?? "Please try again.")
-        }
-    }
 
     // MARK: - Document Detail Sheet
 
