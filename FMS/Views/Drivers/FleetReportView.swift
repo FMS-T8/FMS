@@ -34,14 +34,8 @@ public struct FleetReportView: View {
           ProgressView("Crunching fleet data...")
             .padding(.top, 50)
         } else {
-          weeklySummarySection
-            .padding(.horizontal)
-
           // 2. Metrics Grid
           metricsGrid
-            .padding(.horizontal)
-
-          driverRankingSection
             .padding(.horizontal)
 
           // 3. Email Subscription Toggle
@@ -56,29 +50,32 @@ public struct FleetReportView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
-        if !viewModel.isLoading {
+        HStack(spacing: 16) {
+          if viewModel.selectedPreset != .thisWeek || viewModel.selectedVehicleId != nil
+            || viewModel.selectedDriverId != nil
+          {
+            Button("Clear Filters") {
+              viewModel.selectedPreset = .thisWeek
+              viewModel.startDate = FleetReportViewModel.monday(for: Date())
+              viewModel.endDate = Calendar.current.date(byAdding: .day, value: 6, to: viewModel.startDate) ?? Date()
+              viewModel.selectedVehicleId = nil
+              viewModel.selectedDriverId = nil
+              Task { await loadData() }
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(FMSTheme.amber)
+          }
+
           ShareLink(
             item: viewModel.weeklyCSVReport(),
             subject: Text("Weekly Fleet Performance Report"),
             message: Text("Exported weekly report")
           ) {
-            Label("Export CSV", systemImage: "square.and.arrow.up")
+            Image(systemName: "square.and.arrow.up")
+              .font(.system(size: 16, weight: .semibold))
+              .foregroundStyle(viewModel.isLoading ? FMSTheme.textTertiary : FMSTheme.amber)
           }
-        }
-      }
-      ToolbarItem(placement: .topBarTrailing) {
-        if viewModel.selectedPreset != .thisWeek || viewModel.selectedVehicleId != nil
-          || viewModel.selectedDriverId != nil
-        {
-          Button("Clear Filters") {
-            viewModel.selectedPreset = .thisWeek
-            viewModel.selectedWeekStart = FleetReportViewModel.monday(for: Date())
-            viewModel.selectedVehicleId = nil
-            viewModel.selectedDriverId = nil
-            Task { await loadData() }
-          }
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundStyle(FMSTheme.amber)
+          .disabled(viewModel.isLoading)
         }
       }
     }
@@ -87,6 +84,12 @@ public struct FleetReportView: View {
       await viewModel.loadFilters()
       await loadData()
       await viewModel.fetchSubscriptionStatus()
+    }
+    .onChange(of: viewModel.errorMessage) { _, msg in
+      if let error = msg {
+        bannerManager.show(type: .error, message: error)
+        viewModel.errorMessage = nil
+      }
     }
     .onDisappear {
       cleanupCSVExportFile()
@@ -168,7 +171,7 @@ public struct FleetReportView: View {
   private var weekSelector: some View {
     HStack(spacing: 14) {
       Button {
-        viewModel.moveWeek(by: -1)
+        viewModel.moveDateRange(by: -1)
         Task { await loadData() }
       } label: {
         Image(systemName: "chevron.left")
@@ -180,17 +183,17 @@ public struct FleetReportView: View {
       }
 
       VStack(spacing: 2) {
-        Text("Weekly Report")
+        Text(viewModel.selectedPreset == .custom ? "Custom Range" : viewModel.selectedPreset.rawValue)
           .font(.system(size: 12, weight: .semibold))
           .foregroundStyle(FMSTheme.textSecondary)
-        Text(viewModel.weekLabel)
+        Text(viewModel.dateLabel)
           .font(.system(size: 14, weight: .bold))
           .foregroundStyle(FMSTheme.textPrimary)
       }
       .frame(maxWidth: .infinity)
 
       Button {
-        viewModel.moveWeek(by: 1)
+        viewModel.moveDateRange(by: 1)
         Task { await loadData() }
       } label: {
         Image(systemName: "chevron.right")
@@ -199,27 +202,6 @@ public struct FleetReportView: View {
           .frame(width: 32, height: 32)
           .background(FMSTheme.cardBackground)
           .clipShape(Circle())
-      }
-    }
-  }
-
-  private var weeklySummarySection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text("Fleet Efficiency Summary")
-        .font(.headline.weight(.bold))
-        .foregroundStyle(FMSTheme.textPrimary)
-
-      HStack(spacing: 12) {
-        ReportMetricCard(
-          icon: "gauge.with.dots.needle.67percent",
-          title: "Avg Behavior Score",
-          value: String(format: "%.1f", viewModel.averageBehaviorScore)
-        )
-        ReportMetricCard(
-          icon: "road.lanes",
-          title: "Total KM",
-          value: String(format: "%.0f", viewModel.totalDistanceKm)
-        )
       }
     }
   }
@@ -351,24 +333,41 @@ public struct FleetReportView: View {
           .font(.headline.weight(.bold))
           .foregroundStyle(FMSTheme.textPrimary)
 
-        LazyVGrid(columns: columns, spacing: 16) {
-            Button(action: { sheetMetric = .fuelUsed }) {
-                ReportMetricCard(
-                    icon: "fuelpump.fill", title: "Fuel Used",
-                    value: String(format: "%.1f L", viewModel.totalFuelLiters)
-                )
+        Button(action: { sheetMetric = .fuelLogs }) {
+            VStack(spacing: 16) {
+                HStack(spacing: 6) {
+                    Image(systemName: "fuelpump.fill")
+                        .foregroundStyle(FMSTheme.amber)
+                    Text("Fuel Used")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(FMSTheme.textSecondary)
+                    Spacer()
+                    Text(String(format: "%.1f L", viewModel.totalFuelLiters))
+                        .font(.title3.bold())
+                        .foregroundStyle(FMSTheme.textPrimary)
+                }
+                
+                HStack(spacing: 6) {
+                    Image(systemName: "indianrupeesign")
+                        .foregroundStyle(FMSTheme.amber)
+                    Text("Fuel Cost")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(FMSTheme.textSecondary)
+                    Spacer()
+                    Text(String(format: "₹%.0f", viewModel.totalFuelCost))
+                        .font(.title3.bold())
+                        .foregroundStyle(FMSTheme.textPrimary)
+                }
             }
-            .buttonStyle(.plain)
-            
-            Button(action: { sheetMetric = .fuelCost }) {
-                ReportMetricCard(
-                    icon: "indianrupeesign", title: "Fuel Cost",
-                    value: String(format: "₹%.0f", viewModel.totalFuelCost),
-                    subtitle: String(format: "Avg %.1f km/L", viewModel.avgFuelEfficiency)
-                )
-            }
-            .buttonStyle(.plain)
+            .padding(16)
+            .background(FMSTheme.cardBackground)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(FMSTheme.borderLight, lineWidth: 1)
+            )
         }
+        .buttonStyle(.plain)
       }
 
       // Safety & Maintenance
@@ -400,49 +399,6 @@ public struct FleetReportView: View {
     }
   }
 
-  private var driverRankingSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text("Driver Behavior Rankings")
-        .font(.headline.weight(.bold))
-        .foregroundStyle(FMSTheme.textPrimary)
-
-      rankingCard(title: "Top 5 Drivers", rows: viewModel.topDrivers)
-      rankingCard(title: "Bottom 5 Drivers", rows: viewModel.bottomDrivers)
-    }
-  }
-
-  private func rankingCard(title: String, rows: [FleetReportViewModel.DriverPerformance])
-    -> some View
-  {
-    VStack(alignment: .leading, spacing: 10) {
-      Text(title)
-        .font(.system(size: 14, weight: .bold))
-        .foregroundStyle(FMSTheme.textPrimary)
-
-      if rows.isEmpty {
-        Text("No driver data for selected week.")
-          .font(.system(size: 12))
-          .foregroundStyle(FMSTheme.textTertiary)
-      } else {
-        ForEach(rows) { row in
-          HStack {
-            Text(row.name)
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundStyle(FMSTheme.textPrimary)
-            Spacer()
-            Text(String(format: "%.1f", row.behaviorScore))
-              .font(.system(size: 13, weight: .bold, design: .rounded))
-              .foregroundStyle(row.behaviorScore >= 70 ? FMSTheme.alertGreen : FMSTheme.alertRed)
-          }
-          .padding(.vertical, 2)
-        }
-      }
-    }
-    .padding(14)
-    .background(FMSTheme.cardBackground)
-    .cornerRadius(12)
-  }
-
   // MARK: - Email Subscription
 
   private var emailSubscriptionSection: some View {
@@ -470,20 +426,15 @@ public struct FleetReportView: View {
 
         Spacer()
 
-        Toggle(
-          "",
-          isOn: Binding(
-            get: { viewModel.isSubscribedToEmail },
-            set: { newValue in
-              guard !viewModel.isTogglingSubscription else { return }
-              Task { await viewModel.syncEmailSubscription(newValue) }
-            }
-          )
-        )
-        .labelsHidden()
-        .accessibilityLabel("Email subscription")
-        .tint(FMSTheme.amber)
-        .disabled(viewModel.isTogglingSubscription)
+        Toggle("", isOn: Bindable(viewModel).isSubscribedToEmail)
+          .labelsHidden()
+          .accessibilityLabel("Email subscription")
+          .tint(FMSTheme.amber)
+          .disabled(viewModel.isTogglingSubscription)
+          .onChange(of: viewModel.isSubscribedToEmail) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            Task { await viewModel.syncEmailSubscription(newValue) }
+          }
       }
       .padding(16)
     }
@@ -497,15 +448,14 @@ public struct FleetReportView: View {
 }
 
 fileprivate enum FleetReportMetricDetail: String, Identifiable {
-    case totalTrips, distance, fuelUsed, fuelCost, incidents, workOrders
+    case totalTrips, distance, fuelLogs, incidents, workOrders
     var id: String { rawValue }
     
     var title: String {
         switch self {
         case .totalTrips: return "Recent Trips"
         case .distance: return "Distance Traveled"
-        case .fuelUsed: return "Fuel Logs"
-        case .fuelCost: return "Fuel Costs"
+        case .fuelLogs: return "Fuel Logs"
         case .incidents: return "Safety Incidents"
         case .workOrders: return "Work Orders"
         }
@@ -610,7 +560,7 @@ fileprivate struct MetricDetailSheet: View {
                         }
                     }
                 }
-            case .fuelUsed, .fuelCost:
+            case .fuelLogs:
                 if viewModel.fuelData.isEmpty {
                     Text("No fuel logs in this period")
                         .foregroundStyle(FMSTheme.textSecondary)

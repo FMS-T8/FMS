@@ -6,14 +6,6 @@ import Supabase
 @Observable
 public final class FleetReportViewModel {
 
-  public struct DriverPerformance: Identifiable {
-    public let id: String
-    public let name: String
-    public let behaviorScore: Double
-    public let distanceKm: Double
-    public let fuelLiters: Double
-  }
-
   // MARK: - Filter State
 
   public enum DatePreset: String, CaseIterable, Identifiable {
@@ -37,8 +29,6 @@ public final class FleetReportViewModel {
 
   public var selectedVehicleId: String? = nil
   public var selectedDriverId: String? = nil
-
-  public var selectedWeekStart: Date = Date()
 
   // MARK: - Resource Lists (for pickers)
   public var availableVehicles: [LiveVehicleResource] = []
@@ -79,11 +69,6 @@ public final class FleetReportViewModel {
   public var incidentCount: Int = 0
   public var safetyEventCount: Int = 0
 
-  // Driver Rankings
-  public var topDrivers: [DriverPerformance] = []
-  public var bottomDrivers: [DriverPerformance] = []
-  public var averageBehaviorScore: Double = 0
-
   // Maintenance
   public var activeMaintenanceCount: Int = 0
   public var completedMaintenanceCount: Int = 0
@@ -97,31 +82,16 @@ public final class FleetReportViewModel {
   public struct EventRow: Decodable, Identifiable, Hashable { public let id: String; public let event_type: String?; public let timestamp: String? }
   public struct MaintenanceRow: Decodable, Identifiable, Hashable { public let id: String; public let description: String?; public let priority: String?; public let status: String?; public let estimated_cost: Double?; public let created_at: String? }
 
-  private struct DriverTripRow: Decodable {
-    let driver_id: String?
-    let distance_km: Double?
-    let fuel_used_liters: Double?
-  }
-
-  private struct DriverAgg {
-    var distance: Double = 0
-    var fuel: Double = 0
-    var incidents: Int = 0
-    var events: Int = 0
-  }
-
   // MARK: - Init
 
   public init() {
     applyPresetDates()
   }
 
-  public var weekLabel: String {
+  public var dateLabel: String {
     let formatter = DateFormatter()
     formatter.dateFormat = "dd MMM"
-    let weekEnd =
-      Calendar.current.date(byAdding: .day, value: 6, to: selectedWeekStart) ?? selectedWeekStart
-    return "\(formatter.string(from: selectedWeekStart)) - \(formatter.string(from: weekEnd))"
+    return "\(formatter.string(from: startDate)) - \(formatter.string(from: endDate))"
   }
 
   public static func monday(for date: Date) -> Date {
@@ -130,17 +100,13 @@ public final class FleetReportViewModel {
     return calendar.date(from: components) ?? date
   }
 
-  public func moveWeek(by value: Int) {
-    guard
-      let nextWeek = Calendar.current.date(byAdding: .day, value: value * 7, to: selectedWeekStart)
-    else {
-      return
+  public func moveDateRange(by value: Int) {
+    let span = Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 6
+    if let nextStart = Calendar.current.date(byAdding: .day, value: value * (span + 1), to: startDate) {
+      startDate = nextStart
+      endDate = Calendar.current.date(byAdding: .day, value: span, to: startDate) ?? nextStart
+      selectedPreset = .custom
     }
-    selectedWeekStart = Self.monday(for: nextWeek)
-    startDate = selectedWeekStart
-    endDate =
-      Calendar.current.date(byAdding: .day, value: 6, to: selectedWeekStart) ?? selectedWeekStart
-    selectedPreset = .custom
   }
 
   private func applyPresetDates() {
@@ -152,18 +118,15 @@ public final class FleetReportViewModel {
       let start = Self.monday(for: now)
       startDate = start
       endDate = cal.date(byAdding: .day, value: 6, to: start) ?? now
-      selectedWeekStart = start
     case .lastWeek:
       let previousWeekDate = cal.date(byAdding: .day, value: -7, to: now) ?? now
       let start = Self.monday(for: previousWeekDate)
       startDate = start
       endDate = cal.date(byAdding: .day, value: 6, to: start) ?? now
-      selectedWeekStart = start
     case .last30Days:
       if let start = cal.date(byAdding: .day, value: -30, to: now) {
         startDate = start
         endDate = now
-        selectedWeekStart = Self.monday(for: start)
       }
     case .custom:
       break
@@ -268,15 +231,6 @@ public final class FleetReportViewModel {
       let trips: [TripRow] = try await tripsQ.execute().value
       let incidents: [IncidentRow] = try await incidentsQ.execute().value
 
-      // Driver ranking query intentionally includes only fields needed for scoring.
-      var driverTripQ = builder.from("trips").select("driver_id, distance_km, fuel_used_liters")
-        .gte("created_at", value: startStr)
-        .lte("created_at", value: endStr)
-      if let vId = selectedVehicleId { driverTripQ = driverTripQ.eq("vehicle_id", value: vId) }
-      if let dId = selectedDriverId { driverTripQ = driverTripQ.eq("driver_id", value: dId) }
-
-      let driverTrips: [DriverTripRow] = try await driverTripQ.execute().value
-
       // Perform Aggregations
       self.totalTrips = trips.count
       self.completedTrips = trips.filter { $0.status == "completed" }.count
@@ -297,97 +251,30 @@ public final class FleetReportViewModel {
       self.eventsData = events
       self.maintenanceData = maintenance
 
-      // Build rankings using the unified incidents array
-      buildDriverRanking(
-        driverTrips: driverTrips, incidents: incidents, totalEventCount: events.count)
-
     } catch {
       self.errorMessage = "Failed to load report data: \(error.localizedDescription)"
     }
   }
 
-  private func buildDriverRanking(
-    driverTrips: [DriverTripRow], incidents: [IncidentRow], totalEventCount: Int
-  ) {
-    var byDriver: [String: DriverAgg] = [:]
-
-    for row in driverTrips {
-      guard let driverId = row.driver_id else { continue }
-      var agg = byDriver[driverId] ?? DriverAgg()
-      agg.distance += row.distance_km ?? 0
-      agg.fuel += row.fuel_used_liters ?? 0
-      byDriver[driverId] = agg
-    }
-
-    for incident in incidents {
-      guard let driverId = incident.driver_id else { continue }
-      var agg = byDriver[driverId] ?? DriverAgg()
-      agg.incidents += 1
-      byDriver[driverId] = agg
-    }
-
-    // vehicle_events table doesn't carry driver_id, so distribute as a light global penalty.
-    let eventPenalty = byDriver.isEmpty ? 0 : Double(totalEventCount) / Double(byDriver.count)
-
-    let nameByDriver = Dictionary(uniqueKeysWithValues: availableDrivers.map { ($0.id, $0.name) })
-
-    let scored = byDriver.map { (driverId, agg) -> DriverPerformance in
-      let efficiency = agg.fuel > 0 ? (agg.distance / agg.fuel) : 0
-      let base = 70.0
-      let efficiencyBoost = min(30.0, efficiency * 3.0)
-      let incidentPenalty = Double(agg.incidents) * 12.0
-      let safetyPenalty = eventPenalty * 6.0
-      let score = max(0, min(100, base + efficiencyBoost - incidentPenalty - safetyPenalty))
-      return DriverPerformance(
-        id: driverId,
-        name: nameByDriver[driverId] ?? "Driver \(driverId.prefix(6))",
-        behaviorScore: score,
-        distanceKm: agg.distance,
-        fuelLiters: agg.fuel
-      )
-    }
-    .sorted { $0.behaviorScore > $1.behaviorScore }
-
-    topDrivers = Array(scored.prefix(5))
-    bottomDrivers = Array(scored.suffix(5).reversed())
-    averageBehaviorScore =
-      scored.isEmpty ? 0 : scored.map(\.behaviorScore).reduce(0, +) / Double(scored.count)
-  }
-
   public func weeklyCSVReport() -> String {
-    let header = "section,driver_id,driver_name,behavior_score,distance_km,fuel_liters"
-
-    let topLines = topDrivers.map {
-      [
-        csvField("top"),
-        csvField($0.id),
-        csvField($0.name),
-        csvField(String(format: "%.2f", $0.behaviorScore)),
-        csvField(String(format: "%.2f", $0.distanceKm)),
-        csvField(String(format: "%.2f", $0.fuelLiters)),
-      ].joined(separator: ",")
-    }
-
-    let bottomLines = bottomDrivers.map {
-      [
-        csvField("bottom"),
-        csvField($0.id),
-        csvField($0.name),
-        csvField(String(format: "%.2f", $0.behaviorScore)),
-        csvField(String(format: "%.2f", $0.distanceKm)),
-        csvField(String(format: "%.2f", $0.fuelLiters)),
-      ].joined(separator: ",")
-    }
+    let header = "metric,value"
 
     let summary = [
-      csvField("summary"),
-      csvField(""),
-      csvField(""),
-      csvField(""),
-      csvField("avg_behavior_score"),
-      csvField(String(format: "%.2f", averageBehaviorScore)),
-    ].joined(separator: ",")
-    return ([header, summary] + topLines + bottomLines).joined(separator: "\n")
+      ["Total Trips", "\(totalTrips)"],
+      ["Completed Trips", "\(completedTrips)"],
+      ["Distance Traveled (km)", String(format: "%.1f", totalDistanceKm)],
+      ["Total Fuel Liter", String(format: "%.1f", totalFuelLiters)],
+      ["Total Fuel Cost", String(format: "%.0f", totalFuelCost)],
+      ["Total Incidents", "\(incidentCount)"],
+      ["Safety Events", "\(safetyEventCount)"],
+      ["Active Maintenances", "\(activeMaintenanceCount)"]
+    ]
+
+    let csvLines = summary.map { row in
+      row.map { csvField($0) }.joined(separator: ",")
+    }
+
+    return ([header] + csvLines).joined(separator: "\n")
   }
 
   private func csvField(_ value: String) -> String {
@@ -401,28 +288,9 @@ public final class FleetReportViewModel {
   // MARK: - Email Subscription
 
   public func fetchSubscriptionStatus() async {
-    do {
-      let session = try await SupabaseService.shared.client.auth.session
-      let userId = session.user.id.uuidString
-
-      let subs: [ReportEmailSubscription] = try await SupabaseService.shared.client
-        .from("report_email_subscriptions")
-        .select()
-        .eq("user_id", value: userId)
-        .limit(1)
-        .execute()
-        .value
-
-      if let sub = subs.first {
-        self.subscriptionId = sub.id
-        self.isSubscribedToEmail = sub.isActive
-      } else {
-        self.subscriptionId = nil
-        self.isSubscribedToEmail = false
-      }
-    } catch {
-      print("Failed to fetch email subscription: \(error)")
-    }
+    // Email functionality natively mocked.
+    self.subscriptionId = nil
+    self.isSubscribedToEmail = false
   }
 
   public func syncEmailSubscription(_ newValue: Bool) async {
@@ -430,44 +298,9 @@ public final class FleetReportViewModel {
     isTogglingSubscription = true
     defer { isTogglingSubscription = false }
 
-    do {
-      let session = try await SupabaseService.shared.client.auth.session
-      let userId = session.user.id.uuidString
-      let userEmail = session.user.email ?? ""
-
-      if let id = subscriptionId {
-        struct UpdatePayload: Encodable { let is_active: Bool }
-        try await SupabaseService.shared.client
-          .from("report_email_subscriptions")
-          .update(UpdatePayload(is_active: newValue))
-          .eq("id", value: id)
-          .execute()
-      } else {
-        struct InsertPayload: Encodable {
-          let user_id: String
-          let email: String
-          let is_active: Bool
-          let day_of_week: Int
-        }
-        let inserted: ReportEmailSubscription = try await SupabaseService.shared.client
-          .from("report_email_subscriptions")
-          .insert(
-            InsertPayload(user_id: userId, email: userEmail, is_active: newValue, day_of_week: 1)
-          )
-          .select()
-          .single()
-          .execute()
-          .value
-
-        self.subscriptionId = inserted.id
-      }
-
-      self.isSubscribedToEmail = newValue
-      self.errorMessage = nil
-    } catch {
-      self.errorMessage = "Could not update email subscription. Please try again."
-      print("Failed to sync email sub: \(error)")
-    }
+    // Mocked for now, bypasses Supabase DB sync.
+    self.isSubscribedToEmail = newValue
+    self.errorMessage = nil
   }
 
   private static func endOfDay(for date: Date) -> Date {
