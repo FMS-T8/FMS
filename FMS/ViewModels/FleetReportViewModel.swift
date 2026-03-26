@@ -105,8 +105,40 @@ public final class FleetReportViewModel {
     if let nextStart = Calendar.current.date(byAdding: .day, value: value * (span + 1), to: startDate) {
       startDate = nextStart
       endDate = Calendar.current.date(byAdding: .day, value: span, to: startDate) ?? nextStart
-      selectedPreset = .custom
+      detectPreset()
     }
+  }
+
+  private func detectPreset() {
+    let cal = Calendar.current
+    let now = Date()
+
+    let thisWeekStart = Self.monday(for: now)
+    let thisWeekEnd = cal.date(byAdding: .day, value: 6, to: thisWeekStart) ?? now
+    if isSameDay(startDate, thisWeekStart) && isSameDay(endDate, thisWeekEnd) {
+      selectedPreset = .thisWeek
+      return
+    }
+
+    let previousWeekDate = cal.date(byAdding: .day, value: -7, to: now) ?? now
+    let lastWeekStart = Self.monday(for: previousWeekDate)
+    let lastWeekEnd = cal.date(byAdding: .day, value: 6, to: lastWeekStart) ?? now
+    if isSameDay(startDate, lastWeekStart) && isSameDay(endDate, lastWeekEnd) {
+      selectedPreset = .lastWeek
+      return
+    }
+
+    if let last30Start = cal.date(byAdding: .day, value: -30, to: now),
+       isSameDay(startDate, last30Start) && isSameDay(endDate, now) {
+      selectedPreset = .last30Days
+      return
+    }
+
+    selectedPreset = .custom
+  }
+
+  private func isSameDay(_ date1: Date, _ date2: Date) -> Bool {
+    Calendar.current.isDate(date1, inSameDayAs: date2)
   }
 
   private func applyPresetDates() {
