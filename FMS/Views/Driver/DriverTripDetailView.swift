@@ -4,7 +4,6 @@ struct DriverTripDetailView: View {
     let trip: Trip
     @Bindable var viewModel: DriverDashboardViewModel
     @Environment(\.dismiss) private var dismiss
-    @State private var showIssueReport = false
     @State private var showPreTripInspection = false
     @State private var showPostTripInspection = false
     @State private var preTripInspectionCompleted = false
@@ -27,9 +26,9 @@ struct DriverTripDetailView: View {
         .background(FMSTheme.backgroundPrimary)
         .navigationTitle("Trip Details")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showIssueReport) {
-            IssueReportView(viewModel: viewModel)
-        }
+        .background(FMSTheme.backgroundPrimary)
+        .navigationTitle("Trip Details")
+        .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(isPresented: $showPreTripInspection) {
             InspectionChecklistView(
                 type: .preTrip,
@@ -231,41 +230,18 @@ struct DriverTripDetailView: View {
         }
 
         if trip.status?.lowercased() == "active" {
-            VStack(spacing: 10) {
-                Button {
-                    postTripInspectionCompleted = false
-                    showPostTripInspection = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "flag.checkered")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("End Trip")
-                            .font(.headline.weight(.bold))
-                    }
+            Button {
+                postTripInspectionCompleted = false
+                showPostTripInspection = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "flag.checkered")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("End Trip")
+                        .font(.headline.weight(.bold))
                 }
-                .buttonStyle(.fmsPrimary)
-
-                Button {
-                    showIssueReport = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.bubble.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text("Report Issue")
-                            .font(.system(size: 16, weight: .semibold))
-                    }
-                    .foregroundStyle(FMSTheme.amber)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(FMSTheme.amber.opacity(0.12))
-                    .cornerRadius(14)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(FMSTheme.amber.opacity(0.3), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.fmsPrimary)
         }
     }
 

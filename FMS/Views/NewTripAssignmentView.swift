@@ -15,7 +15,6 @@ public struct NewTripAssignmentView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
-    @State private var showIssueReport = false
     @State private var showPreTripInspection = false
     @State private var showPostTripInspection = false
     @State private var preTripInspectionCompleted = false
@@ -136,9 +135,6 @@ public struct NewTripAssignmentView: View {
         .task {
             await fetchTripVehicle()
         }
-        .sheet(isPresented: $showIssueReport) {
-            IssueReportView(viewModel: viewModel)
-        }
         .fullScreenCover(isPresented: $showPreTripInspection) {
             if let vehicle = tripVehicle ?? viewModel.assignedVehicle {
                 InspectionChecklistView(
@@ -248,21 +244,6 @@ public struct NewTripAssignmentView: View {
                     .disabled((tripVehicle ?? viewModel.assignedVehicle) == nil)
 
                     if hasDestination { navigateButton }
-
-                    Button {
-                        showIssueReport = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.bubble.fill").font(.system(size: 14, weight: .semibold))
-                            Text("Report Issue").font(.system(size: 16, weight: .semibold))
-                        }
-                        .foregroundStyle(FMSTheme.amber)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background { FMSTheme.amber.opacity(0.12).cornerRadius(14) }
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(FMSTheme.amber.opacity(0.3), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
                 } else {
                     Button(action: {}) {
                         HStack(spacing: 8) {
