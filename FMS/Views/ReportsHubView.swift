@@ -56,6 +56,14 @@ public struct ReportsHubView: View {
                         color: FMSTheme.amber,
                         destination: HistoricalVehicleChartsView()
                     )
+
+                    reportCard(
+                        icon: "bed.double.fill",
+                        title: "Break Compliance",
+                        subtitle: "Mandated rest periods by driver and shift",
+                        color: FMSTheme.alertOrange,
+                        destination: BreakComplianceDashboardView()
+                    )
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
