@@ -43,10 +43,7 @@ public struct FleetReportView: View {
           metricsGrid
             .padding(.horizontal)
 
-          // 3. PDF Export Section
-          pdfExportSection
-            .padding(.horizontal)
-            .padding(.bottom, 40)
+          // Removed bottom export card to optimize space
         }
       }
     }
@@ -71,16 +68,31 @@ public struct FleetReportView: View {
             .foregroundStyle(FMSTheme.amber)
           }
 
-          ShareLink(
-            item: viewModel.weeklyCSVReport(),
-            subject: Text("Weekly Fleet Performance Report"),
-            message: Text("Exported weekly report")
-          ) {
-            Image(systemName: "square.and.arrow.up")
-              .font(.system(size: 16, weight: .semibold))
-              .foregroundStyle(viewModel.isLoading ? FMSTheme.textTertiary : FMSTheme.amber)
+          Menu {
+              Button {
+                  Task { await handlePDFGeneration() }
+              } label: {
+                  Label("Export as PDF", systemImage: "doc.richtext")
+              }
+              
+              ShareLink(
+                item: viewModel.weeklyCSVReport(),
+                subject: Text("Weekly Fleet Performance Report"),
+                message: Text("Exported weekly report")
+              ) {
+                  Label("Export as CSV", systemImage: "tablecells")
+              }
+          } label: {
+              if isGeneratingPDF {
+                  ProgressView()
+                      .tint(FMSTheme.amber)
+              } else {
+                  Image(systemName: "square.and.arrow.up")
+                      .font(.system(size: 16, weight: .semibold))
+                      .foregroundStyle(viewModel.isLoading ? FMSTheme.textTertiary : FMSTheme.amber)
+              }
           }
-          .disabled(viewModel.isLoading)
+          .disabled(viewModel.isLoading || isGeneratingPDF)
         }
       }
     }
@@ -416,60 +428,6 @@ public struct FleetReportView: View {
   }
 
   // MARK: - PDF Generation
-
-  private var pdfExportSection: some View {
-    VStack(spacing: 0) {
-      HStack(spacing: 16) {
-        ZStack {
-          Circle()
-            .fill(FMSTheme.amber.opacity(0.15))
-            .frame(width: 48, height: 48)
-          Image(systemName: "doc.richtext.fill")
-            .font(.system(size: 20))
-            .foregroundStyle(FMSTheme.amber)
-        }
-
-        VStack(alignment: .leading, spacing: 4) {
-          Text("Generate PDF Report")
-            .font(.headline.weight(.bold))
-            .foregroundStyle(FMSTheme.textPrimary)
-
-          Text("Create a printable A4 PDF summary of the current filters.")
-            .font(.subheadline)
-            .foregroundStyle(FMSTheme.textSecondary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-
-        Spacer()
-
-        Button {
-            Task { await handlePDFGeneration() }
-        } label: {
-            if isGeneratingPDF {
-                ProgressView()
-                    .tint(FMSTheme.amber)
-                    .frame(width: 60)
-            } else {
-                Text("Export")
-                    .font(.subheadline.bold())
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(FMSTheme.amber)
-                    .foregroundStyle(.black)
-                    .cornerRadius(8)
-            }
-        }
-        .disabled(isGeneratingPDF)
-      }
-      .padding(16)
-    }
-    .background(FMSTheme.cardBackground)
-    .cornerRadius(16)
-    .overlay(
-      RoundedRectangle(cornerRadius: 16)
-        .stroke(FMSTheme.borderLight, lineWidth: 1)
-    )
-  }
 
   @MainActor
   private func handlePDFGeneration() async {
