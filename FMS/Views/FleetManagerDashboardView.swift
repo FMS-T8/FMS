@@ -34,6 +34,16 @@ public struct FleetManagerDashboardView: View {
     }
 }
 
+// MARK: - RichTripAlert
+struct RichTripAlert: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let timeAgo: String
+    let type: AlertType
+    let timestamp: Date
+}
+
 // MARK: - Home Tab Content
 struct FleetManagerHomeTab: View {
     @State private var navigateToLiveFleet = false
@@ -48,10 +58,9 @@ struct FleetManagerHomeTab: View {
     private let activeVehicles = 14
     private let pendingOrders = 12
 
-    private let alerts: [(title: String, subtitle: String, timeAgo: String, type: AlertType)] = [
-        ("Tyre pressure warning", "Truck #402 reported low pressure in rear-left tyre.", "12m ago", .warning),
-        ("Driver break scheduled", "Driver David R. is reaching mandatory rest limit in 15 mins.", "45m ago", .info),
-        ("Geofence deviation", "Truck #109 exited the designated route area in North District.", "1h ago", .critical)
+    @State private var recentAlerts: [RichTripAlert] = [
+        RichTripAlert(id: "static1", title: "Tyre pressure warning", subtitle: "Truck #402 reported low pressure in rear-left tyre.", timeAgo: "12m ago", type: .warning, timestamp: Date().addingTimeInterval(-720)),
+        RichTripAlert(id: "static2", title: "Driver break scheduled", subtitle: "Driver David R. is reaching mandatory rest limit in 15 mins.", timeAgo: "45m ago", type: .info, timestamp: Date().addingTimeInterval(-2700))
     ]
 
     var body: some View {
@@ -174,10 +183,12 @@ struct FleetManagerHomeTab: View {
     // MARK: - SOS Polling
     private func startSOSPolling() {
         fetchSOSAlerts()
+        fetchRecentAlerts()
         sosPollingTimer?.invalidate()
         sosPollingTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
             Task { @MainActor in
                 fetchSOSAlerts()
+                fetchRecentAlerts()
             }
         }
     }
@@ -197,6 +208,63 @@ struct FleetManagerHomeTab: View {
                 activeSOSAlerts = alerts
             } catch {
                 print("[FMS] fetchSOSAlerts failed: \(error)")
+            }
+        }
+    }
+
+    private func fetchRecentAlerts() {
+        Task {
+            do {
+                let response = try await SupabaseService.shared.client
+                    .from("vehicle_events")
+                    .select()
+                    .in("event_type", values: ["trip_start", "trip_end"])
+                    .order("timestamp", ascending: false)
+                    .limit(10)
+                    .execute()
+                
+                let events = try JSONDecoder.supabase().decode([VehicleEvent].self, from: response.data)
+                
+                var fetchedAlerts: [RichTripAlert] = []
+                for event in events {
+                    let isStart = event.eventType == .tripStart
+                    let title = isStart ? "Trip Started" : "Trip Ended"
+                    
+                    var subtitle = "Vehicle \(String(event.vehicleID.prefix(6))) \(isStart ? "started a" : "completed its") trip."
+                    
+                    if let vId = UUID(uuidString: event.vehicleID) {
+                        struct MockVehicle: Decodable { let plate_number: String }
+                        if let vehicle: [MockVehicle] = try? await SupabaseService.shared.client.from("vehicles").select("plate_number").eq("id", value: vId).execute().value, let first = vehicle.first {
+                            subtitle = "Vehicle \(first.plate_number) \(isStart ? "started a" : "completed its") trip."
+                        }
+                    }
+                    
+                    let seconds = Int(Date().timeIntervalSince(event.timestamp))
+                    let timeAgo: String
+                    if seconds < 60 { timeAgo = "Just now" }
+                    else if seconds < 3600 { timeAgo = "\(seconds / 60)m ago" }
+                    else { timeAgo = "\(seconds / 3600)h ago" }
+                    
+                    fetchedAlerts.append(RichTripAlert(
+                        id: event.id,
+                        title: title,
+                        subtitle: subtitle,
+                        timeAgo: timeAgo,
+                        type: .info,
+                        timestamp: event.timestamp
+                    ))
+                }
+                
+                let staticAlerts = [
+                    RichTripAlert(id: "static1", title: "Tyre pressure warning", subtitle: "Truck #402 reported low pressure in rear-left tyre.", timeAgo: "12m ago", type: .warning, timestamp: Date().addingTimeInterval(-720)),
+                    RichTripAlert(id: "static2", title: "Geofence deviation", subtitle: "Truck #109 exited designated route area.", timeAgo: "1h ago", type: .critical, timestamp: Date().addingTimeInterval(-3600))
+                ]
+                
+                await MainActor.run {
+                    self.recentAlerts = fetchedAlerts + staticAlerts
+                }
+            } catch {
+                print("[FMS] fetchRecentAlerts failed: \(error)")
             }
         }
     }
@@ -239,8 +307,7 @@ struct FleetManagerHomeTab: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(FMSTheme.textPrimary)
 
-            ForEach(alerts.indices, id: \.self) { index in
-                let alert = alerts[index]
+            ForEach(recentAlerts) { alert in
                 AlertRow(
                     title: alert.title,
                     subtitle: alert.subtitle,

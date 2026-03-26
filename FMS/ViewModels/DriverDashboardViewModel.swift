@@ -237,6 +237,20 @@ public final class DriverDashboardViewModel {
                     try await SupabaseService.shared.client
                         .from("orders").update(OrderUpdate(status: "in_transit")).eq("id", value: orderId).execute()
                 }
+                
+                // Dispatch Trip Start Alert
+                if let vehicleId = trip.vehicleId {
+                    let event = VehicleEvent(
+                        vehicleID: vehicleId,
+                        tripID: trip.id,
+                        eventType: .tripStart,
+                        timestamp: started.startTime ?? Date()
+                    )
+                    try await SupabaseService.shared.client
+                        .from("vehicle_events")
+                        .insert(event)
+                        .execute()
+                }
             } catch {
                 print("Failed to start trip in DB: \(error)")
                 locationManager.stopUpdating()
@@ -281,6 +295,20 @@ public final class DriverDashboardViewModel {
                     struct OrderUpdate: Encodable { let status: String }
                     try await SupabaseService.shared.client
                         .from("orders").update(OrderUpdate(status: "delivered")).eq("id", value: orderId).execute()
+                }
+
+                // Dispatch Trip End Alert
+                if let vehicleId = trip.vehicleId {
+                    let event = VehicleEvent(
+                        vehicleID: vehicleId,
+                        tripID: trip.id,
+                        eventType: .tripEnd,
+                        timestamp: trip.endTime ?? Date()
+                    )
+                    try await SupabaseService.shared.client
+                        .from("vehicle_events")
+                        .insert(event)
+                        .execute()
                 }
 
                 struct UserUpdate: Encodable { let operational_status: String }
