@@ -514,4 +514,3 @@ private struct SOSAlertCard: View {
         return "\(seconds / 3600)h ago"
     }
 }
-

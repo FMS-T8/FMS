@@ -49,7 +49,7 @@ struct DriverCardView: View {
         ShiftProgressRow(label: driver.shiftProgressLabel, progress: driver.shiftProgress)
       }
 
-      CallButton(action: onCall)
+      CallButton(action: onCall, phoneNumber: driver.phone)
     }
     .padding(.leading, 14)
     .padding(.trailing, 16)
@@ -256,9 +256,51 @@ private struct ThickProgressBar: View {
 
 private struct CallButton: View {
   let action: (() -> Void)?
+  let phoneNumber: String?
+  @Environment(\.openURL) var openURL
+
+  private var validatedPhoneNumber: String? {
+    guard let raw = phoneNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty
+    else {
+      return nil
+    }
+
+    let lower = raw.lowercased()
+    let placeholders = ["n/a", "na", "none", "null", "not available", "unknown", "-", "—"]
+    guard !placeholders.contains(lower) else { return nil }
+
+    let digitsCount = raw.filter(\.isNumber).count
+    guard digitsCount >= 7 else { return nil }
+
+    let allowed = CharacterSet(charactersIn: "+-(). 0123456789")
+    guard raw.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return nil }
+
+    return raw
+  }
+
+  private var dialablePhoneNumber: String? {
+    guard let validatedPhoneNumber else { return nil }
+    let trimmed = validatedPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+    let hasLeadingPlus = trimmed.hasPrefix("+")
+    let digitsOnly = trimmed.filter(\.isNumber)
+    guard !digitsOnly.isEmpty else { return nil }
+    return hasLeadingPlus ? "+\(digitsOnly)" : digitsOnly
+  }
+
+  private var hasPhone: Bool {
+    validatedPhoneNumber != nil
+  }
+
+  private var canTrigger: Bool {
+    hasPhone || action != nil
+  }
 
   var body: some View {
     Button {
+      if let dialablePhoneNumber, let url = URL(string: "tel:\(dialablePhoneNumber)") {
+        openURL(url)
+        return
+      }
       action?()
     } label: {
       Label("Call", systemImage: "phone.fill")
@@ -268,8 +310,8 @@ private struct CallButton: View {
         .padding(.vertical, 9)
         .background(FMSTheme.amber, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
-    .disabled(action == nil)
-    .opacity(action == nil ? 0.5 : 1.0)
+    .disabled(!canTrigger)
+    .opacity(canTrigger ? 1.0 : 0.5)
   }
 }
 
