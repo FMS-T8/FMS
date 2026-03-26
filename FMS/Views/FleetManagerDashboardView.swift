@@ -213,10 +213,17 @@ struct FleetManagerHomeTab: View {
     private func fetchRecentAlerts() {
         Task {
             do {
-                let response = try await SupabaseService.shared.client
+                var query = SupabaseService.shared.client
                     .from("vehicle_events")
                     .select()
                     .in("event_type", values: ["trip_start", "trip_end"])
+                
+                if !deletedAlertIDs.isEmpty {
+                    let formattedIDs = "(\(Array(deletedAlertIDs).joined(separator: ",")))"
+                    query = query.not("id", operator: .in, value: formattedIDs)
+                }
+                
+                let response = try await query
                     .order("timestamp", ascending: false)
                     .limit(10)
                     .execute()
@@ -308,18 +315,26 @@ struct FleetManagerHomeTab: View {
                     .padding(.vertical, 10)
             } else {
                 ForEach(recentAlerts) { alert in
-                    SwipeToDeleteWrapper(onDelete: {
+                    let deleteAction = {
                         deletedAlertIDs.insert(alert.id)
                         withAnimation {
                             recentAlerts.removeAll { $0.id == alert.id }
                         }
-                    }) {
+                    }
+                    
+                    SwipeToDeleteWrapper(onDelete: deleteAction) {
                         AlertRow(
                             title: alert.title,
                             subtitle: alert.subtitle,
                             timeAgo: alert.timeAgo,
                             type: alert.type
                         )
+                    }
+                    .accessibilityAction(.delete, deleteAction)
+                    .contextMenu {
+                        Button(role: .destructive, action: deleteAction) {
+                            Label("Delete Alert", systemImage: "trash")
+                        }
                     }
                 }
             }

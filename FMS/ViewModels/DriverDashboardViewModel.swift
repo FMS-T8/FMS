@@ -238,18 +238,22 @@ public final class DriverDashboardViewModel {
                         .from("orders").update(OrderUpdate(status: "in_transit")).eq("id", value: orderId).execute()
                 }
                 
-                // Dispatch Trip Start Alert
+                // Dispatch Trip Start Alert (Isolated to prevent transaction abort)
                 if let vehicleId = trip.vehicleId {
-                    let event = VehicleEvent(
-                        vehicleID: vehicleId,
-                        tripID: trip.id,
-                        eventType: .tripStart,
-                        timestamp: started.startTime ?? Date()
-                    )
-                    try await SupabaseService.shared.client
-                        .from("vehicle_events")
-                        .insert(event)
-                        .execute()
+                    do {
+                        let event = VehicleEvent(
+                            vehicleID: vehicleId,
+                            tripID: trip.id,
+                            eventType: .tripStart,
+                            timestamp: started.startTime ?? Date()
+                        )
+                        try await SupabaseService.shared.client
+                            .from("vehicle_events")
+                            .insert(event)
+                            .execute()
+                    } catch {
+                        print("[FMS] Non-critical error generating Trip Start Alert: \(error)")
+                    }
                 }
             } catch {
                 print("Failed to start trip in DB: \(error)")
@@ -297,18 +301,22 @@ public final class DriverDashboardViewModel {
                         .from("orders").update(OrderUpdate(status: "delivered")).eq("id", value: orderId).execute()
                 }
 
-                // Dispatch Trip End Alert
+                // Dispatch Trip End Alert (Isolated to prevent transaction abort)
                 if let vehicleId = trip.vehicleId {
-                    let event = VehicleEvent(
-                        vehicleID: vehicleId,
-                        tripID: trip.id,
-                        eventType: .tripEnd,
-                        timestamp: trip.endTime ?? Date()
-                    )
-                    try await SupabaseService.shared.client
-                        .from("vehicle_events")
-                        .insert(event)
-                        .execute()
+                    do {
+                        let event = VehicleEvent(
+                            vehicleID: vehicleId,
+                            tripID: trip.id,
+                            eventType: .tripEnd,
+                            timestamp: trip.endTime ?? Date()
+                        )
+                        try await SupabaseService.shared.client
+                            .from("vehicle_events")
+                            .insert(event)
+                            .execute()
+                    } catch {
+                        print("[FMS] Non-critical error generating Trip End Alert: \(error)")
+                    }
                 }
 
                 struct UserUpdate: Encodable { let operational_status: String }
