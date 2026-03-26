@@ -15,6 +15,7 @@ public struct BulkVehicleUIModel: Identifiable {
     
     public var plate_number: String
     public var chassis_number: String
+    public var vin: String
     public var manufacturer: String
     public var model: String
     public var fuel_type: String
@@ -28,6 +29,7 @@ public struct BulkVehicleUIModel: Identifiable {
 struct VehicleBulkInsertPayload: Encodable {
     let plate_number: String
     let chassis_number: String?
+    let vin: String?
     let manufacturer: String?
     let model: String?
     let fuel_type: String?
@@ -74,6 +76,7 @@ public final class VehicleBulkImportViewModel {
             let vehicle = BulkVehicleUIModel(
                 plate_number: row["plate_number"] ?? "",
                 chassis_number: row["chassis_number"] ?? "",
+                vin: row["vin"] ?? "", // Map vin from CSV
                 manufacturer: row["manufacturer"] ?? "",
                 model: row["model"] ?? "",
                 fuel_type: row["fuel_type"] ?? "",
@@ -122,6 +125,7 @@ public final class VehicleBulkImportViewModel {
             let payload = VehicleBulkInsertPayload(
                 plate_number: plate,
                 chassis_number: uiModel.chassis_number.trimmingCharacters(in: .whitespaces),
+                vin: uiModel.vin.trimmingCharacters(in: .whitespaces).isEmpty ? nil : uiModel.vin.trimmingCharacters(in: .whitespaces), // Add vin to payload
                 manufacturer: uiModel.manufacturer.trimmingCharacters(in: .whitespaces).isEmpty ? nil : uiModel.manufacturer.trimmingCharacters(in: .whitespaces),
                 model: uiModel.model.trimmingCharacters(in: .whitespaces).isEmpty ? nil : uiModel.model.trimmingCharacters(in: .whitespaces),
                 fuel_type: uiModel.fuel_type.trimmingCharacters(in: .whitespaces).isEmpty ? nil : uiModel.fuel_type.lowercased().trimmingCharacters(in: .whitespaces),
