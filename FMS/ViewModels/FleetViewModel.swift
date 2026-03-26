@@ -81,6 +81,9 @@ public class FleetViewModel {
             self.openWorkOrders = w
             self.errorMessage = nil
             self.loadErrorMessage = nil
+        } catch is CancellationError {
+            // Ignore cancellation
+            print("FleetViewModel: Fetch cancelled")
         } catch {
             self.errorMessage = error.localizedDescription
             self.loadErrorMessage = error.localizedDescription
@@ -124,6 +127,9 @@ public class FleetViewModel {
             
             // Re-fetch or optimistically add. We'll simply re-fetch to ensure sync
             try await fetchVehicles()
+        } catch is CancellationError {
+            // Ignore cancellation
+            print("FleetViewModel: Update/Add cancelled")
         } catch {
             self.errorMessage = error.localizedDescription
             print("Error adding vehicle: \(error)")
@@ -134,13 +140,38 @@ public class FleetViewModel {
     @MainActor
     public func updateVehicle(_ vehicle: Vehicle) async throws {
         do {
+            // 1. Standard update (updates all non-nil fields)
             try await SupabaseService.shared.client
                 .from("vehicles")
                 .update(vehicle)
                 .eq("id", value: vehicle.id)
                 .execute()
             
+            // 2. Explicitly clear maintenance overrides if they are nil in the object
+            // This is needed because standard JSON encoding omits nil values instead of sending nulls.
+            if vehicle.serviceIntervalKm == nil || vehicle.monthlyBudget == nil {
+                struct MaintenanceNullUpdate: Encodable {
+                    func encode(to encoder: Encoder) throws {
+                        var container = encoder.container(keyedBy: CodingKeys.self)
+                        try container.encodeNil(forKey: .service_interval_km)
+                        try container.encodeNil(forKey: .monthly_budget)
+                    }
+                    enum CodingKeys: String, CodingKey {
+                        case service_interval_km, monthly_budget
+                    }
+                }
+                
+                _ = try? await SupabaseService.shared.client
+                    .from("vehicles")
+                    .update(MaintenanceNullUpdate())
+                    .eq("id", value: vehicle.id)
+                    .execute()
+            }
+            
             try await fetchVehicles()
+        } catch is CancellationError {
+            // Ignore cancellation
+            print("FleetViewModel: Update cancelled")
         } catch {
             self.errorMessage = error.localizedDescription
             print("Error updating vehicle: \(error)")
@@ -183,7 +214,8 @@ public class FleetViewModel {
             || message.contains("offline")
             || message.contains("timed out")
             || message.contains("timeout")
-            || message.contains("connection") {
+            || message.contains("connection")
+            || message.contains("cancelled") {
             return .networkError
         }
         

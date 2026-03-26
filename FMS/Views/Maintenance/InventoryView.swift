@@ -8,6 +8,9 @@ struct InventoryView: View {
     @State private var searchText  = ""
     @State private var searchActive = false
     @State private var selectedFilter = "All"
+    @State private var showingProfile = false
+    
+    @Environment(AuthViewModel.self) private var authViewModel
 
     let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
     let stockFilters = ["All", "Low Stock", "In Stock"]
@@ -146,6 +149,9 @@ struct InventoryView: View {
                         }
                     }
                 }
+            }
+            .sheet(isPresented: $showingProfile) {
+                ProfileTabView()
             }
             .task {
                 await store.fetchParts()

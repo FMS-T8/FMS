@@ -32,9 +32,9 @@ public struct MaintenanceTabView: View {
                 }
                 .tag(2)
 
-            ProfileTabView()
+            MaintenanceForecastView()
                 .tabItem {
-                    Label("Profile", systemImage: "person")
+                    Label("Forecast", systemImage: "chart.line.uptrend.xyaxis")
                 }
                 .tag(3)
         }

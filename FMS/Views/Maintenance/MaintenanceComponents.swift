@@ -123,50 +123,93 @@ public struct StatusSummaryCard: View {
 public struct VehicleServiceCard: View {
     let vehicle: Vehicle
     var isWorkOrderCreated: Bool = false
+    var showForecast: Bool = false
+    var showMileage: Bool = true
+    var showBudget: Bool = true
+    var showSecondaryInfo: Bool = true
     
-    public init(vehicle: Vehicle, isWorkOrderCreated: Bool = false) {
+    // Injected data to avoid redundant fetches
+    var initialBudgetStatus: BudgetService.BudgetStatus? = nil
+    var initialForecast: MaintenancePredictionService.MaintenanceForecast? = nil
+    
+    @State private var budgetStatus: BudgetService.BudgetStatus? = nil
+    @State private var forecast: MaintenancePredictionService.MaintenanceForecast? = nil
+    
+    public init(
+        vehicle: Vehicle, 
+        isWorkOrderCreated: Bool = false,
+        showForecast: Bool = false,
+        showMileage: Bool = true,
+        showBudget: Bool = true,
+        showSecondaryInfo: Bool = true,
+        budget: BudgetService.BudgetStatus? = nil,
+        forecast: MaintenancePredictionService.MaintenanceForecast? = nil
+    ) {
         self.vehicle = vehicle
         self.isWorkOrderCreated = isWorkOrderCreated
+        self.showForecast = showForecast
+        self.showMileage = showMileage
+        self.showBudget = showBudget
+        self.showSecondaryInfo = showSecondaryInfo
+        self.initialBudgetStatus = budget
+        self.initialForecast = forecast
     }
     
     public var body: some View {
         let settingsStore = MaintenanceSettingsStore.shared
-        let status = MaintenancePredictionService.calculateStatus(
-            for: vehicle, 
-            defaultKm: settingsStore.intervalKmDouble
-        )
-        let reason = MaintenancePredictionService.getStatusReason(
-            for: vehicle, 
-            defaultKm: settingsStore.intervalKmDouble
-        )
+        let status = MaintenancePredictionService.calculateStatus(for: vehicle)
+        let reason = MaintenancePredictionService.getStatusReason(for: vehicle)
         
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(vehicle.plateNumber)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundColor(FMSTheme.textPrimary)
                     
                     Text("\(vehicle.manufacturer ?? "") \(vehicle.model ?? "")")
-                        .font(.system(size: 14))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundColor(FMSTheme.textSecondary)
                 }
                 
                 Spacer()
                 
-                // Status Badge (Top Right)
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(statusColor(status))
-                        .frame(width: 6, height: 6)
-                    Text(status.rawValue.uppercased())
-                        .font(.system(size: 10, weight: .black))
+                // Status Badges (Top Right)
+                HStack(spacing: 8) {
+                    // Maintenance Status
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(statusColor(status))
+                            .frame(width: 6, height: 6)
+                        Text(status.rawValue.uppercased())
+                            .font(.system(size: 10, weight: .black))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(statusColor(status).opacity(0.12))
+                    .foregroundColor(statusColor(status))
+                    .cornerRadius(12)
+                    
+                    // Budget Status
+                    if let budget = budgetStatus {
+                        let isOver = budget.currentSpend > budget.budgetLimit
+                        let nearLimit = budget.isAlertThresholdReached
+                        
+                        if isOver || nearLimit {
+                            HStack(spacing: 4) {
+                                Image(systemName: isOver ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill")
+                                    .font(.system(size: 8))
+                                Text(isOver ? "OVER BUDGET" : "NEAR LIMIT")
+                                    .font(.system(size: 10, weight: .black))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(isOver ? FMSTheme.alertRed.opacity(0.12) : FMSTheme.alertOrange.opacity(0.12))
+                            .foregroundColor(isOver ? FMSTheme.alertRed : FMSTheme.alertOrange)
+                            .cornerRadius(12)
+                        }
+                    }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(statusColor(status).opacity(0.12))
-                .foregroundColor(statusColor(status))
-                .cornerRadius(12)
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -180,76 +223,162 @@ public struct VehicleServiceCard: View {
                         .lineLimit(1)
                 }
                 
-                let progress = calculateProgress(vehicle, settingsStore: settingsStore)
-                let safeProgress = progress.isFinite ? min(max(progress, 0), 1) : 0
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("MILEAGE PROGRESS")
-                            .font(.system(size: 10, weight: .black))
-                            .foregroundColor(FMSTheme.textTertiary)
-                            .kerning(0.5)
-                        Spacer()
-                        Text("\(Int(safeProgress * 100))%")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(FMSTheme.textSecondary)
-                    }
-                    
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(FMSTheme.cardBackground.opacity(0.8)).frame(height: 6)
-                            Capsule()
-                                .fill(statusColor(status))
-                                .frame(width: geo.size.width * CGFloat(safeProgress), height: 6)
+                if showMileage {
+                    let progress = calculateProgress(vehicle, settingsStore: settingsStore)
+                    let safeProgress = progress.isFinite ? min(max(progress, 0), 1) : 0
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("MILEAGE PROGRESS")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundColor(FMSTheme.textTertiary)
+                                .kerning(0.5)
+                            Spacer()
+                            Text("\(Int(safeProgress * 100))%")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(FMSTheme.textSecondary)
                         }
+                        
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(FMSTheme.cardBackground.opacity(0.8)).frame(height: 6)
+                                Capsule()
+                                    .fill(statusColor(status))
+                                    .frame(width: geo.size.width * CGFloat(safeProgress), height: 6)
+                            }
+                        }
+                        .frame(height: 6)
                     }
-                    .frame(height: 6)
+                    .padding(.top, 4)
                 }
-                .padding(.top, 4)
+                
+                // Budget Progress
+                if showBudget, let budget = budgetStatus {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("MONTHLY BUDGET")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundColor(FMSTheme.textTertiary)
+                                .kerning(0.5)
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("\(Int(budget.currentSpend)) / \(Int(budget.budgetLimit)) $")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(FMSTheme.textSecondary)
+                                
+                                if budget.currentSpend > budget.budgetLimit {
+                                    Text("OVER BUDGET: +$\(Int(budget.currentSpend - budget.budgetLimit))")
+                                        .font(.system(size: 9, weight: .heavy))
+                                        .foregroundColor(FMSTheme.alertRed)
+                                }
+                            }
+                        }
+                        
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(FMSTheme.cardBackground.opacity(0.8)).frame(height: 6)
+                                Capsule()
+                                    .fill(budget.isAlertThresholdReached ? FMSTheme.alertRed : FMSTheme.amber)
+                                    .frame(width: geo.size.width * CGFloat(min(budget.consumptionPercentage / 100.0, 1.0)), height: 6)
+                            }
+                        }
+                        .frame(height: 6)
+                    }
+                    .padding(.top, 4)
+                }
+                
+                // Maintenance Forecast
+                if showForecast, let forecast = forecast, let date = forecast.projectedDate {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("SERVICE FORECAST")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundColor(FMSTheme.textTertiary)
+                                .kerning(0.5)
+                            Spacer()
+                            if forecast.isHighUsage {
+                                Text("HIGH USAGE")
+                                    .font(.system(size: 9, weight: .heavy))
+                                    .foregroundColor(FMSTheme.alertRed)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(FMSTheme.alertRed.opacity(0.1))
+                                    .cornerRadius(4)
+                            }
+                        }
+                        
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.system(size: 12))
+                                .foregroundColor(FMSTheme.amber)
+                            Text("Expected: \(date.formatted(date: .abbreviated, time: .omitted))")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(FMSTheme.textPrimary)
+                            
+                            let days = forecast.daysRemaining ?? 0
+                            if days < 0 {
+                                Text("(\(abs(days)) days overdue)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(FMSTheme.alertRed)
+                            } else {
+                                Text("(\(days) days away)")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(FMSTheme.textSecondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .background(FMSTheme.cardBackground.opacity(0.5))
+                        .cornerRadius(8)
+                    }
+                    .padding(.top, 4)
+                }
             }
             
-            HStack(spacing: 12) {
-                // Secondary Info
-                HStack(spacing: 4) {
-                    Image(systemName: "speedometer")
-                        .font(.system(size: 10))
-                    let drivenKm = Int((vehicle.odometer ?? 0) - (vehicle.lastServiceOdometer ?? 0))
-                    Text("\(max(0, drivenKm)) km")
-                        .font(.system(size: 12, weight: .semibold))
-                }
-                .foregroundColor(FMSTheme.textSecondary)
-                
-                Spacer()
-                
-                // Action Button Section
-                if isWorkOrderCreated {
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 4) {
-                            Image(systemName: "wrench.and.screwdriver.fill")
-                                .font(.system(size: 10))
-                            Text("WO CREATED")
-                                .font(.system(size: 11, weight: .black))
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(FMSTheme.amber.opacity(0.12))
-                        .foregroundColor(FMSTheme.amberDark)
-                        .cornerRadius(12)
+            if showSecondaryInfo {
+                HStack(spacing: 12) {
+                    // Secondary Info
+                    HStack(spacing: 4) {
+                        Image(systemName: "speedometer")
+                            .font(.system(size: 10))
+                        let drivenKm = Int((vehicle.odometer ?? 0) - (vehicle.lastServiceOdometer ?? 0))
+                        Text("\(max(0, drivenKm)) km")
+                            .font(.system(size: 12, weight: .semibold))
                     }
-                } else {
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 8) {
-                            Image(systemName: "wrench.and.screwdriver.fill")
-                                .font(.system(size: 12))
-                            Text("Service")
-                                .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(FMSTheme.textSecondary)
+                    
+                    Spacer()
+                    
+                    // Action Button Section
+                    if isWorkOrderCreated {
+                        HStack {
+                            Spacer()
+                            HStack(spacing: 4) {
+                                Image(systemName: "wrench.and.screwdriver.fill")
+                                    .font(.system(size: 10))
+                                Text("WO CREATED")
+                                    .font(.system(size: 11, weight: .black))
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(FMSTheme.amber.opacity(0.12))
+                            .foregroundColor(FMSTheme.amberDark)
+                            .cornerRadius(12)
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 10)
-                        .background(FMSTheme.amber.opacity(0.9))
-                        .foregroundColor(.black)
-                        .cornerRadius(12)
+                    } else {
+                        HStack {
+                            Spacer()
+                            HStack(spacing: 8) {
+                                Image(systemName: "wrench.and.screwdriver.fill")
+                                    .font(.system(size: 12))
+                                Text("Service")
+                                    .font(.system(size: 14, weight: .bold))
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(FMSTheme.amber.opacity(0.9))
+                            .foregroundColor(.black)
+                            .cornerRadius(12)
+                        }
                     }
                 }
             }
@@ -261,6 +390,19 @@ public struct VehicleServiceCard: View {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(isWorkOrderCreated ? FMSTheme.amber.opacity(0.5) : FMSTheme.borderLight.opacity(0.5), lineWidth: 1)
         )
+        .task(id: vehicle.id) {
+            // Priority 1: Injected data
+            if budgetStatus == nil { budgetStatus = initialBudgetStatus }
+            if showForecast && forecast == nil { forecast = initialForecast }
+            
+            // Priority 2: Fetch only if still nil
+            if showBudget && budgetStatus == nil {
+                budgetStatus = await BudgetService.shared.getBudgetStatus(for: vehicle)
+            }
+            if showForecast && forecast == nil {
+                forecast = await MaintenancePredictionService.calculateForecast(for: vehicle)
+            }
+        }
     }
     
     private func statusColor(_ status: MaintenanceStatus) -> Color {
@@ -272,7 +414,7 @@ public struct VehicleServiceCard: View {
     }
     
     private func calculateProgress(_ vehicle: Vehicle, settingsStore: MaintenanceSettingsStore) -> Double {
-        let intervalKm = vehicle.serviceIntervalKm ?? settingsStore.intervalKmDouble
+        let intervalKm = vehicle.effectiveServiceIntervalKm
         let currentOdo = vehicle.odometer ?? 0
         let lastOdo = vehicle.lastServiceOdometer ?? 0
         let distanceSinceLast = currentOdo - lastOdo
@@ -371,3 +513,4 @@ public struct DashWOCard: View {
         .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
 }
+

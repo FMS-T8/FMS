@@ -779,7 +779,15 @@ enum DetailSectionTarget: String, Identifiable {
         odometer: 125000,
         status: "active",
         createdBy: nil,
-        createdAt: nil
+        createdAt: nil,
+        lastServiceDate: nil,
+        lastServiceOdometer: nil,
+        serviceIntervalKm: 10000,
+        serviceIntervalMonths: 6,
+        monthlyBudget: 5000,
+        maintenanceNotes: "Regular service history",
+        imageUrls: nil,
+        isDeleted: false
     )
     
     NavigationStack {

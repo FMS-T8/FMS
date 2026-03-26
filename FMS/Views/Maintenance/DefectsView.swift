@@ -9,6 +9,7 @@ public struct DefectsView: View {
     @State private var searchText      = ""
     @State private var searchActive    = false
     @State private var showingReport   = false
+    @State private var showingProfile  = false
 
     let filters = ["All", "Critical", "High", "Medium", "Low"]
 
@@ -149,6 +150,9 @@ public struct DefectsView: View {
             }
             .sheet(isPresented: $showingReport) {
                 ReportDefectView(store: store)
+            }
+            .sheet(isPresented: $showingProfile) {
+                ProfileTabView()
             }
         }
     }

@@ -36,14 +36,17 @@ struct MaintenanceSettingsView: View {
             .task {
                 try? await fleetViewModel.fetchVehicles()
             }
-            .onChange(of: settingsStore.globalIntervalKm) { 
-                saveTask?.cancel()
-                saveTask = Task {
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                    guard !Task.isCancelled else { return }
-                    try? await settingsStore.save()
-                }
-            }
+            .onChange(of: settingsStore.globalIntervalKm) { scheduleGlobalSave() }
+            .onChange(of: settingsStore.globalMonthlyBudget) { scheduleGlobalSave() }
+        }
+    }
+    
+    private func scheduleGlobalSave() {
+        saveTask?.cancel()
+        saveTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            try? await settingsStore.save()
         }
     }
     
@@ -55,6 +58,7 @@ struct MaintenanceSettingsView: View {
             
             VStack(spacing: 16) {
                 settingsRow(title: "Service Interval (KM)", icon: "speedometer", text: Bindable(settingsStore).globalIntervalKm)
+                settingsRow(title: "Monthly Budget ($)", icon: "dollarsign.circle", text: Bindable(settingsStore).globalMonthlyBudget)
             }
             .padding(16)
             .background(FMSTheme.cardBackground)
@@ -130,7 +134,10 @@ struct MaintenanceSettingsView: View {
     }
     
     private var vehiclesWithOverrides: [Vehicle] {
-        fleetViewModel.vehicles.filter { $0.id != MaintenanceSettingsStore.systemVehicleID && $0.serviceIntervalKm != nil }
+        fleetViewModel.vehicles.filter { 
+            $0.id != MaintenanceSettingsStore.systemVehicleID && 
+            ($0.serviceIntervalKm != nil || $0.monthlyBudget != nil)
+        }
     }
     
     // loadGlobalDefaults and saveGlobalDefaults moved to MaintenanceSettingsStore
@@ -164,13 +171,25 @@ struct VehicleOverrideCard: View {
             
             Divider()
             
-            HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Km Interval")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(FMSTheme.textTertiary)
-                    Text("\(Int(vehicle.serviceIntervalKm ?? 0)) km")
-                        .font(.system(size: 14, weight: .semibold))
+            HStack(spacing: 24) {
+                if let km = vehicle.serviceIntervalKm {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Km Interval")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Text("\(Int(km)) km")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                }
+                
+                if let budget = vehicle.monthlyBudget {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Monthly Budget")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(FMSTheme.textTertiary)
+                        Text("$\(Int(budget))")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
                 }
             }
         }
@@ -183,14 +202,14 @@ struct VehicleOverrideCard: View {
     private func clearOverride() {
         Task {
             do {
-                // Explicitly send null to database (Encodable might strip nil values otherwise)
                 struct NullUpdate: Encodable {
                     func encode(to encoder: Encoder) throws {
                         var container = encoder.container(keyedBy: CodingKeys.self)
                         try container.encodeNil(forKey: .service_interval_km)
+                        try container.encodeNil(forKey: .monthly_budget)
                     }
                     enum CodingKeys: String, CodingKey {
-                        case service_interval_km
+                        case service_interval_km, monthly_budget
                     }
                 }
                 

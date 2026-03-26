@@ -15,6 +15,7 @@ public struct MaintenanceDashboardView: View {
     @State private var showingCreateWO = false
     @State private var isSearchActive  = false
     @State private var searchText      = ""
+    @State private var showingProfile   = false
 
     let filters = ["All", "Pending", "In Progress", "Completed"]
 
@@ -56,7 +57,10 @@ public struct MaintenanceDashboardView: View {
                 VStack(spacing: 0) {
 
                     // Fixed title row
-                    FMSTitleRow(title: "Dashboard")
+                    FMSTitleRow(
+                        title: "Dashboard",
+                        onProfile: { showingProfile = true }
+                    )
                     Divider().opacity(0.35)
 
                     ScrollView(showsIndicators: false) {
@@ -91,16 +95,19 @@ public struct MaintenanceDashboardView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showingCreateWO, onDismiss: nil) {
-                // Wrap CreateWorkOrderView in a container so the content closure is `() -> some View`
                 CreateWorkOrderView { wo in
-                    let _ = try await woStore.add(wo)
+                    _ = try? await woStore.add(wo)
                 }
+            }
+            .sheet(isPresented: $showingProfile) {
+                ProfileTabView()
             }
         }
         .task {
+            await MaintenanceSettingsStore.shared.fetchRemoteConfig()
             await woStore.fetchWorkOrders()
             await invStore.fetchParts()
-            try? await fleetStore.fetchVehicles()
+            _ = try? await fleetStore.fetchVehicles()
         }
     }
 
@@ -141,15 +148,7 @@ public struct MaintenanceDashboardView: View {
         VStack(alignment: .leading, spacing: 14) {
 
             FMSTitleRow(
-                title: "Work Orders",
-                onSearch: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isSearchActive.toggle()
-                        if !isSearchActive {
-                            searchText = ""
-                        }
-                    }
-                }
+                title: "Work Orders"
             )
 
             // Dynamic Search Bar
@@ -232,8 +231,6 @@ public struct MaintenanceDashboardView: View {
             }
         }
     }
-
-
 }
 
 // ─────────────────────────────────────────────
@@ -277,15 +274,8 @@ struct DashStatCard: View {
 }
 
 // ─────────────────────────────────────────────
-// MARK: - Work Order Card (uses WOItem)
-// ─────────────────────────────────────────────
-
-
-
-// ─────────────────────────────────────────────
 // MARK: - Previews
 // ─────────────────────────────────────────────
 
 #Preview("Light") { MaintenanceDashboardView(selectedTab: .constant(0), woStore: WorkOrderStore(), invStore: InventoryStore()) }
 #Preview("Dark")  { MaintenanceDashboardView(selectedTab: .constant(0), woStore: WorkOrderStore(), invStore: InventoryStore()).colorScheme(.dark) }
-

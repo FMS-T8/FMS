@@ -17,9 +17,21 @@ public struct Vehicle: Codable, Identifiable, Hashable, Equatable {
     public var lastServiceDate: Date?
     public var lastServiceOdometer: Double?
     public var serviceIntervalKm: Double?
-    public var notes: String?
+    public var serviceIntervalMonths: Int?
+    public var monthlyBudget: Double?
+    public var maintenanceNotes: String?
     public var imageUrls: [String]?
     public var isDeleted: Bool?
+
+    // ── Effective Settings (Fallback to Global) ──────────────────
+    
+    public var effectiveServiceIntervalKm: Double {
+        serviceIntervalKm ?? MaintenanceSettingsStore.shared.intervalKmDouble
+    }
+    
+    public var effectiveMonthlyBudget: Double {
+        monthlyBudget ?? MaintenanceSettingsStore.shared.monthlyBudgetDouble
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -38,7 +50,9 @@ public struct Vehicle: Codable, Identifiable, Hashable, Equatable {
         case lastServiceDate      = "last_service_date"
         case lastServiceOdometer  = "last_service_odometer"
         case serviceIntervalKm    = "service_interval_km"
-        case notes
+        case serviceIntervalMonths = "service_interval_months"
+        case monthlyBudget        = "monthly_budget"
+        case maintenanceNotes     = "maintenance_notes"
         case imageUrls            = "image_urls"
         case isDeleted            = "is_deleted"
     }

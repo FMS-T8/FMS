@@ -42,6 +42,7 @@ struct FleetManagerHomeTab: View {
     @State private var activeSOSAlerts: [SOSAlert] = []
     @State private var sosPollingTimer: Timer?
     @State private var sosExpanded: Bool = false
+    @State private var budgetAlerts: [(title: String, subtitle: String, type: AlertType)] = []
 
     // Mock data
     private let managerName = "Manager"
@@ -103,6 +104,7 @@ struct FleetManagerHomeTab: View {
             }
             .onAppear {
                 startSOSPolling()
+                fetchBudgetAlerts()
             }
             .onDisappear {
                 sosPollingTimer?.invalidate()
@@ -201,6 +203,36 @@ struct FleetManagerHomeTab: View {
         }
     }
 
+    private func fetchBudgetAlerts() {
+        Task {
+            do {
+                await MaintenanceSettingsStore.shared.fetchRemoteConfig()
+                let response = try await SupabaseService.shared.client
+                    .from("vehicles")
+                    .select()
+                    .execute()
+                
+                let vehicles = try JSONDecoder.supabase().decode([Vehicle].self, from: response.data)
+                
+                var newAlerts: [(title: String, subtitle: String, type: AlertType)] = []
+                for vehicle in vehicles {
+                    if vehicle.id == MaintenanceSettingsStore.systemVehicleID { continue }
+                    let status = await BudgetService.shared.getBudgetStatus(for: vehicle)
+                    if status.isAlertThresholdReached {
+                        newAlerts.append((
+                            title: "Budget Alert: \(vehicle.plateNumber)",
+                            subtitle: "Monthly consumption reached \(Int(status.consumptionPercentage))% ($\(Int(status.currentSpend)) / $\(Int(status.budgetLimit)))",
+                            type: .critical
+                        ))
+                    }
+                }
+                budgetAlerts = newAlerts
+            } catch {
+                print("[FMS] fetchBudgetAlerts failed: \(error)")
+            }
+        }
+    }
+
     // MARK: - Header Section
     private var headerSection: some View {
         HStack {
@@ -245,6 +277,16 @@ struct FleetManagerHomeTab: View {
                     title: alert.title,
                     subtitle: alert.subtitle,
                     timeAgo: alert.timeAgo,
+                    type: alert.type
+                )
+            }
+            
+            ForEach(budgetAlerts.indices, id: \.self) { index in
+                let alert = budgetAlerts[index]
+                AlertRow(
+                    title: alert.title,
+                    subtitle: alert.subtitle,
+                    timeAgo: "Now",
                     type: alert.type
                 )
             }

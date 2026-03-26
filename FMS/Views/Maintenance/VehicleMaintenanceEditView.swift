@@ -15,6 +15,7 @@ struct VehicleMaintenanceEditView: View {
     @State private var lastServiceOdometer: String = ""
     @State private var notes: String = ""
     @State private var serviceIntervalKm: String = ""
+    @State private var monthlyBudget: String = ""
     
     @State private var isSaving = false
     
@@ -22,11 +23,12 @@ struct VehicleMaintenanceEditView: View {
         self.vehicle = vehicle
         self.onUpdate = onUpdate
         
-        _odometer = State(initialValue: String(format: "%.0f", vehicle.odometer ?? 0))
+        _odometer = State(initialValue: vehicle.odometer != nil ? String(format: "%.0f", vehicle.odometer!) : "")
         _lastServiceDate = State(initialValue: vehicle.lastServiceDate ?? Date())
-        _lastServiceOdometer = State(initialValue: String(format: "%.0f", vehicle.lastServiceOdometer ?? 0))
-        _notes = State(initialValue: vehicle.notes ?? "")
-        _serviceIntervalKm = State(initialValue: String(format: "%.0f", vehicle.serviceIntervalKm ?? MaintenancePredictionService.defaultIntervalKm))
+        _lastServiceOdometer = State(initialValue: vehicle.lastServiceOdometer != nil ? String(format: "%.0f", vehicle.lastServiceOdometer!) : "")
+        _notes = State(initialValue: vehicle.maintenanceNotes ?? "")
+        _serviceIntervalKm = State(initialValue: vehicle.serviceIntervalKm != nil ? String(format: "%.0f", vehicle.serviceIntervalKm!) : "")
+        _monthlyBudget = State(initialValue: vehicle.monthlyBudget != nil ? String(format: "%.0f", vehicle.monthlyBudget!) : "")
     }
     
     @State private var pendingSave: Task<Void, Never>? = nil
@@ -68,6 +70,7 @@ struct VehicleMaintenanceEditView: View {
             .onChange(of: lastServiceOdometer) { scheduleAutoSave() }
             .onChange(of: notes) { scheduleAutoSave() }
             .onChange(of: serviceIntervalKm) { scheduleAutoSave() }
+            .onChange(of: monthlyBudget) { scheduleAutoSave() }
         }
     }
     
@@ -132,12 +135,24 @@ struct VehicleMaintenanceEditView: View {
     
     private var intervalSettingsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("SERVICE INTERVALS")
+            Text("SERVICE & BUDGET SETTINGS")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(FMSTheme.textTertiary)
             
             VStack(spacing: 0) {
-                InputField(title: "Service Interval (km)", text: $serviceIntervalKm, icon: "arrow.left.and.right")
+                InputField(
+                    title: "Service Interval (km)", 
+                    text: $serviceIntervalKm, 
+                    placeholder: String(format: "%.0f", MaintenanceSettingsStore.shared.intervalKmDouble),
+                    icon: "arrow.left.and.right"
+                )
+                Divider().padding(.leading, 44)
+                InputField(
+                    title: "Monthly Budget ($)", 
+                    text: $monthlyBudget, 
+                    placeholder: String(format: "%.0f", MaintenanceSettingsStore.shared.monthlyBudgetDouble),
+                    icon: "dollarsign.circle"
+                )
             }
             .background(FMSTheme.cardBackground)
             .cornerRadius(12)
@@ -194,17 +209,21 @@ struct VehicleMaintenanceEditView: View {
             }
         }
         
-        // 4. Interval KM: only save if changed OR originally present
-        if let intervalKm = Double(serviceIntervalKm) {
-            let originalDisplay = String(format: "%.0f", vehicle.serviceIntervalKm ?? MaintenanceSettingsStore.shared.intervalKmDouble)
-            if vehicle.serviceIntervalKm != nil || serviceIntervalKm != originalDisplay {
-                updatedVehicle.serviceIntervalKm = intervalKm
-            }
+        // 4. Interval KM: only save if changed
+        let newInterval = Double(serviceIntervalKm)
+        if newInterval != vehicle.serviceIntervalKm {
+            updatedVehicle.serviceIntervalKm = newInterval
+        }
+
+        // 6. Monthly Budget: only save if changed
+        let newBudget = Double(monthlyBudget)
+        if newBudget != vehicle.monthlyBudget {
+            updatedVehicle.monthlyBudget = newBudget
         }
         
         // 5. Notes: always sync if changed
-        if notes != (vehicle.notes ?? "") {
-            updatedVehicle.notes = notes
+        if notes != (vehicle.maintenanceNotes ?? "") {
+            updatedVehicle.maintenanceNotes = notes
         }
         
         do {
@@ -219,6 +238,7 @@ struct VehicleMaintenanceEditView: View {
 private struct InputField: View {
     let title: String
     @Binding var text: String
+    var placeholder: String = "0"
     let icon: String
     
     var body: some View {
@@ -231,7 +251,7 @@ private struct InputField: View {
                 Text(title)
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(FMSTheme.textTertiary)
-                TextField("0", text: $text)
+                TextField(placeholder, text: $text)
                     .keyboardType(.numberPad)
                     .font(.system(size: 15, weight: .semibold))
             }

@@ -77,6 +77,7 @@ struct FMSTitleRow: View {
     let title: String
     var onSearch: (() -> Void)? = nil
     var onAdd: (() -> Void)? = nil
+    var onProfile: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -105,6 +106,19 @@ struct FMSTitleRow: View {
                         .padding(.vertical, 8)
                         .background(FMSTheme.amber)
                         .clipShape(Capsule())
+                }
+            }
+            
+            if let onProfile {
+                Button(action: onProfile) {
+                    ZStack {
+                        Circle()
+                            .fill(FMSTheme.amber.opacity(0.12))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(FMSTheme.amberDark)
+                    }
                 }
             }
         }

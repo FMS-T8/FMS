@@ -15,6 +15,15 @@ public struct AddVehicleView: View {
     private let existingCreatedBy: String?
     private let existingCreatedAt: Date?
 
+    private let existingLastServiceDate: Date?
+    private let existingLastServiceOdometer: Double?
+    private let existingServiceIntervalKm: Double?
+   
+    private let existingMonthlyBudget: Double?
+    private let existingMaintenanceNotes: String?
+    private let existingImageUrls: [String]?
+    private let existingIsDeleted: Bool?
+
     @State private var plateNumber = ""
     @State private var chassisNumber = ""
     @State private var manufacturer = ""
@@ -55,6 +64,15 @@ public struct AddVehicleView: View {
         self.existingStatus = nil
         self.existingCreatedBy = nil
         self.existingCreatedAt = nil
+
+        self.existingLastServiceDate = nil
+        self.existingLastServiceOdometer = nil
+        self.existingServiceIntervalKm = nil
+        
+        self.existingMonthlyBudget = nil
+        self.existingMaintenanceNotes = nil
+        self.existingImageUrls = nil
+        self.existingIsDeleted = nil
     }
 
     public init(vehicle: Vehicle, onUpdate: @escaping @MainActor (Vehicle) async throws -> Void) {
@@ -75,6 +93,15 @@ public struct AddVehicleView: View {
         _odometer = State(initialValue: vehicle.odometer.flatMap { $0 >= 0 ? Int($0) : nil })
         // FIX: String? → String? direct assignment, no type conversion needed
         _purchaseDateString = State(initialValue: vehicle.purchaseDate)
+
+        self.existingLastServiceDate = vehicle.lastServiceDate
+        self.existingLastServiceOdometer = vehicle.lastServiceOdometer
+        self.existingServiceIntervalKm = vehicle.serviceIntervalKm
+        
+        self.existingMonthlyBudget = vehicle.monthlyBudget
+        self.existingMaintenanceNotes = vehicle.maintenanceNotes
+        self.existingImageUrls = vehicle.imageUrls
+        self.existingIsDeleted = vehicle.isDeleted
     }
 
     public var body: some View {
@@ -369,7 +396,15 @@ public struct AddVehicleView: View {
             odometer: Double(validatedOdometer),
             status: existingStatus ?? "inactive",
             createdBy: existingCreatedBy,
-            createdAt: existingCreatedAt
+            createdAt: existingCreatedAt,
+            lastServiceDate: mode == .edit ? existingLastServiceDate : nil,
+            lastServiceOdometer: mode == .edit ? existingLastServiceOdometer : nil,
+            serviceIntervalKm: mode == .edit ? existingServiceIntervalKm : nil,
+            
+            monthlyBudget: mode == .edit ? existingMonthlyBudget : nil,
+            maintenanceNotes: mode == .edit ? existingMaintenanceNotes : nil,
+            imageUrls: mode == .edit ? existingImageUrls : nil,
+            isDeleted: mode == .edit ? existingIsDeleted : nil
         )
 
         Task {
