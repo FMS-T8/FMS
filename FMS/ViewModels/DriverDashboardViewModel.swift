@@ -211,6 +211,13 @@ public final class DriverDashboardViewModel {
 
     // MARK: - Lifecycle Actions
     public func startTrip(_ trip: Trip) {
+        // Prevent starting a new trip if one is already active
+        guard activeTrip == nil else {
+            self.errorMessage = "You already have an active trip. Please complete it before starting a new one."
+            print("[DriverDashboard] Blocking startTrip: Another trip (\(activeTrip?.id ?? "")) is already active")
+            return
+        }
+
         var started = trip
         started.status = "active"
         started.startTime = Date()

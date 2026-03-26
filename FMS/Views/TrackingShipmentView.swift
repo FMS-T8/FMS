@@ -88,7 +88,10 @@ public struct TrackingShipmentView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         .task {
-            await viewModel.fetchDetails()
+            while !Task.isCancelled {
+                await viewModel.fetchDetails()
+                try? await Task.sleep(nanoseconds: 70_000_000_000)
+            }
         }
     }
     

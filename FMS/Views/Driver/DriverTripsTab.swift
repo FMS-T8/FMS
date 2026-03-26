@@ -6,19 +6,20 @@ struct DriverTripsTab: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Segment picker
-                Picker("", selection: $viewModel.selectedSegment) {
-                    ForEach(TripSegment.allCases, id: \.self) { segment in
-                        Text(segment.rawValue).tag(segment)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    headerSection
+                    
+                    Picker("", selection: $viewModel.selectedSegment) {
+                        ForEach(TripSegment.allCases, id: \.self) { segment in
+                            Text(segment.rawValue).tag(segment)
+                        }
                     }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
 
-                ScrollView {
                     switch viewModel.selectedSegment {
                     case .upcoming:
                         upcomingContent
@@ -32,6 +33,23 @@ struct DriverTripsTab: View {
                 NewTripAssignmentView(trip: trip, viewModel: viewModel)
             }
         }
+    }
+
+    // MARK: - Header
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Trips")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(FMSTheme.textPrimary)
+
+            Text("Upcoming schedules and trip history")
+                .font(.system(size: 14))
+                .foregroundStyle(FMSTheme.textSecondary)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 12)
     }
 
     // MARK: - Upcoming

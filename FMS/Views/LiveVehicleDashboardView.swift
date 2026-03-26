@@ -90,7 +90,10 @@ public struct LiveVehicleDashboardView: View {
         }
         .navigationBarHidden(true)
         .task {
-            await viewModel.fetchVehicles()
+            while !Task.isCancelled {
+                await viewModel.fetchVehicles()
+                try? await Task.sleep(nanoseconds: 70_000_000_000)
+            }
         }
     }
 }

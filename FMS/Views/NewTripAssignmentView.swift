@@ -223,7 +223,17 @@ public struct NewTripAssignmentView: View {
                         }
                     }
                     .buttonStyle(.fmsPrimary)
-                    .disabled(viewModel.assignedVehicle == nil)
+                    .disabled(viewModel.assignedVehicle == nil || viewModel.hasActiveTrip)
+
+                    if viewModel.hasActiveTrip {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                            Text("You already have a trip in progress.")
+                        }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(FMSTheme.alertOrange)
+                        .padding(.top, 4)
+                    }
 
                     if hasDestination { navigateButton }
 

@@ -26,15 +26,9 @@ struct SOSFloatingButton: View {
                     .frame(width: 60, height: 60)
                     .shadow(color: FMSTheme.alertRed.opacity(0.5), radius: 6)
 
-                VStack(spacing: 1) {
-                    Image(systemName: "sos")
-                        .font(.system(size: 18, weight: .black))
-                        .foregroundStyle(.white)
-
-                    Text("SOS")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.8))
-                }
+                Image(systemName: "sos")
+                    .font(.system(size: 18, weight: .black))
+                    .foregroundStyle(.white)
             }
         }
         .buttonStyle(.plain)

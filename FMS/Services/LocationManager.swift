@@ -78,7 +78,10 @@ public final class LocationManager: NSObject {
 
 extension LocationManager: CLLocationManagerDelegate {
     public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
+        let newStatus = manager.authorizationStatus
+        guard authorizationStatus != newStatus else { return } // Prevent log spam from iOS redundant callbacks
+        
+        authorizationStatus = newStatus
         print("[LocationManager] 🔑 Authorization changed to: \(authorizationStatus.rawValue) (\(authorizationDescription))")
 
         if authorizationStatus == .authorizedWhenInUse {

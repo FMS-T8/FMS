@@ -26,8 +26,7 @@ public final class LocationPingService {
     private var locationManager: LocationManager
     private var pingTask: Task<Void, Never>?
 
-    /// Interval between location pings (seconds). 10 for demo.
-    private let pingInterval: TimeInterval = 10
+    private let pingInterval: TimeInterval = 60
 
     // MARK: - Init
     public init(locationManager: LocationManager) {

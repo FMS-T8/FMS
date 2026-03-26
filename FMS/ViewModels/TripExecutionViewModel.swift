@@ -185,7 +185,7 @@ public final class TripExecutionViewModel {
     private func beginSamplingIfNeeded() {
         guard samplingTimer == nil else { return }
 
-        samplingTimer = Timer.scheduledTimer(withTimeInterval: 45, repeats: true) { [weak self] _ in
+        samplingTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.captureImmediateSample()
             }
