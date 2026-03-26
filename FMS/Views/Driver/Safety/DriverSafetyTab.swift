@@ -12,7 +12,6 @@ struct DriverSafetyTab: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     headerSection
-                    sosSection
 
                     if hasActiveTrip {
                         breakLoggingSection
@@ -45,18 +44,6 @@ struct DriverSafetyTab: View {
             Text("Emergency tools and break management")
                 .font(.system(size: 14))
                 .foregroundStyle(FMSTheme.textSecondary)
-        }
-    }
-
-    // MARK: - SOS Section
-
-    private var sosSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Emergency")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(FMSTheme.textPrimary)
-
-            SOSCard()
         }
     }
 
@@ -140,40 +127,6 @@ struct DriverSafetyTab: View {
         case .warning: return "Warning active"
         case .critical: return "CRITICAL"
         }
-    }
-}
-
-// MARK: - SOS Card
-
-private struct SOSCard: View {
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "sos")
-                .font(.system(size: 22, weight: .black))
-                .foregroundStyle(.white)
-                .frame(width: 48, height: 48)
-                .background(FMSTheme.alertRed)
-                .cornerRadius(14)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("SOS Emergency Alert")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(FMSTheme.textPrimary)
-
-                Text("Tap the floating SOS button (bottom-right) to trigger an alert")
-                    .font(.system(size: 13))
-                    .foregroundStyle(FMSTheme.textSecondary)
-            }
-
-            Spacer()
-        }
-        .padding(14)
-        .background(FMSTheme.cardBackground)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(FMSTheme.alertRed.opacity(0.2), lineWidth: 1)
-        )
     }
 }
 

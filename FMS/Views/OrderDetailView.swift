@@ -393,13 +393,21 @@ public struct OrderDetailView: View {
                 
                 VStack(spacing: 12) {
                     if let trip = currentTrip {
-                        let isTripOngoing = ["active", "in_progress", "in_transit"].contains(trip.status?.lowercased() ?? "")
+                        let tripStatus = trip.status?.lowercased() ?? ""
+                        let isTripOngoing = ["active", "in_progress", "in_transit", "ongoing"].contains(tripStatus)
+                        let isTripCompleted = ["completed", "delivered", "finished"].contains(tripStatus) || trip.endTime != nil
                         
-                        NavigationLink(destination: TripReplayView(trip: trip)) {
-                            HStack(spacing: 10) {
-                                Image(systemName: isTripOngoing ? "location.fill" : "calendar")
-                                    .font(.system(size: 15, weight: .bold))
-                                Text(isTripOngoing ? "Track Driver Live" : "View Scheduled Route")
+                        NavigationLink {
+                            if isTripOngoing {
+                                TrackingShipmentView(trip: trip, vehicle: nil)
+                            } else {
+                                TripReplayView(trip: trip)
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: isTripOngoing ? "location.fill" : (isTripCompleted ? "play.circle.fill" : "calendar"))
+                                    .font(.system(size: 16, weight: .bold))
+                                Text(isTripOngoing ? "Track Driver Live" : (isTripCompleted ? "Replay Trip Route" : "View Scheduled Route"))
                                     .font(.system(size: 16, weight: .bold))
                             }
                             .foregroundColor(FMSTheme.obsidian)
@@ -409,6 +417,7 @@ public struct OrderDetailView: View {
                             .cornerRadius(14)
                             .shadow(color: FMSTheme.amber.opacity(0.3), radius: 8, y: 4)
                         }
+                        .buttonStyle(.plain)
                     } else if isPending {
                         Button(action: { showingAssignmentSheet = true }) {
                             Text("Assign Trip to Driver")
@@ -558,12 +567,13 @@ public struct OrderDetailView: View {
             
             await MainActor.run { self.currentOrderStatus = orderResult.first?.status ?? order.status }
 
-            let activeStatuses = ["active", "in_progress", "in_transit"]
+            // Fetch the most relevant trip (ongoing first, then most recent completed)
+            let relevantStatuses = ["active", "in_progress", "in_transit", "ongoing", "completed", "delivered"]
             let trips: [Trip] = try await SupabaseService.shared.client
                 .from("trips")
                 .select()
                 .eq("order_id", value: order.id)
-                .in("status", values: activeStatuses)
+                .in("status", values: relevantStatuses)
                 .order("start_time", ascending: false)
                 .limit(1)
                 .execute()

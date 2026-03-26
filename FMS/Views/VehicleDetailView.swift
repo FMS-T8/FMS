@@ -112,9 +112,15 @@ public struct VehicleDetailView: View {
                 )
             case .trackLive:
                 if let trip = viewModel.ongoingTrip {
-                    TripReplayView(trip: trip)
+                    TrackingShipmentView(trip: trip, vehicle: currentVehicle)
                 } else {
                     Text("No ongoing trip to track.")
+                }
+            case .replayLatest:
+                if let trip = viewModel.pastTrips.first {
+                    TripReplayView(trip: trip)
+                } else {
+                    Text("No past trips to replay.")
                 }
             }
         }
@@ -211,7 +217,12 @@ public struct VehicleDetailView: View {
                 } else if let error = viewModel.tripsErrorMessage {
                     errorCard(text: "Unable to load current trip.\n\(error)")
                 } else if let trip = viewModel.ongoingTrip {
-                    tripCardContent(trip)
+                    NavigationLink {
+                        TrackingShipmentView(trip: trip, vehicle: currentVehicle)
+                    } label: {
+                        tripCardContent(trip)
+                    }
+                    .buttonStyle(.plain)
                 } else {
                     Text("No ongoing trip.")
                         .font(.system(size: 14))
@@ -500,26 +511,29 @@ public struct VehicleDetailView: View {
     
     private var bottomActions: some View {
         HStack(spacing: 12) {
+            let hasOngoing = viewModel.ongoingTrip != nil
+            let hasPast = !viewModel.pastTrips.isEmpty
+            
             Button {
-                if viewModel.ongoingTrip != nil {
+                if hasOngoing {
                     navTarget = .trackLive
+                } else if hasPast {
+                    navTarget = .replayLatest
                 }
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: "location.fill")
+                    Image(systemName: hasOngoing ? "location.fill" : "play.circle.fill")
                         .font(.system(size: 14, weight: .bold))
-                        .rotationEffect(.degrees(45))
-                        .offset(x: -2, y: 2)
-                    Text("Track Live")
+                    Text(hasOngoing ? "Track Live" : "Replay Trip")
                         .font(.system(size: 15, weight: .bold))
                 }
                 .foregroundColor(FMSTheme.obsidian)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(viewModel.ongoingTrip != nil ? FMSTheme.amber : FMSTheme.textTertiary.opacity(0.3))
+                .background((hasOngoing || hasPast) ? FMSTheme.amber : FMSTheme.textTertiary.opacity(0.3))
                 .cornerRadius(12)
             }
-            .disabled(viewModel.ongoingTrip == nil)
+            .disabled(!hasOngoing && !hasPast)
             
             Button {
                 // Schedule Service action
@@ -760,6 +774,7 @@ enum DetailSectionTarget: String, Identifiable {
     case incidents
     case documents
     case trackLive
+    case replayLatest
 
     var id: String { rawValue }
 }

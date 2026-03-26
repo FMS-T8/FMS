@@ -62,6 +62,7 @@ public final class DrivingTimerManager {
     public var breakReminderLevel: BreakReminderLevel = .none
     public var fatigueWarningLevel: FatigueWarningLevel = .none
     public var breakReminderDismissed: Bool = false
+    public var allRemindersHidden: Bool = false
 
     // MARK: - Private
 
@@ -137,6 +138,10 @@ public final class DrivingTimerManager {
         breakReminderDismissed = true
     }
 
+    public func hideAllReminders() {
+        allRemindersHidden = true
+    }
+
     // MARK: - Formatted
 
     public var formattedDrivingTime: String {
@@ -200,6 +205,7 @@ public final class DrivingTimerManager {
         if newBreakLevel != breakReminderLevel {
             breakReminderLevel = newBreakLevel
             breakReminderDismissed = false
+            allRemindersHidden = false
         }
 
         let newFatigueLevel: FatigueWarningLevel
@@ -220,6 +226,7 @@ public final class DrivingTimerManager {
         breakReminderLevel = .none
         fatigueWarningLevel = .none
         breakReminderDismissed = false
+        allRemindersHidden = false
     }
 
     // MARK: - Persistence

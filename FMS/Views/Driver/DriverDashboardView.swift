@@ -38,13 +38,20 @@ public struct DriverDashboardView: View {
         // Break Reminder Banner (top)
         .overlay(alignment: .top) {
             if safetyViewModel.drivingTimer.breakReminderLevel != .none
-                && !safetyViewModel.drivingTimer.breakReminderDismissed {
+                && !safetyViewModel.drivingTimer.breakReminderDismissed
+                && !safetyViewModel.drivingTimer.allRemindersHidden {
                 BreakReminderBannerView(
                     level: safetyViewModel.drivingTimer.breakReminderLevel,
                     drivingTime: safetyViewModel.drivingTimer.formattedDrivingTime,
                     onDismiss: {
                         withAnimation(.easeOut(duration: 0.25)) {
-                            safetyViewModel.drivingTimer.dismissBreakReminder()
+                            if safetyViewModel.drivingTimer.breakReminderLevel == .gentle {
+                                // Gentle has no bottom sheet, so hide all
+                                safetyViewModel.drivingTimer.hideAllReminders()
+                            } else {
+                                // Escalate to bottom sheet for Warning/Critical
+                                safetyViewModel.drivingTimer.dismissBreakReminder()
+                            }
                         }
                     },
                     onStartBreak: {
@@ -58,6 +65,7 @@ public struct DriverDashboardView: View {
         // Break Reminder Bottom Sheet (escalated)
         .overlay(alignment: .bottom) {
             if safetyViewModel.drivingTimer.breakReminderDismissed
+                && !safetyViewModel.drivingTimer.allRemindersHidden
                 && safetyViewModel.drivingTimer.breakReminderLevel >= .warning {
                 BreakReminderBottomSheet(
                     level: safetyViewModel.drivingTimer.breakReminderLevel,
@@ -66,12 +74,8 @@ public struct DriverDashboardView: View {
                         startBreakFromReminder()
                     },
                     onDismiss: {
-                        if safetyViewModel.drivingTimer.breakReminderLevel == .critical {
-                            // Critical stays persistent
-                        } else {
-                            withAnimation(.easeOut(duration: 0.25)) {
-                                safetyViewModel.drivingTimer.breakReminderDismissed = false
-                            }
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            safetyViewModel.drivingTimer.hideAllReminders()
                         }
                     }
                 )
