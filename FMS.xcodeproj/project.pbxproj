@@ -18,9 +18,22 @@
 		295A759A2F601FE2004385EC /* FMS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FMS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		294E5E792F750B9700C41463 /* Exceptions for "FMS" folder in "FMS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 295A75992F601FE2004385EC /* FMS */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		295A759C2F601FE2004385EC /* FMS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				294E5E792F750B9700C41463 /* Exceptions for "FMS" folder in "FMS" target */,
+			);
 			path = FMS;
 			sourceTree = "<group>";
 		};
@@ -285,7 +298,9 @@
 				DEVELOPMENT_TEAM = 5VUB572ZNQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FMS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FleetPro;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is used to scan driver's licenses, fuel receipts, and capture issue report photos.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FleetPro tracks driver location throughout the trip to power live route visibility and geofence-based pickup and delivery verification.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FleetPro uses your location while the app is open to show live trip progress and nearby geofence status.";
@@ -326,7 +341,9 @@
 				DEVELOPMENT_TEAM = 5VUB572ZNQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FMS/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = FleetPro;
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is used to scan driver's licenses, fuel receipts, and capture issue report photos.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FleetPro tracks driver location throughout the trip to power live route visibility and geofence-based pickup and delivery verification.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FleetPro uses your location while the app is open to show live trip progress and nearby geofence status.";
