@@ -87,6 +87,7 @@ public struct FuelCostReportView: View {
 
           DatePicker("", selection: $viewModel.startDate, displayedComponents: .date)
             .labelsHidden()
+            .accessibilityLabel("Start date")
             .datePickerStyle(.compact)
             .tint(FMSTheme.amber)
         }
@@ -104,6 +105,7 @@ public struct FuelCostReportView: View {
             displayedComponents: .date
           )
           .labelsHidden()
+          .accessibilityLabel("End date")
           .datePickerStyle(.compact)
           .tint(FMSTheme.amber)
         }

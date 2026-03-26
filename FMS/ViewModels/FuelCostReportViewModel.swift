@@ -134,9 +134,12 @@ public final class FuelCostReportViewModel {
 
       let vehicles: [VehicleRow] = try await vehiclesQuery.execute().value
 
+      let vehicleIds = vehicles.map { $0.id }
+
       let trips: [TripFuelRow] = try await SupabaseService.shared.client
         .from("trips")
         .select("id, vehicle_id, distance_km, fuel_used_liters, start_time")
+        .in("vehicle_id", values: vehicleIds)
         .gte("start_time", value: from)
         .lt("start_time", value: toExclusive)
         .execute().value
@@ -225,12 +228,48 @@ public final class FuelCostReportViewModel {
         historicalLitersByVehicle[vehicleId, default: 0] += reconciledLiters
       }
 
+      // Compute historical average cost per liter from baseline period.
+      let historicalTotalPaid = historicalFuelRows.compactMap(\.amountPaid).reduce(0, +)
+      let historicalTotalVolume = historicalFuelRows.compactMap(\.fuelVolume).reduce(0, +)
+      let globalHistoricalAvgCostPerLiter =
+        historicalTotalVolume > 0 ? historicalTotalPaid / historicalTotalVolume : globalAvgCostPerLiter
+
+      // Build historical fuel aggregation by vehicle.
+      let historicalTripVehicleByTripId: [String: String] = historicalTrips.reduce(into: [:]) {
+        partial, trip in
+        guard let vehicleId = trip.vehicleId else { return }
+        partial[trip.id] = vehicleId
+      }
+      var historicalFuelAggByVehicle: [String: (paid: Double, volume: Double)] = [:]
+      for row in historicalFuelRows {
+        guard
+          let tripId = row.tripId,
+          let vehicleId = historicalTripVehicleByTripId[tripId]
+        else {
+          continue
+        }
+
+        var current = historicalFuelAggByVehicle[vehicleId] ?? (0, 0)
+        current.paid += row.amountPaid ?? 0
+        current.volume += row.fuelVolume ?? 0
+        historicalFuelAggByVehicle[vehicleId] = current
+      }
+
+      let historicalAvgCostPerLiterByVehicle = historicalFuelAggByVehicle.mapValues {
+        aggregate in
+        aggregate.volume > 0 ? aggregate.paid / aggregate.volume :
+          globalHistoricalAvgCostPerLiter
+      }
+
       let computedRows = vehicles.map { vehicle in
         let liters = litersByVehicle[vehicle.id, default: 0]
         let vehicleAvgCostPerLiter = avgCostPerLiterByVehicle[vehicle.id] ?? globalAvgCostPerLiter
         let spend = liters * vehicleAvgCostPerLiter
+        // Value historical liters with historical cost per liter for accurate budget.
+        let historicalAvgCost = historicalAvgCostPerLiterByVehicle[vehicle.id] ??
+          globalHistoricalAvgCostPerLiter
         let historicalSpend =
-          historicalLitersByVehicle[vehicle.id, default: 0] * vehicleAvgCostPerLiter
+          historicalLitersByVehicle[vehicle.id, default: 0] * historicalAvgCost
         let dailyHistoricalSpend = historicalSpend / Double(baselineDays)
         let budget = max(0, dailyHistoricalSpend * Double(reportDays) * 1.10)
 
