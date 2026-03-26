@@ -232,7 +232,8 @@ public final class FuelCostReportViewModel {
       let historicalTotalPaid = historicalFuelRows.compactMap(\.amountPaid).reduce(0, +)
       let historicalTotalVolume = historicalFuelRows.compactMap(\.fuelVolume).reduce(0, +)
       let globalHistoricalAvgCostPerLiter =
-        historicalTotalVolume > 0 ? historicalTotalPaid / historicalTotalVolume : globalAvgCostPerLiter
+        historicalTotalVolume > 0
+        ? historicalTotalPaid / historicalTotalVolume : globalAvgCostPerLiter
 
       // Build historical fuel aggregation by vehicle.
       let historicalTripVehicleByTripId: [String: String] = historicalTrips.reduce(into: [:]) {
@@ -257,8 +258,7 @@ public final class FuelCostReportViewModel {
 
       let historicalAvgCostPerLiterByVehicle = historicalFuelAggByVehicle.mapValues {
         aggregate in
-        aggregate.volume > 0 ? aggregate.paid / aggregate.volume :
-          globalHistoricalAvgCostPerLiter
+        aggregate.volume > 0 ? aggregate.paid / aggregate.volume : globalHistoricalAvgCostPerLiter
       }
 
       let computedRows = vehicles.map { vehicle in
@@ -266,8 +266,8 @@ public final class FuelCostReportViewModel {
         let vehicleAvgCostPerLiter = avgCostPerLiterByVehicle[vehicle.id] ?? globalAvgCostPerLiter
         let spend = liters * vehicleAvgCostPerLiter
         // Value historical liters with historical cost per liter for accurate budget.
-        let historicalAvgCost = historicalAvgCostPerLiterByVehicle[vehicle.id] ??
-          globalHistoricalAvgCostPerLiter
+        let historicalAvgCost =
+          historicalAvgCostPerLiterByVehicle[vehicle.id] ?? globalHistoricalAvgCostPerLiter
         let historicalSpend =
           historicalLitersByVehicle[vehicle.id, default: 0] * historicalAvgCost
         let dailyHistoricalSpend = historicalSpend / Double(baselineDays)
