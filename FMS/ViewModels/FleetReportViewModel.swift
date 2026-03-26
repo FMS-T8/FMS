@@ -53,6 +53,13 @@ public final class FleetReportViewModel {
   public var isTogglingSubscription: Bool = false
   private var subscriptionId: String? = nil
 
+  // MARK: - Detailed Arrays (for expanding views)
+  public var tripsData: [TripRow] = []
+  public var fuelData: [FuelRow] = []
+  public var incidentsData: [IncidentRow] = []
+  public var eventsData: [EventRow] = []
+  public var maintenanceData: [MaintenanceRow] = []
+
   // MARK: - Computed KPIs
 
   // Trip Metrics
@@ -82,19 +89,14 @@ public final class FleetReportViewModel {
   public var completedMaintenanceCount: Int = 0
 
   // Helper types for lightweight parsing
-  private struct IDRow: Decodable {
-    let id: String
-    let driver_id: String?
-  }
-  private struct TripRow: Decodable {
-    let status: String?
-    let distance_km: Double?
-  }
-  private struct FuelRow: Decodable {
-    let fuel_volume: Double?
-    let amount_paid: Double?
-  }
-  private struct StatusRow: Decodable { let status: String? }
+  public struct IDRow: Decodable, Identifiable, Hashable { public let id: String; public let driver_id: String? }
+  public struct TripRow: Decodable, Identifiable, Hashable { public let id: String; public let status: String?; public let distance_km: Double?; public let shipment_description: String? }
+  public struct FuelRow: Decodable, Identifiable, Hashable { public let id: String; public let fuel_volume: Double?; public let amount_paid: Double?; public let fuel_station: String?; public let logged_at: String?; public let driver_id: String? }
+  public struct StatusRow: Decodable, Identifiable, Hashable { public let id: String; public let status: String? }
+  public struct IncidentRow: Decodable, Identifiable, Hashable { public let id: String; public let severity: String?; public let created_at: String?; public let driver_id: String? }
+  public struct EventRow: Decodable, Identifiable, Hashable { public let id: String; public let event_type: String?; public let timestamp: String? }
+  public struct MaintenanceRow: Decodable, Identifiable, Hashable { public let id: String; public let description: String?; public let priority: String?; public let status: String?; public let estimated_cost: Double?; public let created_at: String? }
+
   private struct DriverTripRow: Decodable {
     let driver_id: String?
     let distance_km: Double?
@@ -209,20 +211,18 @@ public final class FleetReportViewModel {
       // All other tables accept standard uuid equality.
       let builder = SupabaseService.shared.client
 
-      // 1. TRIPS (using created_at)
-      var tripsQ = builder.from("trips").select("status, distance_km")
+      // 1. TRIPS
+      var tripsQ = builder.from("trips").select("id, status, distance_km, shipment_description")
         .gte("created_at", value: startStr)
         .lte("created_at", value: endStr)
       if let vId = selectedVehicleId { tripsQ = tripsQ.eq("vehicle_id", value: vId) }
       if let dId = selectedDriverId { tripsQ = tripsQ.eq("driver_id", value: dId) }
 
-      // 2. FUEL LOGS (using logged_at)
-      // Note: fuel_logs lacks vehicle_id. If a vehicle is selected, we can't reliably filter it directly
-      // unless we only use driver filters. We apply the driver filter if present.
+      // 2. FUEL LOGS
       let canScopeFuelMetrics = selectedVehicleId == nil || selectedDriverId != nil
       let fuel: [FuelRow]
       if canScopeFuelMetrics {
-        var fuelQ = builder.from("fuel_logs").select("fuel_volume, amount_paid")
+        var fuelQ = builder.from("fuel_logs").select("id, fuel_volume, amount_paid, fuel_station, logged_at, driver_id")
           .gte("logged_at", value: startStr)
           .lte("logged_at", value: endStr)
         if let dId = selectedDriverId { fuelQ = fuelQ.eq("driver_id", value: dId) }
@@ -231,8 +231,9 @@ public final class FleetReportViewModel {
         fuel = []
       }
 
-      // 3. INCIDENTS (using created_at)
-      var incidentsQ = builder.from("incidents").select("id")
+      // 3. INCIDENTS
+      // driver ranking also needs incident count
+      var incidentsQ = builder.from("incidents").select("id, severity, created_at, driver_id")
         .gte("created_at", value: startStr)
         .lte("created_at", value: endStr)
       if let vId = selectedVehicleId { incidentsQ = incidentsQ.eq("vehicle_id", value: vId) }
@@ -241,21 +242,21 @@ public final class FleetReportViewModel {
       let canScopeSafetyEvents = selectedDriverId == nil
       let canScopeMaintenance = selectedDriverId == nil
 
-      let events: [IDRow]
+      let events: [EventRow]
       if canScopeSafetyEvents {
-        var eventsQ = builder.from("vehicle_events").select("id")
+        var eventsQ = builder.from("vehicle_events").select("id, event_type, timestamp")
           .gte("timestamp", value: startStr)
           .lte("timestamp", value: endStr)
-          .in("event_type", values: ["HarshBraking", "RapidAcceleration"])
+          .in("event_type", values: ["HarshBraking", "RapidAcceleration", "GeofenceBreach", "ZoneBreach"])
         if let vId = selectedVehicleId { eventsQ = eventsQ.eq("vehicle_id", value: vId) }
         events = try await eventsQ.execute().value
       } else {
         events = []
       }
 
-      let maintenance: [StatusRow]
+      let maintenance: [MaintenanceRow]
       if canScopeMaintenance {
-        var maintenanceQ = builder.from("maintenance_work_orders").select("status")
+        var maintenanceQ = builder.from("maintenance_work_orders").select("id, status, description, priority, estimated_cost, created_at")
           .gte("created_at", value: startStr)
           .lte("created_at", value: endStr)
         if let vId = selectedVehicleId { maintenanceQ = maintenanceQ.eq("vehicle_id", value: vId) }
@@ -265,7 +266,7 @@ public final class FleetReportViewModel {
       }
 
       let trips: [TripRow] = try await tripsQ.execute().value
-      let incidents: [IDRow] = try await incidentsQ.execute().value
+      let incidents: [IncidentRow] = try await incidentsQ.execute().value
 
       // Driver ranking query intentionally includes only fields needed for scoring.
       var driverTripQ = builder.from("trips").select("driver_id, distance_km, fuel_used_liters")
@@ -274,18 +275,7 @@ public final class FleetReportViewModel {
       if let vId = selectedVehicleId { driverTripQ = driverTripQ.eq("vehicle_id", value: vId) }
       if let dId = selectedDriverId { driverTripQ = driverTripQ.eq("driver_id", value: dId) }
 
-      var driverIncidentsQ = builder.from("incidents").select("id, driver_id")
-        .gte("created_at", value: startStr)
-        .lte("created_at", value: endStr)
-      if let vId = selectedVehicleId {
-        driverIncidentsQ = driverIncidentsQ.eq("vehicle_id", value: vId)
-      }
-      if let dId = selectedDriverId {
-        driverIncidentsQ = driverIncidentsQ.eq("driver_id", value: dId)
-      }
-
       let driverTrips: [DriverTripRow] = try await driverTripQ.execute().value
-      let driverIncidents: [IDRow] = try await driverIncidentsQ.execute().value
 
       // Perform Aggregations
       self.totalTrips = trips.count
@@ -301,8 +291,15 @@ public final class FleetReportViewModel {
       self.activeMaintenanceCount = maintenance.filter { $0.status != "completed" }.count
       self.completedMaintenanceCount = maintenance.filter { $0.status == "completed" }.count
 
+      self.tripsData = trips
+      self.fuelData = fuel
+      self.incidentsData = incidents
+      self.eventsData = events
+      self.maintenanceData = maintenance
+
+      // Build rankings using the unified incidents array
       buildDriverRanking(
-        driverTrips: driverTrips, incidents: driverIncidents, totalEventCount: events.count)
+        driverTrips: driverTrips, incidents: incidents, totalEventCount: events.count)
 
     } catch {
       self.errorMessage = "Failed to load report data: \(error.localizedDescription)"
@@ -310,7 +307,7 @@ public final class FleetReportViewModel {
   }
 
   private func buildDriverRanking(
-    driverTrips: [DriverTripRow], incidents: [IDRow], totalEventCount: Int
+    driverTrips: [DriverTripRow], incidents: [IncidentRow], totalEventCount: Int
   ) {
     var byDriver: [String: DriverAgg] = [:]
 
