@@ -269,6 +269,13 @@ public struct CreateOrderView: View {
                 Section(header: Text("Cargo Specifications")) {
                     fmsField(title: "Total Weight (kg) *", placeholder: "e.g. 500", icon: "scalemass.fill", text: $weightString, keyboard: .decimalPad)
                     fmsField(title: "Packages (Optional)", placeholder: "Count", icon: "shippingbox.fill", text: $packagesString, keyboard: .numberPad)
+                        .onChange(of: packagesString) { _, newValue in
+                            // Strip any non-numeric characters and remove leading zeros
+                            let filtered = newValue.filter { $0.isNumber }
+                            if filtered != newValue {
+                                packagesString = filtered
+                            }
+                        }
                     dropdownRow(title: "Cargo Type", icon: selectedCargoType.systemIcon, iconColor: selectedCargoType.color, selectedLabel: selectedCargoType.label) {
                         ForEach(CargoType.allCases, id: \.self) { type in Button { selectedCargoType = type } label: { Label(type.label, systemImage: type.systemIcon) } }
                     }
