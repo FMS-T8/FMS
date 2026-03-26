@@ -318,6 +318,28 @@ public final class DriverDashboardViewModel {
 
     // MARK: - Issue Reporting
     public func submitIssueReport(_ report: IssueReport) async throws {
+        // 1. Upload photos to Supabase Storage and collect public URLs
+        var uploadedUrls: [String] = []
+        if let photos = report.photoData, !photos.isEmpty {
+            let defectId = UUID().uuidString
+            for (index, data) in photos.enumerated() {
+                let path = "defects/\(defectId)/photo-\(index).jpg"
+                do {
+                    try await SupabaseService.shared.client.storage
+                        .from("report-issue-driver")
+                        .upload(path, data: data, options: FileOptions(contentType: "image/jpeg"))
+                    let publicURL = try SupabaseService.shared.client.storage
+                        .from("report-issue-driver")
+                        .getPublicURL(path: path)
+                    uploadedUrls.append(publicURL.absoluteString)
+                } catch {
+                    print("[DriverDashboard] Photo upload failed for index \(index): \(error)")
+                    // Continue — create defect even if some photos fail
+                }
+            }
+        }
+
+        // 2. Insert defect with image URLs
         struct DefectCreatePayload: Encodable {
             let vehicle_id: String?
             let reported_by: String?
@@ -326,6 +348,7 @@ public final class DriverDashboardViewModel {
             let category: String
             let priority: String
             let status: String
+            let image_urls: [String]?
         }
 
         let payload = DefectCreatePayload(
@@ -335,7 +358,8 @@ public final class DriverDashboardViewModel {
             description:  report.description,
             category:     report.category.rawValue.lowercased(),
             priority:     report.severity.rawValue.lowercased(),
-            status:       "open"
+            status:       "open",
+            image_urls:   uploadedUrls.isEmpty ? nil : uploadedUrls
         )
 
         try await SupabaseService.shared.client
@@ -345,8 +369,6 @@ public final class DriverDashboardViewModel {
 
         // Append to local array immediately after a successful DB insert so any
         // observing view reflects the new report without a full refresh.
-        // issueReports holds IssueReport (the domain model), not DefectCreatePayload,
-        // so the types remain consistent with all existing call sites.
         self.issueReports.append(report)
     }
 

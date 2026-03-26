@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import PostgREST
 import Supabase
 
@@ -20,6 +21,10 @@ struct ReportDefectView: View {
     @State private var vehicles: [Vehicle]  = []
     @State private var showingVehiclePicker = false
     @State private var loadingVehicles      = false
+
+    // Photo picker state
+    @State private var selectedPhotos: [PhotosPickerItem] = []
+    @State private var photoData: [Data] = []
 
     // Submit state
     @State private var isSubmitting         = false
@@ -144,6 +149,68 @@ struct ReportDefectView: View {
                             }
                         }
 
+                        // Photo section
+                        RDCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("PHOTOS (OPTIONAL)").font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(FMSTheme.textTertiary).tracking(0.6)
+
+                                if !photoData.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 10) {
+                                            ForEach(photoData.indices, id: \.self) { index in
+                                                if let uiImage = UIImage(data: photoData[index]) {
+                                                    ZStack(alignment: .topTrailing) {
+                                                        Image(uiImage: uiImage)
+                                                            .resizable()
+                                                            .scaledToFill()
+                                                            .frame(width: 80, height: 80)
+                                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                                                        Button {
+                                                            photoData.remove(at: index)
+                                                        } label: {
+                                                            Image(systemName: "xmark")
+                                                                .font(.system(size: 8, weight: .bold))
+                                                                .foregroundStyle(.white)
+                                                                .padding(4)
+                                                                .background(Color.black.opacity(0.6))
+                                                                .clipShape(Circle())
+                                                        }
+                                                        .padding(4)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 5, matching: .images) {
+                                    Label(photoData.isEmpty ? "Add Photos" : "Add More Photos", systemImage: "camera.fill")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(FMSTheme.amberDark)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(FMSTheme.amber.opacity(0.12))
+                                        .cornerRadius(10)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(FMSTheme.amber.opacity(0.3), lineWidth: 1)
+                                        )
+                                }
+                                .onChange(of: selectedPhotos) { _, newItems in
+                                    Task {
+                                        for item in newItems {
+                                            if let data = try? await item.loadTransferable(type: Data.self) {
+                                                photoData.append(data)
+                                            }
+                                        }
+                                        selectedPhotos = []
+                                    }
+                                }
+                            }
+                        }
+
                         // Summary preview
                         if canSubmit {
                             HStack(spacing: 10) {
@@ -224,19 +291,43 @@ struct ReportDefectView: View {
 
     private func submit() {
         guard !isSubmitting else { return }
-        let trimmedTitle = defectTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let newDefect = DefectItem(
-            title:       trimmedTitle,
-            vehicleId:   selectedVehicleId,   // store UUID in vehicle field (maps to vehicle_id in DB)
-            vehicleDisplay: selectedPlate,
-            category:    selectedCategory,
-            priority:    selectedPriority,
-            description: description,
-            reportedAt:  Date()
-        )
         isSubmitting = true
+        let trimmedTitle = defectTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let capturedPhotoData = photoData
+
         Task {
             do {
+                // Upload photos to Supabase Storage
+                var uploadedUrls: [String] = []
+                if !capturedPhotoData.isEmpty {
+                    let defectId = UUID().uuidString
+                    for (index, data) in capturedPhotoData.enumerated() {
+                        let path = "defects/\(defectId)/photo-\(index).jpg"
+                        do {
+                            try await SupabaseService.shared.client.storage
+                                .from("report-issue-driver")
+                                .upload(path, data: data, options: FileOptions(contentType: "image/jpeg"))
+                            let publicURL = try SupabaseService.shared.client.storage
+                                .from("report-issue-driver")
+                                .getPublicURL(path: path)
+                            uploadedUrls.append(publicURL.absoluteString)
+                        } catch {
+                            print("[ReportDefect] Photo upload failed for index \(index): \(error)")
+                        }
+                    }
+                }
+
+                let newDefect = DefectItem(
+                    title:       trimmedTitle,
+                    vehicleId:   selectedVehicleId,
+                    vehicleDisplay: selectedPlate,
+                    category:    selectedCategory,
+                    priority:    selectedPriority,
+                    description: description,
+                    reportedAt:  Date(),
+                    imageUrls:   uploadedUrls.isEmpty ? nil : uploadedUrls
+                )
+
                 try await store.addDefect(newDefect)
                 await MainActor.run {
                     isSubmitting = false
