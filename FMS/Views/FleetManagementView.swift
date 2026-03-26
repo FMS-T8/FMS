@@ -8,6 +8,7 @@ public struct FleetManagementView: View {
     @State private var selectedVehicle: Vehicle? = nil
     @State private var trackingTrip: Trip? = nil
     @State private var isFetchingTrip = false
+    @State private var showingBulkImport = false
     
     public init() {}
     
@@ -62,7 +63,7 @@ public struct FleetManagementView: View {
                         ScrollView {
                             LazyVStack(spacing: 12) {
                                 ForEach(viewModel.filteredVehicles) { vehicle in
-                                     VehicleListCard(
+                                    VehicleListCard(
                                         vehicle: vehicle,
                                         onTrack: { v in
                                             Task { await fetchActiveTrip(for: v) }
@@ -100,6 +101,19 @@ public struct FleetManagementView: View {
                     try await viewModel.addVehicle(newVehicle)
                 }
             }
+            // MARK: - Bulk Import Sheet
+            .sheet(isPresented: $showingBulkImport) {
+                VehicleBulkImportView {
+                    // Refresh the list after successful import
+                    Task {
+                        do {
+                            try await viewModel.fetchVehicles()
+                        } catch {
+                            bannerManager.show(type: .error, message: "Failed to refresh vehicles after import.")
+                        }
+                    }
+                }
+            }
             .navigationDestination(item: $selectedVehicle) { vehicle in
                 VehicleDetailView(
                     vehicle: vehicle,
@@ -131,18 +145,38 @@ public struct FleetManagementView: View {
             
             Spacer()
             
-            Button {
-                showingAddVehicle = true
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(FMSTheme.amber)
-                        .frame(width: 44, height: 44)
-                        .shadow(color: FMSTheme.amber.opacity(0.3), radius: 8, x: 0, y: 4)
-                    
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(FMSTheme.obsidian)
+            HStack(spacing: 12) {
+                // Bulk Import Button
+                Button {
+                    showingBulkImport = true
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(FMSTheme.cardBackground)
+                            .frame(width: 44, height: 44)
+                            .overlay(Circle().stroke(FMSTheme.borderLight, lineWidth: 1))
+                            .shadow(color: FMSTheme.shadowSmall, radius: 4, x: 0, y: 2)
+                        
+                        Image(systemName: "doc.badge.plus")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(FMSTheme.textPrimary)
+                    }
+                }
+                
+                // Add Single Vehicle Button
+                Button {
+                    showingAddVehicle = true
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(FMSTheme.amber)
+                            .frame(width: 44, height: 44)
+                            .shadow(color: FMSTheme.amber.opacity(0.3), radius: 8, x: 0, y: 4)
+                        
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(FMSTheme.obsidian)
+                    }
                 }
             }
         }
@@ -291,9 +325,9 @@ struct FilterPill: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if statusKey.lowercased() != "all" || isSelected {
-                     Circle()
-                         .fill(isSelected && statusKey.lowercased() == "all" ? FMSTheme.obsidian : statusColor)
-                         .frame(width: 8, height: 8)
+                    Circle()
+                        .fill(isSelected && statusKey.lowercased() == "all" ? FMSTheme.obsidian : statusColor)
+                        .frame(width: 8, height: 8)
                 }
                 
                 Text(title)
