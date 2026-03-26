@@ -42,6 +42,7 @@ public final class DriverDashboardViewModel {
     public var activeTrip: Trip?
     public var upcomingTrips: [Trip] = []
     public var completedTrips: [Trip] = []
+    public var alerts: [Notification] = []
 
     // MARK: - Stats
     public var todayStats: DriverDayStats
@@ -154,8 +155,7 @@ public final class DriverDashboardViewModel {
                     availabilityStatus: currentStatus
                 )
                 
-                // Fetch break logs explicitly for this driver to populate history and resume any active breaks
-                await self.breakLogViewModel.loadBreaks(driverId: currentUserId)
+                // Fetch break logs explicitly for this driver — moved below activeTrip determination
             }
 
             let allTrips: [Trip] = try await SupabaseService.shared.client
@@ -178,12 +178,14 @@ public final class DriverDashboardViewModel {
                 .filter { completedStatuses.contains($0.status?.lowercased() ?? "") }
                 .sorted { ($0.endTime ?? Date.distantPast) > ($1.endTime ?? Date.distantPast) }
 
-            // Resume pinging if there is an active trip on app launch
             if let active = self.activeTrip {
                 print("[DriverDashboard] Resuming active trip \(active.id) on launch — starting ping service")
                 locationManager.startUpdating()
                 pingService.start(tripId: active.id)
             }
+
+            // Fetch break logs explicitly for this driver, scoped to the active trip if available
+            await self.breakLogViewModel.loadBreaks(driverId: currentUserId, tripId: self.activeTrip?.id)
 
             if let vehicleId = activeTrip?.vehicleId ?? upcomingTrips.first?.vehicleId {
                 let vehicles: [Vehicle] = try await SupabaseService.shared.client
@@ -196,9 +198,16 @@ public final class DriverDashboardViewModel {
             }
 
             self.todayStats.tripsCompleted = self.completedTrips.count
+            
+            if let jobId = self.currentJob?.id {
+                await fetchAlerts(tripId: jobId)
+            } else {
+                self.alerts = []
+            }
 
         } catch {
             print("Failed to fetch driver dashboard: \(error)")
+            self.alerts = []
             self.errorMessage = error.localizedDescription
         }
         self.isLoading = false
@@ -206,6 +215,13 @@ public final class DriverDashboardViewModel {
 
     // MARK: - Lifecycle Actions
     public func startTrip(_ trip: Trip) {
+        // Prevent starting a new trip if one is already active
+        guard activeTrip == nil else {
+            self.errorMessage = "You already have an active trip. Please complete it before starting a new one."
+            print("[DriverDashboard] Blocking startTrip: Another trip (\(activeTrip?.id ?? "")) is already active")
+            return
+        }
+
         var started = trip
         started.status = "active"
         started.startTime = Date()
@@ -274,6 +290,10 @@ public final class DriverDashboardViewModel {
                     .from("trips").update(update).eq("id", value: trip.id).execute()
 
                 print("[DriverDashboard] Trip persisted as completed — stopping ping service")
+                
+                // Ensure any active break is also ended when the trip is completed
+                self.breakLogViewModel.endBreak()
+
                 pingService.stop()
                 locationManager.stopUpdating()
 
@@ -331,5 +351,22 @@ public final class DriverDashboardViewModel {
         // issueReports holds IssueReport (the domain model), not DefectCreatePayload,
         // so the types remain consistent with all existing call sites.
         self.issueReports.append(report)
+    }
+
+    // MARK: - Alerts
+    public func fetchAlerts(tripId: String) async {
+        do {
+            let results: [Notification] = try await SupabaseService.shared.client
+                .from("notifications")
+                .select("*")
+                .eq("trip_id", value: tripId)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+
+            self.alerts = results
+        } catch {
+            print("[DriverDashboard] Failed to fetch alerts: \(error)")
+        }
     }
 }

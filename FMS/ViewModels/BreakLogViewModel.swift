@@ -180,8 +180,9 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
         }
     }
     
-    /// Loads breaks by driver across trips (Crash Recovery endpoint)
-    public func loadBreaks(driverId: String) async {
+    /// Loads breaks by driver across trips (Crash Recovery endpoint).
+    /// If a `tripId` is provided, the break is only restored if it matches that trip.
+    public func loadBreaks(driverId: String, tripId: String? = nil) async {
         do {
             let response = try await SupabaseService.shared.client
                 .from("break_logs")
@@ -195,23 +196,49 @@ public final class BreakLogViewModel: NSObject, CLLocationManagerDelegate {
             self.breakLogs = breaks.filter { !$0.isOngoing }
             
             if let openBreak = breaks.first(where: { $0.isOngoing }) {
-                self.isOnBreak = true
-                self.currentBreakStartTime = openBreak.startTime
-                self.currentBreakId = openBreak.id
-                // Restore actual break type from persisted record, fall back to .rest
-                if let storedType = openBreak.breakType, let breakType = BreakType(rawValue: storedType) {
-                    self.selectedBreakType = breakType
-                } else {
-                    self.selectedBreakType = .rest
-                }
-                
-                // Resume elapsed counting via standard start dispatch
-                timer?.invalidate()
-                timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-                    Task { @MainActor [weak self] in
-                        guard let self, let start = self.currentBreakStartTime else { return }
-                        self.currentBreakElapsedSeconds = Date().timeIntervalSince(start)
+                // Determine if we should restore this break
+                // 1. If tripId is provided, it MUST match.
+                // 2. If tripId is NOT provided, we only restore if the break itself has no tripId (rare)
+                //    or if we just want to restore whatever the driver's last state was.
+                // 3. For the dashboard, we usually pass the active tripId.
+                let shouldRestore: Bool = {
+                    if let currentTripId = tripId {
+                        return openBreak.tripId == currentTripId
                     }
+                    // If no current trip context, we might still want to restore a general break
+                    // But for this bug, we'll be strict: only restore if it was a general break
+                    // or if we're not scoping to a trip.
+                    return openBreak.tripId == nil
+                }()
+
+                if shouldRestore {
+                    self.isOnBreak = true
+                    self.currentBreakStartTime = openBreak.startTime
+                    self.currentBreakId = openBreak.id
+                    if let tId = openBreak.tripId { self.tripId = tId }
+                    
+                    if let storedType = openBreak.breakType, let breakType = BreakType(rawValue: storedType) {
+                        self.selectedBreakType = breakType
+                    } else {
+                        self.selectedBreakType = .rest
+                    }
+                    
+                    timer?.invalidate()
+                    timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                        Task { @MainActor [weak self] in
+                            guard let self, let start = self.currentBreakStartTime else { return }
+                            self.currentBreakElapsedSeconds = Date().timeIntervalSince(start)
+                        }
+                    }
+                } else {
+                    // It's an ongoing break for a DIFFERENT trip or context.
+                    // We should NOT show it as active for the current context.
+                    timer?.invalidate()
+                    timer = nil
+                    self.isOnBreak = false
+                    self.currentBreakStartTime = nil
+                    self.currentBreakId = nil
+                    self.currentBreakElapsedSeconds = 0
                 }
             } else {
                 // Server confirms no ongoing break — clear any stale local state

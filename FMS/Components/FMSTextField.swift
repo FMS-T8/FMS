@@ -89,6 +89,7 @@ public struct FMSTextField: View {
                     .stroke(FMSTheme.borderLight, lineWidth: 1)
             )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

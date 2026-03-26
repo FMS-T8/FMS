@@ -65,6 +65,7 @@ public struct SOSAlert: Codable, Identifiable {
     case status
     case acknowledgedAt = "acknowledged_at"
     case resolvedAt = "resolved_at"
+    case driverPhoneNumber = "driver_phone_number"
   }
 }
 
@@ -74,6 +75,7 @@ public struct SOSAlertInsert: Codable {
   public var id: String
   public var driverId: String
   public var vehicleId: String
+  public var driverPhoneNumber: String?
   public var tripId: String?
   public var latitude: Double
   public var longitude: Double
@@ -85,6 +87,7 @@ public struct SOSAlertInsert: Codable {
     id: String = UUID().uuidString,
     driverId: String,
     vehicleId: String,
+    driverPhoneNumber: String? = nil,
     tripId: String? = nil,
     latitude: Double,
     longitude: Double,
@@ -95,6 +98,7 @@ public struct SOSAlertInsert: Codable {
     self.id = id
     self.driverId = driverId
     self.vehicleId = vehicleId
+    self.driverPhoneNumber = driverPhoneNumber
     self.tripId = tripId
     self.latitude = latitude
     self.longitude = longitude
@@ -107,6 +111,7 @@ public struct SOSAlertInsert: Codable {
     case id
     case driverId = "driver_id"
     case vehicleId = "vehicle_id"
+    case driverPhoneNumber = "driver_phone_number"
     case tripId = "trip_id"
     case latitude
     case longitude

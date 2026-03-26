@@ -183,6 +183,9 @@ public struct InspectionCompleteView: View {
                     animateCheckmark = true
                 }
             }
+            .task {
+                await viewModel.fetchMetadata()
+            }
         }
     }
 

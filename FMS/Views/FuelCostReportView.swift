@@ -35,6 +35,7 @@ public struct FuelCostReportView: View {
     }
     .navigationTitle("Fuel Cost Report")
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar(.visible, for: .navigationBar)
     .background(FMSTheme.backgroundPrimary)
     .task { await viewModel.fetchReport() }
   }

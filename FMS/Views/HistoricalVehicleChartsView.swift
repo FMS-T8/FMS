@@ -26,6 +26,7 @@ public struct HistoricalVehicleChartsView: View {
         }
         .navigationTitle("Historical Charts")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .sheet(isPresented: $showCustomRangeSheet) {
             NavigationStack {
                 Form {

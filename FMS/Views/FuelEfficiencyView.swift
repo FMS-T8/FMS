@@ -25,6 +25,7 @@ public struct FuelEfficiencyView: View {
         }
         .navigationTitle("Fuel Efficiency")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .background(FMSTheme.backgroundPrimary)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

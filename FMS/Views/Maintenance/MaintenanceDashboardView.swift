@@ -10,22 +10,26 @@ public struct MaintenanceDashboardView: View {
     @Binding var selectedTab: Int
     var woStore: WorkOrderStore
     var invStore: InventoryStore
+    @Environment(AuthViewModel.self) private var authViewModel
     @State private var fleetStore     = FleetViewModel()
-    @State private var selectedFilter  = "All"
+    @State private var selectedFilter: String? = "Pending"
+    @State private var showingProfile  = false
     @State private var showingCreateWO = false
     @State private var isSearchActive  = false
     @State private var searchText      = ""
 
-    let filters = ["All", "Pending", "In Progress", "Completed"]
+    let filters = ["Pending", "In Progress", "Completed"]
 
     var filteredOrders: [WOItem] {
         var result = woStore.orders
         
-        switch selectedFilter {
-        case "Pending":     result = result.filter { $0.status == .pending }
-        case "In Progress": result = result.filter { $0.status == .inProgress }
-        case "Completed":   result = result.filter { $0.status == .completed }
-        default:            break
+        if let filter = selectedFilter {
+            switch filter {
+            case "Pending":     result = result.filter { $0.status == .pending }
+            case "In Progress": result = result.filter { $0.status == .inProgress }
+            case "Completed":   result = result.filter { $0.status == .completed }
+            default:            break
+            }
         }
         
         if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -56,8 +60,7 @@ public struct MaintenanceDashboardView: View {
                 VStack(spacing: 0) {
 
                     // Fixed title row
-                    FMSTitleRow(title: "Dashboard")
-                    Divider().opacity(0.35)
+                    headerSection
 
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
@@ -96,12 +99,55 @@ public struct MaintenanceDashboardView: View {
                     let _ = try await woStore.add(wo)
                 }
             }
+            .sheet(isPresented: $showingProfile) {
+                ProfileTabView()
+            }
         }
         .task {
             await woStore.fetchWorkOrders()
             await invStore.fetchParts()
             try? await fleetStore.fetchVehicles()
         }
+    }
+    
+    // MARK: - Header
+    private var headerSection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                let name = authViewModel.currentUser?.name.components(separatedBy: " ").first ?? "Maintenance"
+                Text("Hello, \(name)")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(FMSTheme.textPrimary)
+                
+                Text(formattedDate)
+                    .font(.system(size: 14))
+                    .foregroundStyle(FMSTheme.textSecondary)
+            }
+            
+            Spacer()
+            
+            Button {
+                showingProfile = true
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(FMSTheme.borderLight)
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundStyle(FMSTheme.amber)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 10)
+    }
+
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMMM d"
+        return formatter.string(from: Date())
     }
 
     // MARK: - Low Stock Banner
@@ -182,7 +228,11 @@ public struct MaintenanceDashboardView: View {
                     ForEach(filters, id: \.self) { filter in
                         Button {
                             withAnimation(.spring(response: 0.28, dampingFraction: 0.72)) {
-                                selectedFilter = filter
+                                if selectedFilter == filter {
+                                    selectedFilter = nil
+                                } else {
+                                    selectedFilter = filter
+                                }
                             }
                         } label: {
                             Text(filter).font(.system(size: 13, weight: .semibold))
@@ -195,7 +245,7 @@ public struct MaintenanceDashboardView: View {
                 .padding(.horizontal, 16)
             }
 
-            Text("\(filteredOrders.count) order\(filteredOrders.count == 1 ? "" : "s")")
+            Text("\(selectedFilter ?? "All") (\(filteredOrders.count))")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(FMSTheme.textSecondary)
                 .padding(.horizontal, 16)

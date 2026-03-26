@@ -136,6 +136,12 @@ struct AddDriverView: View {
         Spacer()
 
         Button(action: {
+          if !viewModel.isPhoneValid {
+            viewModel.errorMessage = "Phone number must be exactly 10 digits."
+            viewModel.showError = true
+            return
+          }
+          
           guard let phone = composedPhone else { return }
           viewModel.phone = phone
           Task {
@@ -145,16 +151,16 @@ struct AddDriverView: View {
             }
           }
         }) {
-          let canCreate = viewModel.isValid && composedPhone != nil
+          let hasMinimalInfo = viewModel.isValid && !phoneDigits.isEmpty
           Text("Create")
             .font(.subheadline.weight(.semibold))
-            .foregroundColor(canCreate ? FMSTheme.amber : Color(.tertiaryLabel))
+            .foregroundColor(hasMinimalInfo ? FMSTheme.amber : Color(.tertiaryLabel))
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
-            .background(canCreate ? FMSTheme.amber.opacity(0.15) : FMSTheme.cardBackground)
+            .background(hasMinimalInfo ? FMSTheme.amber.opacity(0.15) : FMSTheme.cardBackground)
             .clipShape(Capsule())
         }
-        .disabled(!viewModel.isValid || composedPhone == nil || viewModel.isLoading)
+        .disabled(!viewModel.isValid || phoneDigits.isEmpty || viewModel.isLoading)
       }
       .padding(.horizontal, 16)
       .padding(.top, 24)
@@ -222,7 +228,13 @@ struct AddDriverView: View {
                       .keyboardType(.phonePad)
                       .foregroundStyle(FMSTheme.textPrimary)
                       .onChange(of: phoneDigits) { _, newValue in
-                        phoneDigits = newValue.filter { $0.isNumber }
+                        let filtered = newValue.filter { $0.isNumber }
+                        if filtered.count > 10 {
+                          phoneDigits = String(filtered.prefix(10))
+                        } else {
+                          phoneDigits = filtered
+                        }
+                        viewModel.localPhone = phoneDigits
                         viewModel.phone = composedPhone ?? ""
                       }
                   } // HStack

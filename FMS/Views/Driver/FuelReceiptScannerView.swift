@@ -74,8 +74,7 @@ private struct FuelReceiptDocumentScannerView: View {
         },
         onCancel: { dismiss() },
         onFailure: { error in
-          viewModel.errorMessage = error.localizedDescription
-          viewModel.showError = true
+          viewModel.handleError(error)
           dismiss()
         }
       )

@@ -18,6 +18,18 @@ public class FleetViewModel {
     
     public let statusOptions = ["All", "Active", "Inactive", "Maintenance"]
     
+    public var activeCount: Int {
+        vehicles.filter { derivedStatus(for: $0) == "active" }.count
+    }
+    
+    public var maintenanceCount: Int {
+        vehicles.filter { derivedStatus(for: $0) == "maintenance" }.count
+    }
+    
+    public var inactiveCount: Int {
+        vehicles.filter { derivedStatus(for: $0) == "inactive" }.count
+    }
+    
     public var filteredVehicles: [Vehicle] {
         var result = vehicles
         

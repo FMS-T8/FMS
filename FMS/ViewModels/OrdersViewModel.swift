@@ -19,12 +19,14 @@ public struct LiveVehicleResource: Decodable, Identifiable {
     public let plateNumber: String
     public let manufacturer: String?
     public let model: String?
+    public let carryingCapacity: Double?
 
     enum CodingKeys: String, CodingKey {
         case id
         case plateNumber = "plate_number"
         case manufacturer
         case model
+        case carryingCapacity = "carrying_capacity"
     }
 }
 
@@ -66,7 +68,7 @@ public final class OrdersViewModel {
 
             let allVehicles: [LiveVehicleResource] = try await SupabaseService.shared.client
                 .from("vehicles")
-                .select("id, plate_number, manufacturer, model")
+                .select("id, plate_number, manufacturer, model, carrying_capacity")
                 .eq("status", value: "active")
                 .execute()
                 .value

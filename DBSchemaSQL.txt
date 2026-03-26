@@ -130,6 +130,15 @@ CREATE TABLE public.maintenance_work_orders (
   CONSTRAINT maintenance_work_orders_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
   CONSTRAINT maintenance_work_orders_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.users(id)
 );
+CREATE TABLE public.mfa_recovery_codes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  code text NOT NULL,
+  used_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT mfa_recovery_codes_pkey PRIMARY KEY (id),
+  CONSTRAINT mfa_recovery_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
 CREATE TABLE public.notifications (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   recipient_id uuid,
@@ -355,6 +364,7 @@ CREATE TABLE public.vehicles (
   service_interval_km double precision,
   service_interval_months integer,
   maintenance_notes text,
+  monthly_budget numeric DEFAULT 0,
   CONSTRAINT vehicles_pkey PRIMARY KEY (id),
   CONSTRAINT vehicles_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );

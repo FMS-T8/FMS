@@ -209,16 +209,21 @@ public struct AddVehicleView: View {
                                         .font(.system(size: 13))
                                         .foregroundColor(FMSTheme.textSecondary)
                                     } else {
-                                        Button("Set Purchase Date") {
-                                            // Seed with today formatted as ISO-8601
+                                        Button {
                                             purchaseDateString = Self.isoFormatter.string(from: Date())
+                                        } label: {
+                                            Text("Set Purchase Date")
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .padding(.vertical, 12)
+                                                .foregroundColor(FMSTheme.amber)
                                         }
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(FMSTheme.amber)
                                     }
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
+                        .frame(maxWidth: .infinity)
                         .padding(20)
                     }
 
@@ -305,6 +310,7 @@ public struct AddVehicleView: View {
             .background(FMSTheme.cardBackground).cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(FMSTheme.borderLight, lineWidth: 1))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func numericField<Value: BinaryInteger>(
@@ -327,6 +333,7 @@ public struct AddVehicleView: View {
             .background(FMSTheme.cardBackground).cornerRadius(12)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(FMSTheme.borderLight, lineWidth: 1))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @MainActor

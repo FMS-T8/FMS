@@ -27,6 +27,7 @@ public struct CostBreakdownView: View {
     }
     .navigationTitle("Spend Dashboard")
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar(.visible, for: .navigationBar)
     .background(FMSTheme.backgroundPrimary)
     .sheet(isPresented: $showCustomRangeSheet) {
       NavigationStack {

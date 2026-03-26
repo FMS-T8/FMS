@@ -24,6 +24,7 @@ public struct FuelDeviationAlertsView: View {
     }
     .navigationTitle("Fuel Deviation Alerts")
     .navigationBarTitleDisplayMode(.inline)
+    .toolbar(.visible, for: .navigationBar)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
         Button("Refresh") {

@@ -11,19 +11,51 @@ public struct DriversView: View {
 
   public var body: some View {
     NavigationStack {
-      ScrollView {
-        LazyVStack(spacing: 0) {
-          // Dense header matching the dashboard style
-          DriversSummaryHeader(vm: vm)
+      ZStack {
+        FMSTheme.backgroundPrimary.ignoresSafeArea()
+        
+        ScrollView {
+          LazyVStack(spacing: 0) {
+            HStack {
+              Text("Drivers")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(FMSTheme.textPrimary)
+              
+              Spacer()
+              
+              HStack(spacing: 12) {
+
+                Button {
+                  showingAddDriver = true
+                } label: {
+                  Image(systemName: "person.badge.plus")
+                    .font(.system(size: 18, weight: .semibold))
+                    .padding(8)
+                    .background(FMSTheme.amber.opacity(0.12))
+                    .clipShape(Circle())
+                    .foregroundStyle(FMSTheme.amber)
+                }
+              }
+            }
             .padding(.horizontal, 16)
             .padding(.top, 4)
-            .padding(.bottom, 12)
-
-          DirectoryTabContent(vm: vm)
+            .padding(.bottom, 8)
+            
+            searchBar
+              .padding(.horizontal, 16)
+              .padding(.bottom, 12)
+            
+            // Dense header matching the dashboard style
+            DriversSummaryHeader(vm: vm)
+              .padding(.horizontal, 16)
+              .padding(.top, 4)
+              .padding(.bottom, 12)
+            
+            DirectoryTabContent(vm: vm)
+          }
         }
       }
       .scrollDismissesKeyboard(.interactively)
-      .background(Color(.systemGroupedBackground).ignoresSafeArea())
       .overlay {
         if vm.isLoading && vm.drivers.isEmpty {
           ProgressView("Loading workforce...")
@@ -49,8 +81,7 @@ public struct DriversView: View {
       }
       .navigationTitle("")
       .navigationBarTitleDisplayMode(.inline)
-      .searchable(text: $vm.searchText, prompt: "Search driver name or ID")
-      .toolbar { toolbarContent }
+      .toolbar(.hidden, for: .navigationBar)
       .sheet(isPresented: $showingAddDriver) {
         AddDriverView(onDriverAdded: {
           Task { await vm.fetchData() }
@@ -60,18 +91,34 @@ public struct DriversView: View {
     }
   }
 
-  // MARK: Toolbar
-
-  @ToolbarContentBuilder
-  private var toolbarContent: some ToolbarContent {
-    ToolbarItem(placement: .navigationBarTrailing) {
-      Button {
-        showingAddDriver = true
-      } label: {
-        Image(systemName: "person.badge.plus")
-          .fontWeight(.medium)
+  private var searchBar: some View {
+    HStack(spacing: 12) {
+      Image(systemName: "magnifyingglass")
+        .foregroundStyle(FMSTheme.textSecondary)
+        .font(.system(size: 16, weight: .semibold))
+      
+      TextField("Search driver name or ID", text: $vm.searchText)
+        .font(.system(size: 16))
+        .foregroundStyle(FMSTheme.textPrimary)
+        .autocorrectionDisabled()
+      
+      if !vm.searchText.isEmpty {
+        Button {
+          vm.searchText = ""
+        } label: {
+          Image(systemName: "xmark.circle.fill")
+            .foregroundStyle(FMSTheme.textTertiary)
+        }
       }
     }
+    .padding(.horizontal, 14)
+    .padding(.vertical, 12)
+    .background(FMSTheme.cardBackground)
+    .cornerRadius(12)
+    .overlay(
+      RoundedRectangle(cornerRadius: 12)
+        .stroke(FMSTheme.borderLight, lineWidth: 1)
+    )
   }
 }
 
@@ -91,9 +138,6 @@ private struct DriversSummaryHeader: View {
     VStack(alignment: .leading, spacing: 12) {
       // Title row
       HStack(alignment: .firstTextBaseline) {
-        Text("Drivers")
-          .font(.largeTitle.bold())
-          .foregroundStyle(Color(.label))
         Spacer()
         Text("\(vm.totalCount) Total")
           .font(.subheadline.weight(.semibold))

@@ -42,11 +42,13 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
 
     private let driverId: String
     private let vehicleId: String
+    private let driverPhoneNumber: String?
     private let tripId: String?
 
-    public init(driverId: String, vehicleId: String, tripId: String? = nil) {
+    public init(driverId: String, vehicleId: String, driverPhoneNumber: String? = nil, tripId: String? = nil) {
         self.driverId = driverId
         self.vehicleId = vehicleId
+        self.driverPhoneNumber = driverPhoneNumber
         self.tripId = tripId
         super.init()
         setupLocationManager()

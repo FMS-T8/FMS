@@ -65,13 +65,10 @@ public struct ReportsHubView: View {
                         destination: BreakComplianceDashboardView()
                     )
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 32)
             }
-            .background(FMSTheme.backgroundPrimary)
-            .navigationTitle("Reports")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 

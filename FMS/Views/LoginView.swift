@@ -14,6 +14,7 @@ public struct LoginView: View {
     @State private var password: String = ""
     @State private var isLoading: Bool = false
     @State private var showForgotPassword: Bool = false
+    @State private var isPasswordVisible: Bool = false
     
     // ✅ Check if form is valid
     private var isFormValid: Bool {
@@ -79,25 +80,50 @@ public struct LoginView: View {
                         // Email
                         
                         TextField("Email", text: $email)
-                            .padding()
+                            .foregroundColor(FMSTheme.textPrimary)
+                            .padding(.horizontal, 16)
+                            .frame(height: 56)
                             .background(
                                 RoundedRectangle(cornerRadius: 14)
                                     .fill(FMSTheme.pillBackground)
                             )
-                            .foregroundColor(FMSTheme.textPrimary)
                             .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
                         
                         
                         // Password
                         
-                        SecureField("Password", text: $password)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(FMSTheme.pillBackground)
-                            )
-                            .foregroundColor(FMSTheme.textPrimary)
-                        
+                        HStack {
+                            if isPasswordVisible {
+                                TextField("Password", text: $password)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            } else {
+                                SecureField("Password", text: $password)
+                                    .textInputAutocapitalization(.never)
+                            }
+                            
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isPasswordVisible.toggle()
+                                }
+                            }) {
+                                Image(systemName: isPasswordVisible ? "eye" : "eye.slash")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(isPasswordVisible ? FMSTheme.amber : FMSTheme.textSecondary)
+                                    .frame(width: 32, height: 32)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(isPasswordVisible ? "Hide password" : "Show password")
+                        }
+                        .foregroundColor(FMSTheme.textPrimary)
+                        .padding(.horizontal, 16)
+                        .frame(height: 56)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(FMSTheme.pillBackground)
+                        )             
                         
                         // Login Button
                         

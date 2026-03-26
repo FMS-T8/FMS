@@ -144,6 +144,7 @@ public struct CreateOrderView: View {
     @State private var showingDriverSearch = false
     @State private var showingVehicleSearch = false
     @State private var showingError = false
+    @FocusState private var focusedField: String?
 
     private var trimmedOrigin: String { originName.trimmingCharacters(in: .whitespaces) }
     private var trimmedDestination: String { destinationName.trimmingCharacters(in: .whitespaces) }
@@ -184,6 +185,20 @@ public struct CreateOrderView: View {
         return points
     }
     
+    private var isPhoneValid: Bool {
+        let count = customerPhone.filter { $0.isNumber }.count
+        return count == 10
+    }
+    
+    private var isCapacityValid: Bool {
+        guard assignmentPref == .now,
+              let vehicleId = selectedVehicleId,
+              let vehicle = viewModel.availableVehicles.first(where: { $0.id == vehicleId }),
+              let capacity = vehicle.carryingCapacity,
+              let weight = Double(weightString) else { return true }
+        return weight <= capacity
+    }
+    
     private var isFormValid: Bool {
         let baseValid = !customerName.trimmingCharacters(in: .whitespaces).isEmpty &&
             !trimmedOrigin.isEmpty && !trimmedDestination.isEmpty && !isSameLocation &&
@@ -202,8 +217,19 @@ public struct CreateOrderView: View {
             Form {
                 Section(header: Text("Customer Information")) {
                     fmsField(title: "Customer Name *", placeholder: "Enter full name", icon: "person.fill", text: $customerName)
-                    fmsField(title: "Phone Number", placeholder: "Enter phone number", icon: "phone.fill", text: $customerPhone, keyboard: .phonePad)
+                        .focused($focusedField, equals: "customerName")
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        fmsField(title: "Phone Number * (10 digits)", placeholder: "Enter phone number", icon: "phone.fill", text: $customerPhone, keyboard: .phonePad)
+                            .focused($focusedField, equals: "customerPhone")
+                        
+                        if !customerPhone.isEmpty && !isPhoneValid {
+                            Text("Must be exactly 10 digits").font(.caption2).foregroundColor(FMSTheme.alertRed)
+                        }
+                    }
+                    
                     fmsField(title: "Email (Optional)", placeholder: "Enter email address", icon: "envelope.fill", text: $customerEmail, keyboard: .emailAddress)
+                        .focused($focusedField, equals: "customerEmail")
                 }
                 .listRowBackground(Color(.secondarySystemGroupedBackground))
 
@@ -257,10 +283,20 @@ public struct CreateOrderView: View {
                     
                     if assignmentPref == .now {
                         locationPickerRow(title: "Driver *", placeholder: "Select available driver", icon: "steeringwheel", value: selectedDriverName) {
+                            focusedField = nil
                             showingDriverSearch = true
                         }
-                        locationPickerRow(title: "Vehicle *", placeholder: "Select available vehicle", icon: "truck.box.fill", value: selectedVehicleName) {
-                            showingVehicleSearch = true
+                        VStack(alignment: .leading, spacing: 4) {
+                            locationPickerRow(title: "Vehicle *", placeholder: "Select available vehicle", icon: "truck.box.fill", value: selectedVehicleName) {
+                                focusedField = nil
+                                showingVehicleSearch = true
+                            }
+                            if !isCapacityValid, let vehicle = viewModel.availableVehicles.first(where: { $0.id == selectedVehicleId }), let capacity = vehicle.carryingCapacity {
+                                Label("Max payload for this vehicle is \(String(format: "%.0f", capacity))kg", systemImage: "exclamationmark.triangle.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(FMSTheme.alertRed)
+                                    .padding(.leading, 32)
+                            }
                         }
                     }
                 }
@@ -268,7 +304,9 @@ public struct CreateOrderView: View {
 
                 Section(header: Text("Cargo Specifications")) {
                     fmsField(title: "Total Weight (kg) *", placeholder: "e.g. 500", icon: "scalemass.fill", text: $weightString, keyboard: .decimalPad)
+                        .focused($focusedField, equals: "weight")
                     fmsField(title: "Packages (Optional)", placeholder: "Count", icon: "shippingbox.fill", text: $packagesString, keyboard: .numberPad)
+                        .focused($focusedField, equals: "packages")
                     dropdownRow(title: "Cargo Type", icon: selectedCargoType.systemIcon, iconColor: selectedCargoType.color, selectedLabel: selectedCargoType.label) {
                         ForEach(CargoType.allCases, id: \.self) { type in Button { selectedCargoType = type } label: { Label(type.label, systemImage: type.systemIcon) } }
                     }
@@ -279,10 +317,15 @@ public struct CreateOrderView: View {
                 .listRowBackground(Color(.secondarySystemGroupedBackground))
 
                 Section(header: Text("Additional Information")) {
-                    TextField("Special Instructions...", text: $specialInstructions, axis: .vertical).lineLimit(3...6).padding(.vertical, 8)
+                    TextField("Special Instructions...", text: $specialInstructions, axis: .vertical)
+                        .lineLimit(3...6)
+                        .padding(.vertical, 8)
+                        .focused($focusedField, equals: "instructions")
                 }
                 .listRowBackground(Color(.secondarySystemGroupedBackground))
             }
+            .scrollDismissesKeyboard(.interactively)
+            .onTapGesture { focusedField = nil }
             .scrollContentBackground(.visible)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("New Order")
@@ -404,6 +447,25 @@ public struct CreateOrderView: View {
     }
 
     private func submitOrder() {
+        focusedField = nil
+        
+        // Final validations with alerts
+        if !isPhoneValid {
+            viewModel.errorMessage = "Customer phone number must be exactly 10 digits."
+            showingError = true
+            return
+        }
+        
+        if assignmentPref == .now && !isCapacityValid {
+            if let vehicle = viewModel.availableVehicles.first(where: { $0.id == selectedVehicleId }), let capacity = vehicle.carryingCapacity {
+                viewModel.errorMessage = "Selected vehicle (#\(vehicle.plateNumber)) has a maximum capacity of \(String(format: "%.0f", capacity))kg. The order weight exceeds this limit."
+            } else {
+                viewModel.errorMessage = "Payload exceeds vehicle capacity."
+            }
+            showingError = true
+            return
+        }
+        
         guard let weight = Double(weightString), weight > 0 else { return }
         
         let payload = OrderCreatePayload(

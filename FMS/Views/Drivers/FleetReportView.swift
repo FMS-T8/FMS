@@ -12,7 +12,15 @@ public struct FleetReportView: View {
   // Temporary draft dates for the custom date range sheet
   @State private var draftStartDate: Date = Date()
   @State private var draftEndDate: Date = Date()
-  @State private var csvExportURL: URL?
+  
+  // PDF Export
+  @State private var isGeneratingPDF = false
+  @State private var pdfExportURL: URL?
+  @State private var showPDFShareSheet = false
+  
+  // Sheet Metric
+  @State private var sheetMetric: FleetReportMetricDetail? = nil
+  
   public init() {}
 
   public var body: some View {
@@ -30,20 +38,11 @@ public struct FleetReportView: View {
           ProgressView("Crunching fleet data...")
             .padding(.top, 50)
         } else {
-          weeklySummarySection
-            .padding(.horizontal)
-
           // 2. Metrics Grid
           metricsGrid
             .padding(.horizontal)
 
-          driverRankingSection
-            .padding(.horizontal)
-
-          // 3. Email Subscription Toggle
-          emailSubscriptionSection
-            .padding(.horizontal)
-            .padding(.bottom, 40)
+          // Removed bottom export card to optimize space
         }
       }
     }
@@ -52,29 +51,35 @@ public struct FleetReportView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .topBarTrailing) {
-        if !viewModel.isLoading {
-          ShareLink(
-            item: viewModel.weeklyCSVReport(),
-            subject: Text("Weekly Fleet Performance Report"),
-            message: Text("Exported weekly report")
-          ) {
-            Label("Export CSV", systemImage: "square.and.arrow.up")
+        HStack(spacing: 16) {
+          if viewModel.selectedPreset != .thisWeek || viewModel.selectedVehicleId != nil
+            || viewModel.selectedDriverId != nil
+          {
+            Button("Clear Filters") {
+              viewModel.selectedPreset = .thisWeek
+              viewModel.startDate = FleetReportViewModel.monday(for: Date())
+              viewModel.endDate = Calendar.current.date(byAdding: .day, value: 6, to: viewModel.startDate) ?? Date()
+              viewModel.selectedVehicleId = nil
+              viewModel.selectedDriverId = nil
+              Task { await loadData() }
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(FMSTheme.amber)
           }
-        }
-      }
-      ToolbarItem(placement: .topBarTrailing) {
-        if viewModel.selectedPreset != .thisWeek || viewModel.selectedVehicleId != nil
-          || viewModel.selectedDriverId != nil
-        {
-          Button("Clear Filters") {
-            viewModel.selectedPreset = .thisWeek
-            viewModel.selectedWeekStart = FleetReportViewModel.monday(for: Date())
-            viewModel.selectedVehicleId = nil
-            viewModel.selectedDriverId = nil
-            Task { await loadData() }
+
+          Button {
+              Task { await handlePDFGeneration() }
+          } label: {
+              if isGeneratingPDF {
+                  ProgressView()
+                      .tint(FMSTheme.amber)
+              } else {
+                  Image(systemName: "square.and.arrow.up")
+                      .font(.system(size: 16, weight: .semibold))
+                      .foregroundStyle(viewModel.isLoading ? FMSTheme.textTertiary : FMSTheme.amber)
+              }
           }
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundStyle(FMSTheme.amber)
+          .disabled(viewModel.isLoading || isGeneratingPDF)
         }
       }
     }
@@ -82,10 +87,21 @@ public struct FleetReportView: View {
       // Initial load
       await viewModel.loadFilters()
       await loadData()
-      await viewModel.fetchSubscriptionStatus()
+    }
+    .onChange(of: viewModel.errorMessage) { _, msg in
+      if let error = msg {
+        bannerManager.show(type: .error, message: error)
+        viewModel.errorMessage = nil
+      }
     }
     .onDisappear {
-      cleanupCSVExportFile()
+      cleanupPDFExportFile()
+    }
+    .sheet(isPresented: $showPDFShareSheet) {
+        if let url = pdfExportURL {
+            ActivityView(activityItems: [url])
+                .presentationDetents([.medium, .large])
+        }
     }
     .sheet(isPresented: $showDatePicker) {
       NavigationStack {
@@ -120,6 +136,13 @@ public struct FleetReportView: View {
       }
       .presentationDetents([.medium, .large])
     }
+    .sheet(item: $sheetMetric) { metric in
+        NavigationStack {
+            MetricDetailSheet(metric: metric, viewModel: viewModel)
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
   }
 
   private func loadData() async {
@@ -128,28 +151,11 @@ public struct FleetReportView: View {
       bannerManager.show(type: .error, message: error)
       viewModel.errorMessage = nil  // clear it after showing banner
     }
-
-    do {
-      csvExportURL = try createCSVExportFile(from: viewModel.weeklyCSVReport())
-    } catch {
-      csvExportURL = nil
-      bannerManager.show(type: .error, message: "Could not prepare CSV export.")
-    }
   }
 
-  private func createCSVExportFile(from csvContent: String) throws -> URL {
-    cleanupCSVExportFile()
-
-    let fileName = "fleet-report-\(UUID().uuidString).csv"
-    let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-    let data = Data(csvContent.utf8)
-    try data.write(to: fileURL, options: .atomic)
-    return fileURL
-  }
-
-  private func cleanupCSVExportFile() {
-    guard let csvExportURL else { return }
-    try? FileManager.default.removeItem(at: csvExportURL)
+  private func cleanupPDFExportFile() {
+    guard let pdfExportURL else { return }
+    try? FileManager.default.removeItem(at: pdfExportURL)
   }
 
   // MARK: - Filters
@@ -157,7 +163,7 @@ public struct FleetReportView: View {
   private var weekSelector: some View {
     HStack(spacing: 14) {
       Button {
-        viewModel.moveWeek(by: -1)
+        viewModel.moveDateRange(by: -1)
         Task { await loadData() }
       } label: {
         Image(systemName: "chevron.left")
@@ -169,17 +175,17 @@ public struct FleetReportView: View {
       }
 
       VStack(spacing: 2) {
-        Text("Weekly Report")
+        Text(viewModel.selectedPreset == .custom ? "Custom Range" : viewModel.selectedPreset.rawValue)
           .font(.system(size: 12, weight: .semibold))
           .foregroundStyle(FMSTheme.textSecondary)
-        Text(viewModel.weekLabel)
+        Text(viewModel.dateLabel)
           .font(.system(size: 14, weight: .bold))
           .foregroundStyle(FMSTheme.textPrimary)
       }
       .frame(maxWidth: .infinity)
 
       Button {
-        viewModel.moveWeek(by: 1)
+        viewModel.moveDateRange(by: 1)
         Task { await loadData() }
       } label: {
         Image(systemName: "chevron.right")
@@ -188,40 +194,6 @@ public struct FleetReportView: View {
           .frame(width: 32, height: 32)
           .background(FMSTheme.cardBackground)
           .clipShape(Circle())
-      }
-    }
-  }
-
-  private var weeklySummarySection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text("Fleet Efficiency Summary")
-        .font(.headline.weight(.bold))
-        .foregroundStyle(FMSTheme.textPrimary)
-
-      HStack(spacing: 12) {
-        ReportMetricCard(
-          icon: "gauge.with.dots.needle.67percent",
-          title: "Avg Behavior Score",
-          value: String(format: "%.1f", viewModel.averageBehaviorScore)
-        )
-        ReportMetricCard(
-          icon: "road.lanes",
-          title: "Total KM",
-          value: String(format: "%.0f", viewModel.totalDistanceKm)
-        )
-      }
-
-      HStack(spacing: 12) {
-        ReportMetricCard(
-          icon: "fuelpump.fill",
-          title: "Fuel Consumed",
-          value: String(format: "%.1f L", viewModel.totalFuelLiters)
-        )
-        ReportMetricCard(
-          icon: "checkmark.seal.fill",
-          title: "Completed Trips",
-          value: "\(viewModel.completedTrips)/\(viewModel.totalTrips)"
-        )
       }
     }
   }
@@ -328,15 +300,22 @@ public struct FleetReportView: View {
           .foregroundStyle(FMSTheme.textPrimary)
 
         LazyVGrid(columns: columns, spacing: 16) {
-          ReportMetricCard(
-            icon: "map.fill", title: "Total Trips",
-            value: "\(viewModel.totalTrips)",
-            subtitle: "\(viewModel.completedTrips) completed"
-          )
-          ReportMetricCard(
-            icon: "point.topleft.down.curvedto.point.bottomright.up", title: "Distance",
-            value: "\(Int(viewModel.totalDistanceKm)) km"
-          )
+            Button(action: { sheetMetric = .totalTrips }) {
+                ReportMetricCard(
+                    icon: "map.fill", title: "Total Trips",
+                    value: "\(viewModel.totalTrips)",
+                    subtitle: "\(viewModel.completedTrips) completed"
+                )
+            }
+            .buttonStyle(.plain)
+            
+            Button(action: { sheetMetric = .distance }) {
+                ReportMetricCard(
+                    icon: "point.topleft.down.curvedto.point.bottomright.up", title: "Distance",
+                    value: "\(Int(viewModel.totalDistanceKm)) km"
+                )
+            }
+            .buttonStyle(.plain)
         }
       }
 
@@ -346,17 +325,41 @@ public struct FleetReportView: View {
           .font(.headline.weight(.bold))
           .foregroundStyle(FMSTheme.textPrimary)
 
-        LazyVGrid(columns: columns, spacing: 16) {
-          ReportMetricCard(
-            icon: "fuelpump.fill", title: "Fuel Used",
-            value: String(format: "%.1f L", viewModel.totalFuelLiters)
-          )
-          ReportMetricCard(
-            icon: "indianrupeesign", title: "Fuel Cost",
-            value: String(format: "₹%.0f", viewModel.totalFuelCost),
-            subtitle: String(format: "Avg %.1f km/L", viewModel.avgFuelEfficiency)
-          )
+        Button(action: { sheetMetric = .fuelLogs }) {
+            VStack(spacing: 16) {
+                HStack(spacing: 6) {
+                    Image(systemName: "fuelpump.fill")
+                        .foregroundStyle(FMSTheme.amber)
+                    Text("Fuel Used")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(FMSTheme.textSecondary)
+                    Spacer()
+                    Text(String(format: "%.1f L", viewModel.totalFuelLiters))
+                        .font(.title3.bold())
+                        .foregroundStyle(FMSTheme.textPrimary)
+                }
+                
+                HStack(spacing: 6) {
+                    Image(systemName: "indianrupeesign")
+                        .foregroundStyle(FMSTheme.amber)
+                    Text("Fuel Cost")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(FMSTheme.textSecondary)
+                    Spacer()
+                    Text(String(format: "₹%.0f", viewModel.totalFuelCost))
+                        .font(.title3.bold())
+                        .foregroundStyle(FMSTheme.textPrimary)
+                }
+            }
+            .padding(16)
+            .background(FMSTheme.cardBackground)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(FMSTheme.borderLight, lineWidth: 1)
+            )
         }
+        .buttonStyle(.plain)
       }
 
       // Safety & Maintenance
@@ -366,115 +369,364 @@ public struct FleetReportView: View {
           .foregroundStyle(FMSTheme.textPrimary)
 
         LazyVGrid(columns: columns, spacing: 16) {
-          ReportMetricCard(
-            icon: "exclamationmark.triangle.fill", title: "Incidents",
-            value: "\(viewModel.incidentCount)",
-            subtitle: "\(viewModel.safetyEventCount) sensor events"
-          )
-          ReportMetricCard(
-            icon: "wrench.and.screwdriver.fill", title: "Work Orders",
-            value: "\(viewModel.activeMaintenanceCount)",
-            subtitle: "\(viewModel.completedMaintenanceCount) resolved"
-          )
-        }
-      }
-    }
-  }
-
-  private var driverRankingSection: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text("Driver Behavior Rankings")
-        .font(.headline.weight(.bold))
-        .foregroundStyle(FMSTheme.textPrimary)
-
-      rankingCard(title: "Top 5 Drivers", rows: viewModel.topDrivers)
-      rankingCard(title: "Bottom 5 Drivers", rows: viewModel.bottomDrivers)
-    }
-  }
-
-  private func rankingCard(title: String, rows: [FleetReportViewModel.DriverPerformance])
-    -> some View
-  {
-    VStack(alignment: .leading, spacing: 10) {
-      Text(title)
-        .font(.system(size: 14, weight: .bold))
-        .foregroundStyle(FMSTheme.textPrimary)
-
-      if rows.isEmpty {
-        Text("No driver data for selected week.")
-          .font(.system(size: 12))
-          .foregroundStyle(FMSTheme.textTertiary)
-      } else {
-        ForEach(rows) { row in
-          HStack {
-            Text(row.name)
-              .font(.system(size: 13, weight: .semibold))
-              .foregroundStyle(FMSTheme.textPrimary)
-            Spacer()
-            Text(String(format: "%.1f", row.behaviorScore))
-              .font(.system(size: 13, weight: .bold, design: .rounded))
-              .foregroundStyle(row.behaviorScore >= 70 ? FMSTheme.alertGreen : FMSTheme.alertRed)
-          }
-          .padding(.vertical, 2)
-        }
-      }
-    }
-    .padding(14)
-    .background(FMSTheme.cardBackground)
-    .cornerRadius(12)
-  }
-
-  // MARK: - Email Subscription
-
-  private var emailSubscriptionSection: some View {
-    VStack(spacing: 0) {
-      HStack(spacing: 16) {
-        ZStack {
-          Circle()
-            .fill(FMSTheme.amber.opacity(0.15))
-            .frame(width: 48, height: 48)
-          Image(systemName: "envelope.fill")
-            .font(.system(size: 20))
-            .foregroundStyle(FMSTheme.amber)
-        }
-
-        VStack(alignment: .leading, spacing: 4) {
-          Text("Automated Reports")
-            .font(.headline.weight(.bold))
-            .foregroundStyle(FMSTheme.textPrimary)
-
-          Text("Receive this summary via email every Monday morning.")
-            .font(.subheadline)
-            .foregroundStyle(FMSTheme.textSecondary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-
-        Spacer()
-
-        Toggle(
-          "",
-          isOn: Binding(
-            get: { viewModel.isSubscribedToEmail },
-            set: { newValue in
-              guard !viewModel.isTogglingSubscription else { return }
-              Task { await viewModel.syncEmailSubscription(newValue) }
+            Button(action: { sheetMetric = .incidents }) {
+                ReportMetricCard(
+                    icon: "exclamationmark.triangle.fill", title: "Incidents",
+                    value: "\(viewModel.incidentCount)",
+                    subtitle: "\(viewModel.safetyEventCount) sensor events"
+                )
             }
-          )
-        )
-        .labelsHidden()
-        .accessibilityLabel("Email subscription")
-        .tint(FMSTheme.amber)
-        .disabled(viewModel.isTogglingSubscription)
+            .buttonStyle(.plain)
+            
+            Button(action: { sheetMetric = .workOrders }) {
+                ReportMetricCard(
+                    icon: "wrench.and.screwdriver.fill", title: "Work Orders",
+                    value: "\(viewModel.activeMaintenanceCount)",
+                    subtitle: "\(viewModel.completedMaintenanceCount) resolved"
+                )
+            }
+            .buttonStyle(.plain)
+        }
       }
-      .padding(16)
     }
-    .background(FMSTheme.cardBackground)
-    .cornerRadius(16)
-    .overlay(
-      RoundedRectangle(cornerRadius: 16)
-        .stroke(FMSTheme.borderLight, lineWidth: 1)
-    )
   }
+
+  // MARK: - PDF Generation
+
+  @MainActor
+  private func handlePDFGeneration() async {
+      isGeneratingPDF = true
+      defer { isGeneratingPDF = false }
+      
+      // Clear old
+      cleanupPDFExportFile()
+      
+      let renderer = ImageRenderer(content: FleetPDFReportTemplate(viewModel: viewModel))
+      let paperSize = CGSize(width: 595.2, height: 841.8)
+      renderer.proposedSize = .init(paperSize)
+      
+      let fileName = "fleet-report-\(UUID().uuidString).pdf"
+      let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+      
+      renderer.render { size, context in
+          var pdfBox = CGRect(origin: .zero, size: paperSize)
+          guard let pdfContext = CGContext(fileURL as CFURL, mediaBox: &pdfBox, nil) else { return }
+          pdfContext.beginPDFPage(nil)
+          context(pdfContext)
+          pdfContext.endPDFPage()
+          pdfContext.closePDF()
+      }
+      
+      self.pdfExportURL = fileURL
+      self.showPDFShareSheet = true
+  }
+}
+
+fileprivate struct ActivityView: UIViewControllerRepresentable {
+    var activityItems: [Any]
+    var applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+fileprivate enum FleetReportMetricDetail: String, Identifiable {
+    case totalTrips, distance, fuelLogs, incidents, workOrders
+    var id: String { rawValue }
+    
+    var title: String {
+        switch self {
+        case .totalTrips: return "Recent Trips"
+        case .distance: return "Distance Traveled"
+        case .fuelLogs: return "Fuel Logs"
+        case .incidents: return "Safety Incidents"
+        case .workOrders: return "Work Orders"
+        }
+    }
+}
+
+fileprivate struct MetricDetailSheet: View {
+    let metric: FleetReportMetricDetail
+    let viewModel: FleetReportViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        List {
+            switch metric {
+            case .totalTrips:
+                if viewModel.tripsData.isEmpty {
+                    Text("No trips in this period")
+                        .foregroundStyle(FMSTheme.textSecondary)
+                } else {
+                    ForEach(viewModel.tripsData) { trip in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Trip #\(trip.id.prefix(8).uppercased())")
+                                .font(.headline)
+                            if let desc = trip.shipment_description {
+                                Text(desc)
+                                    .font(.subheadline)
+                                    .foregroundStyle(FMSTheme.textPrimary)
+                            }
+                            HStack {
+                                Text("Status: \(trip.status?.capitalized ?? "Unknown")")
+                                    .font(.subheadline)
+                                    .foregroundStyle(FMSTheme.textSecondary)
+                                Spacer()
+                                if let d = trip.distance_km {
+                                    Text("\(d, specifier: "%.1f") km")
+                                        .font(.subheadline)
+                                        .foregroundStyle(FMSTheme.textSecondary)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+            case .distance:
+                if viewModel.tripsData.isEmpty {
+                    Section {
+                        Text("No distance data in this period")
+                            .foregroundStyle(FMSTheme.textSecondary)
+                    }
+                } else {
+                    let validDistances = viewModel.tripsData.compactMap(\.distance_km).filter { $0 > 0 }
+                    let sortedTrips = viewModel.tripsData.filter { ($0.distance_km ?? 0) > 0 }.sorted { ($0.distance_km ?? 0) > ($1.distance_km ?? 0) }
+                    
+                    Section(header: Text("Distance Highlights").font(.headline).textCase(nil).foregroundStyle(FMSTheme.textPrimary)) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Average")
+                                    .font(.caption)
+                                    .foregroundStyle(FMSTheme.textSecondary)
+                                let avg = validDistances.isEmpty ? 0 : (validDistances.reduce(0, +) / Double(validDistances.count))
+                                Text("\(String(format: "%.1f", avg)) km")
+                                    .font(.title3.bold())
+                            }
+                            Spacer()
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Longest")
+                                    .font(.caption)
+                                    .foregroundStyle(FMSTheme.textSecondary)
+                                Text("\(String(format: "%.1f", validDistances.max() ?? 0)) km")
+                                    .font(.title3.bold())
+                            }
+                            Spacer()
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Shortest")
+                                    .font(.caption)
+                                    .foregroundStyle(FMSTheme.textSecondary)
+                                Text("\(String(format: "%.1f", validDistances.min() ?? 0)) km")
+                                    .font(.title3.bold())
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    
+                    Section(header: Text("All Trips by Distance").font(.headline).textCase(nil).foregroundStyle(FMSTheme.textPrimary)) {
+                        ForEach(sortedTrips) { trip in
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Trip #\(trip.id.prefix(8).uppercased())")
+                                        .font(.subheadline.bold())
+                                    if let desc = trip.shipment_description {
+                                        Text(desc)
+                                            .font(.caption)
+                                            .foregroundStyle(.gray)
+                                    }
+                                }
+                                Spacer()
+                                Text("\(String(format: "%.1f", trip.distance_km ?? 0)) km")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(FMSTheme.amber)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            case .fuelLogs:
+                if viewModel.fuelData.isEmpty {
+                    Text("No fuel logs in this period")
+                        .foregroundStyle(FMSTheme.textSecondary)
+                } else {
+                    ForEach(viewModel.fuelData) { fuel in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(alignment: .top) {
+                                Text(fuel.fuel_station ?? "Unknown Station")
+                                    .font(.headline)
+                                Spacer()
+                                Text(formatDate(fuel.logged_at))
+                                    .font(.caption)
+                                    .foregroundStyle(.gray)
+                            }
+                            
+                            if let driverId = fuel.driver_id,
+                               let driverName = viewModel.availableDrivers.first(where: { $0.id == driverId })?.name {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person.circle.fill")
+                                    Text(driverName)
+                                }
+                                .font(.subheadline)
+                                .foregroundStyle(FMSTheme.textSecondary)
+                            }
+                            
+                            HStack {
+                                if let vol = fuel.fuel_volume {
+                                    Text("Volume: \(vol, specifier: "%.1f") L")
+                                        .font(.subheadline)
+                                }
+                                Spacer()
+                                if let amt = fuel.amount_paid {
+                                    Text("Cost: ₹\(amt, specifier: "%.0f")")
+                                        .font(.subheadline)
+                                        .foregroundStyle(FMSTheme.textSecondary)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+            case .incidents:
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Sensor Events: \(viewModel.safetyEventCount)")
+                            .font(.headline)
+                        Text("Reported Incidents: \(viewModel.incidentCount)")
+                            .font(.headline)
+                    }
+                    .padding(.vertical, 4)
+                }
+                
+                if viewModel.incidentsData.isEmpty && viewModel.eventsData.isEmpty {
+                    Section {
+                        Text("No safety logs in this period")
+                            .foregroundStyle(FMSTheme.textSecondary)
+                    }
+                } else {
+                    if !viewModel.incidentsData.isEmpty {
+                        Section(header: Text("Driver Incidents").font(.headline).textCase(nil).foregroundStyle(FMSTheme.textPrimary)) {
+                            ForEach(viewModel.incidentsData) { incident in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(alignment: .top) {
+                                        Text(incident.severity?.replacingOccurrences(of: "_", with: " ").capitalized ?? "Incident")
+                                            .font(.headline)
+                                            .foregroundStyle(FMSTheme.alertRed)
+                                        Spacer()
+                                        if let dateString = incident.created_at {
+                                            Text(formatDate(dateString))
+                                                .font(.caption)
+                                                .foregroundStyle(.gray)
+                                        }
+                                    }
+                                    Text("Incident #\(incident.id.prefix(8).uppercased())")
+                                        .font(.caption2)
+                                        .foregroundStyle(FMSTheme.textTertiary)
+                                }
+                                .padding(.vertical, 8)
+                            }
+                        }
+                    }
+                    
+                    if !viewModel.eventsData.isEmpty {
+                        Section(header: Text("Vehicle Events").font(.headline).textCase(nil).foregroundStyle(FMSTheme.textPrimary)) {
+                            ForEach(viewModel.eventsData) { event in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(alignment: .top) {
+                                        Text(event.event_type?.replacingOccurrences(of: "([a-z])([A-Z])", with: "$1 $2", options: .regularExpression, range: nil).capitalized ?? "Vehicle Event")
+                                            .font(.headline)
+                                            .foregroundStyle(FMSTheme.amber)
+                                        Spacer()
+                                        if let dateString = event.timestamp {
+                                            Text(formatDate(dateString))
+                                                .font(.caption)
+                                                .foregroundStyle(.gray)
+                                        }
+                                    }
+                                    Text("Event log recorded")
+                                        .font(.subheadline)
+                                        .foregroundStyle(FMSTheme.textSecondary)
+                                }
+                                .padding(.vertical, 8)
+                            }
+                        }
+                    }
+                }
+            case .workOrders:
+                if viewModel.maintenanceData.isEmpty {
+                    Text("No work orders in this period")
+                        .foregroundStyle(FMSTheme.textSecondary)
+                } else {
+                    ForEach(viewModel.maintenanceData) { order in
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .top) {
+                                Text(order.description?.split(separator: "\n").first.map(String.init) ?? "Maintenance Order")
+                                    .font(.headline)
+                                Spacer()
+                                if let priorityStr = order.priority {
+                                    let isHigh = priorityStr.lowercased() == "high"
+                                    Text(priorityStr.capitalized)
+                                        .font(.caption.bold())
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(isHigh ? FMSTheme.alertRed.opacity(0.15) : FMSTheme.amber.opacity(0.15))
+                                        .foregroundStyle(isHigh ? FMSTheme.alertRed : FMSTheme.amber)
+                                        .cornerRadius(8)
+                                }
+                            }
+                            
+                            HStack {
+                                Text("Status: \(order.status?.replacingOccurrences(of: "_", with: " ").capitalized ?? "Unknown")")
+                                    .font(.subheadline)
+                                    .foregroundStyle(FMSTheme.textSecondary)
+                                Spacer()
+                                if let cost = order.estimated_cost {
+                                    Text("Cost: ₹\(cost, specifier: "%.0f")")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(FMSTheme.textPrimary)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(metric.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Done") {
+                    dismiss()
+                }
+                .fontWeight(.bold)
+                .foregroundStyle(FMSTheme.amber)
+            }
+        }
+    }
+    
+    private func formatDate(_ isoString: String?) -> String {
+        guard let isoString = isoString else { return "Unknown Date" }
+        
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var dateObj = formatter.date(from: isoString)
+        
+        if dateObj == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            dateObj = formatter.date(from: isoString)
+        }
+        
+        guard let date = dateObj else { return String(isoString.prefix(10)) }
+        
+        let outFormatter = DateFormatter()
+        outFormatter.dateStyle = .medium
+        outFormatter.timeStyle = .short
+        return outFormatter.string(from: date)
+    }
 }
 
 #Preview {
