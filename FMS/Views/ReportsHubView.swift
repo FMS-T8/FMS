@@ -7,66 +7,63 @@ public struct ReportsHubView: View {
 
     public var body: some View {
         NavigationStack {
-            ZStack {
-                FMSTheme.backgroundPrimary.ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Reports")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(FMSTheme.textPrimary)
-                        
-                        reportCard(
-                            icon: "chart.bar.fill",
-                            title: "Spend Dashboard",
-                            subtitle: "Fuel + maintenance + tolls consolidated by date range",
-                            color: FMSTheme.alertOrange,
-                            destination: CostBreakdownView()
-                        )
-                        
-                        reportCard(
-                            icon: "fuelpump.fill",
-                            title: "Fuel Efficiency",
-                            subtitle: "Vehicle km/L vs baseline with variance indicators",
-                            color: FMSTheme.alertGreen,
-                            destination: FuelEfficiencyView()
-                        )
-                        
-                        reportCard(
-                            icon: "doc.text.fill",
-                            title: "Weekly Performance",
-                            subtitle: "Mon-Sun summaries, driver scores, and export",
-                            color: FMSTheme.amber,
-                            destination: FleetReportView()
-                        )
-                        
-                        reportCard(
-                            icon: "banknote",
-                            title: "Fuel Cost Report",
-                            subtitle: "Per-vehicle fuel spend vs budget variance",
-                            color: FMSTheme.alertRed,
-                            destination: FuelCostReportView()
-                        )
-                        
-                        reportCard(
-                            icon: "exclamationmark.octagon.fill",
-                            title: "Fuel Deviation Alerts",
-                            subtitle: "Track baseline consumption deviations and resolve alerts",
-                            color: FMSTheme.alertOrange,
-                            destination: FuelDeviationAlertsView()
-                        )
-                        
-                        reportCard(
-                            icon: "chart.line.uptrend.xyaxis",
-                            title: "Historical Charts",
-                            subtitle: "Vehicle trends with anomaly spike annotations",
-                            color: FMSTheme.amber,
-                            destination: HistoricalVehicleChartsView()
-                        )
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 32)
+            ScrollView {
+                VStack(spacing: 14) {
+                    reportCard(
+                        icon: "chart.bar.fill",
+                        title: "Spend Dashboard",
+                        subtitle: "Fuel + maintenance + tolls consolidated by date range",
+                        color: FMSTheme.alertOrange,
+                        destination: CostBreakdownView()
+                    )
+
+                    reportCard(
+                        icon: "fuelpump.fill",
+                        title: "Fuel Efficiency",
+                        subtitle: "Vehicle km/L vs baseline with variance indicators",
+                        color: FMSTheme.alertGreen,
+                        destination: FuelEfficiencyView()
+                    )
+
+                    reportCard(
+                        icon: "doc.text.fill",
+                        title: "Weekly Performance",
+                        subtitle: "Mon-Sun summaries, driver scores, and export",
+                        color: FMSTheme.amber,
+                        destination: FleetReportView()
+                    )
+
+                    reportCard(
+                        icon: "banknote",
+                        title: "Fuel Cost Report",
+                        subtitle: "Per-vehicle fuel spend vs budget variance",
+                        color: FMSTheme.alertRed,
+                        destination: FuelCostReportView()
+                    )
+
+                    reportCard(
+                        icon: "exclamationmark.octagon.fill",
+                        title: "Fuel Deviation Alerts",
+                        subtitle: "Track baseline consumption deviations and resolve alerts",
+                        color: FMSTheme.alertOrange,
+                        destination: FuelDeviationAlertsView()
+                    )
+
+                    reportCard(
+                        icon: "chart.line.uptrend.xyaxis",
+                        title: "Historical Charts",
+                        subtitle: "Vehicle trends with anomaly spike annotations",
+                        color: FMSTheme.amber,
+                        destination: HistoricalVehicleChartsView()
+                    )
+
+                    reportCard(
+                        icon: "bed.double.fill",
+                        title: "Break Compliance",
+                        subtitle: "Mandated rest periods by driver and shift",
+                        color: FMSTheme.alertOrange,
+                        destination: BreakComplianceDashboardView()
+                    )
                 }
             }
             .navigationTitle("")
