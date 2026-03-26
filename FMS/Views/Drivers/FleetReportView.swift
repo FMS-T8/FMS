@@ -12,7 +12,6 @@ public struct FleetReportView: View {
   // Temporary draft dates for the custom date range sheet
   @State private var draftStartDate: Date = Date()
   @State private var draftEndDate: Date = Date()
-  @State private var csvExportURL: URL?
   
   // PDF Export
   @State private var isGeneratingPDF = false
@@ -68,20 +67,8 @@ public struct FleetReportView: View {
             .foregroundStyle(FMSTheme.amber)
           }
 
-          Menu {
-              Button {
-                  Task { await handlePDFGeneration() }
-              } label: {
-                  Label("Export as PDF", systemImage: "doc.richtext")
-              }
-              
-              ShareLink(
-                item: viewModel.weeklyCSVReport(),
-                subject: Text("Weekly Fleet Performance Report"),
-                message: Text("Exported weekly report")
-              ) {
-                  Label("Export as CSV", systemImage: "tablecells")
-              }
+          Button {
+              Task { await handlePDFGeneration() }
           } label: {
               if isGeneratingPDF {
                   ProgressView()
@@ -108,7 +95,6 @@ public struct FleetReportView: View {
       }
     }
     .onDisappear {
-      cleanupCSVExportFile()
       cleanupPDFExportFile()
     }
     .sheet(isPresented: $showPDFShareSheet) {
@@ -165,28 +151,6 @@ public struct FleetReportView: View {
       bannerManager.show(type: .error, message: error)
       viewModel.errorMessage = nil  // clear it after showing banner
     }
-
-    do {
-      csvExportURL = try createCSVExportFile(from: viewModel.weeklyCSVReport())
-    } catch {
-      csvExportURL = nil
-      bannerManager.show(type: .error, message: "Could not prepare CSV export.")
-    }
-  }
-
-  private func createCSVExportFile(from csvContent: String) throws -> URL {
-    cleanupCSVExportFile()
-
-    let fileName = "fleet-report-\(UUID().uuidString).csv"
-    let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-    let data = Data(csvContent.utf8)
-    try data.write(to: fileURL, options: .atomic)
-    return fileURL
-  }
-
-  private func cleanupCSVExportFile() {
-    guard let csvExportURL else { return }
-    try? FileManager.default.removeItem(at: csvExportURL)
   }
 
   private func cleanupPDFExportFile() {
