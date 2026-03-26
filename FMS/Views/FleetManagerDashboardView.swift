@@ -52,16 +52,14 @@ struct FleetManagerHomeTab: View {
     @State private var activeSOSAlerts: [SOSAlert] = []
     @State private var sosPollingTimer: Timer?
     @State private var sosExpanded: Bool = false
+    @State private var deletedAlertIDs: Set<String> = []
 
     // Mock data
     private let managerName = "Manager"
     private let activeVehicles = 14
     private let pendingOrders = 12
 
-    @State private var recentAlerts: [RichTripAlert] = [
-        RichTripAlert(id: "static1", title: "Tyre pressure warning", subtitle: "Truck #402 reported low pressure in rear-left tyre.", timeAgo: "12m ago", type: .warning, timestamp: Date().addingTimeInterval(-720)),
-        RichTripAlert(id: "static2", title: "Driver break scheduled", subtitle: "Driver David R. is reaching mandatory rest limit in 15 mins.", timeAgo: "45m ago", type: .info, timestamp: Date().addingTimeInterval(-2700))
-    ]
+    @State private var recentAlerts: [RichTripAlert] = []
 
     var body: some View {
         NavigationStack {
@@ -255,13 +253,9 @@ struct FleetManagerHomeTab: View {
                     ))
                 }
                 
-                let staticAlerts = [
-                    RichTripAlert(id: "static1", title: "Tyre pressure warning", subtitle: "Truck #402 reported low pressure in rear-left tyre.", timeAgo: "12m ago", type: .warning, timestamp: Date().addingTimeInterval(-720)),
-                    RichTripAlert(id: "static2", title: "Geofence deviation", subtitle: "Truck #109 exited designated route area.", timeAgo: "1h ago", type: .critical, timestamp: Date().addingTimeInterval(-3600))
-                ]
-                
                 await MainActor.run {
-                    self.recentAlerts = fetchedAlerts + staticAlerts
+                    fetchedAlerts.removeAll { self.deletedAlertIDs.contains($0.id) }
+                    self.recentAlerts = fetchedAlerts
                 }
             } catch {
                 print("[FMS] fetchRecentAlerts failed: \(error)")
@@ -307,13 +301,27 @@ struct FleetManagerHomeTab: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(FMSTheme.textPrimary)
 
-            ForEach(recentAlerts) { alert in
-                AlertRow(
-                    title: alert.title,
-                    subtitle: alert.subtitle,
-                    timeAgo: alert.timeAgo,
-                    type: alert.type
-                )
+            if recentAlerts.isEmpty {
+                Text("No recent alerts.")
+                    .font(.system(size: 14))
+                    .foregroundStyle(FMSTheme.textTertiary)
+                    .padding(.vertical, 10)
+            } else {
+                ForEach(recentAlerts) { alert in
+                    SwipeToDeleteWrapper(onDelete: {
+                        deletedAlertIDs.insert(alert.id)
+                        withAnimation {
+                            recentAlerts.removeAll { $0.id == alert.id }
+                        }
+                    }) {
+                        AlertRow(
+                            title: alert.title,
+                            subtitle: alert.subtitle,
+                            timeAgo: alert.timeAgo,
+                            type: alert.type
+                        )
+                    }
+                }
             }
         }
     }
@@ -322,6 +330,58 @@ struct FleetManagerHomeTab: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d"
         return formatter.string(from: Date())
+    }
+}
+
+// MARK: - Swipe To Delete Helper
+private struct SwipeToDeleteWrapper<Content: View>: View {
+    let content: Content
+    let onDelete: () -> Void
+    @State private var offset: CGFloat = 0
+
+    init(onDelete: @escaping () -> Void, @ViewBuilder content: () -> Content) {
+        self.onDelete = onDelete
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            // Delete Background
+            Rectangle()
+                .fill(FMSTheme.alertRed)
+                .cornerRadius(12)
+            
+            Image(systemName: "trash")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(.trailing, 20)
+            
+            // Content
+            content
+                .offset(x: offset)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            if value.translation.width < 0 {
+                                offset = value.translation.width
+                            }
+                        }
+                        .onEnded { value in
+                            if value.translation.width < -80 {
+                                withAnimation {
+                                    offset = -1000
+                                }
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    onDelete()
+                                }
+                            } else {
+                                withAnimation {
+                                    offset = 0
+                                }
+                            }
+                        }
+                )
+        }
     }
 }
 
