@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct MaintenanceForecastView: View {
+    @Bindable private var settingsStore = MaintenanceSettingsStore.shared
     @State private var fleetViewModel = FleetViewModel()
     @State private var forecasts: [String: MaintenancePredictionService.MaintenanceForecast] = [:]
     @State private var isLoading = true
@@ -24,6 +25,8 @@ public struct MaintenanceForecastView: View {
                             
                             searchSection
                             
+                            dueNowSection
+                            
                             highUsageSection
                             
                             upcomingServicesSection
@@ -41,6 +44,21 @@ public struct MaintenanceForecastView: View {
             .sheet(isPresented: $showingProfile) {
                 ProfileTabView()
             }
+            .onChange(of: settingsStore.globalIntervalKm) {
+                recalculateForecasts()
+            }
+        }
+    }
+    
+    private func recalculateForecasts() {
+        let intervalKm = settingsStore.intervalKmDouble
+        for (vehicleID, forecast) in forecasts {
+            guard let vehicle = fleetViewModel.vehicles.first(where: { $0.id == vehicleID }) else { continue }
+            forecasts[vehicleID] = MaintenancePredictionService.projectForecast(
+                for: vehicle,
+                avgDailyKm: forecast.avgDailyKm,
+                intervalKm: intervalKm
+            )
         }
     }
     
@@ -115,10 +133,47 @@ public struct MaintenanceForecastView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(FMSTheme.borderLight.opacity(0.5), lineWidth: 1))
     }
     
+    private var dueNowSection: some View {
+        let dueVehicles = fleetViewModel.vehicles.filter { vehicle in
+            vehicle.id != MaintenanceSettingsStore.systemVehicleID &&
+            MaintenancePredictionService.calculateStatus(for: vehicle) == .due &&
+            matchesSearch(vehicle)
+        }
+        
+        return VStack(alignment: .leading, spacing: 14) {
+            if !dueVehicles.isEmpty {
+                HStack {
+                    Text("CRITICAL: DUE NOW")
+                        .font(.system(size: 12, weight: .black))
+                        .foregroundColor(FMSTheme.alertRed)
+                    Spacer()
+                    Text("\(dueVehicles.count) Vehicles")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(FMSTheme.textTertiary)
+                }
+                
+                ForEach(dueVehicles) { vehicle in
+                    VehicleServiceCard(
+                        vehicle: vehicle,
+                        showForecast: true,
+                        showMileage: false,
+                        showBudget: false,
+                        showSecondaryInfo: false,
+                        forecast: forecasts[vehicle.id]
+                    )
+                }
+                
+                Divider().opacity(0.1)
+                    .padding(.vertical, 8)
+            }
+        }
+    }
+    
     private var highUsageSection: some View {
         let highUsageVehicles = fleetViewModel.vehicles.filter { vehicle in
-            guard let fc = forecasts[vehicle.id] else { return false }
-            return fc.isHighUsage && matchesSearch(vehicle)
+            MaintenancePredictionService.calculateStatus(for: vehicle) != .due &&
+            forecasts[vehicle.id]?.isHighUsage == true && 
+            matchesSearch(vehicle)
         }
         
         return VStack(alignment: .leading, spacing: 14) {
@@ -149,8 +204,10 @@ public struct MaintenanceForecastView: View {
     
     private var upcomingServicesSection: some View {
         let upcoming = fleetViewModel.vehicles.filter { vehicle in
-            guard let fc = forecasts[vehicle.id] else { return false }
-            return !fc.isHighUsage && fc.projectedDate != nil && matchesSearch(vehicle)
+            MaintenancePredictionService.calculateStatus(for: vehicle) != .due &&
+            forecasts[vehicle.id]?.isHighUsage != true &&
+            forecasts[vehicle.id]?.projectedDate != nil &&
+            matchesSearch(vehicle)
         }.sorted { v1, v2 in
             let d1 = forecasts[v1.id]?.projectedDate ?? Date.distantFuture
             let d2 = forecasts[v2.id]?.projectedDate ?? Date.distantFuture

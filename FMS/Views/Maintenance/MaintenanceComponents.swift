@@ -319,6 +319,10 @@ public struct VehicleServiceCard: View {
                                 Text("(\(abs(days)) days overdue)")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(FMSTheme.alertRed)
+                            } else if days == 0 && status == .due {
+                                Text("(ASAP)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(FMSTheme.alertRed)
                             } else {
                                 Text("(\(days) days away)")
                                     .font(.system(size: 11))

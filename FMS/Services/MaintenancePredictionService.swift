@@ -57,12 +57,6 @@ public struct MaintenancePredictionService {
     public static func calculateForecast(for vehicle: Vehicle, defaultKm: Double? = nil) async -> MaintenanceForecast {
         let intervalKm = max(vehicle.effectiveServiceIntervalKm, 1.0)
         
-        let currentOdo = vehicle.odometer ?? 0
-        let lastOdo = vehicle.lastServiceOdometer ?? 0
-        let distanceSinceLast = currentOdo - lastOdo
-        let kmRemaining = max(0, intervalKm - distanceSinceLast)
-        
-        // Fetch trips for the last 30 days to calculate average daily usage
         let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
         
         do {
@@ -77,24 +71,7 @@ public struct MaintenancePredictionService {
             let totalKm = trips.reduce(0) { $0 + ($1.distanceKm ?? 0) }
             let avgDailyKm = totalKm / 30.0
             
-            if avgDailyKm > 0 {
-                let daysRemaining = Int(kmRemaining / avgDailyKm)
-                let projectedDate = Calendar.current.date(byAdding: .day, value: daysRemaining, to: Date())
-                
-                return MaintenanceForecast(
-                    projectedDate: projectedDate,
-                    avgDailyKm: avgDailyKm,
-                    daysRemaining: daysRemaining,
-                    isHighUsage: avgDailyKm > (intervalKm / 30.0) // If it will hit interval in < 30 days
-                )
-            } else {
-                return MaintenanceForecast(
-                    projectedDate: nil,
-                    avgDailyKm: 0,
-                    daysRemaining: nil,
-                    isHighUsage: false
-                )
-            }
+            return projectForecast(for: vehicle, avgDailyKm: avgDailyKm, intervalKm: intervalKm)
         } catch is CancellationError {
             return MaintenanceForecast(projectedDate: nil, avgDailyKm: 0, daysRemaining: nil, isHighUsage: false)
         } catch let error as NSError where error.domain == NSURLErrorDomain && error.code == -999 {
@@ -102,6 +79,35 @@ public struct MaintenancePredictionService {
         } catch {
             print("[MaintenancePredictionService] Forecast Error: \(error)")
             return MaintenanceForecast(projectedDate: nil, avgDailyKm: 0, daysRemaining: nil, isHighUsage: false)
+        }
+    }
+    
+    /// Synchronously projects a forecast given a daily usage rate and interval.
+    /// This allows for instant UI updates when global settings change.
+    public static func projectForecast(for vehicle: Vehicle, avgDailyKm: Double, intervalKm: Double) -> MaintenanceForecast {
+        let currentOdo = vehicle.odometer ?? 0
+        let lastOdo = vehicle.lastServiceOdometer ?? 0
+        let distanceSinceLast = currentOdo - lastOdo
+        let kmRemaining = intervalKm - distanceSinceLast
+        
+        if avgDailyKm > 0 {
+            let daysRemaining = Int(kmRemaining / avgDailyKm)
+            let projectedDate = Calendar.current.date(byAdding: .day, value: daysRemaining, to: Date())
+            
+            return MaintenanceForecast(
+                projectedDate: projectedDate,
+                avgDailyKm: avgDailyKm,
+                daysRemaining: daysRemaining,
+                isHighUsage: avgDailyKm > (intervalKm / 30.0)
+            )
+        } else {
+            let isDue = distanceSinceLast >= intervalKm
+            return MaintenanceForecast(
+                projectedDate: isDue ? Date() : nil,
+                avgDailyKm: 0,
+                daysRemaining: isDue ? 0 : nil,
+                isHighUsage: false
+            )
         }
     }
     

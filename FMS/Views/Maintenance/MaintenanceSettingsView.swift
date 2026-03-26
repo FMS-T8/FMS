@@ -136,7 +136,7 @@ struct MaintenanceSettingsView: View {
     private var vehiclesWithOverrides: [Vehicle] {
         fleetViewModel.vehicles.filter { 
             $0.id != MaintenanceSettingsStore.systemVehicleID && 
-            ($0.serviceIntervalKm != nil || $0.monthlyBudget != nil)
+            (($0.serviceIntervalKm ?? 0) > 0 || ($0.monthlyBudget ?? 0) > 0)
         }
     }
     

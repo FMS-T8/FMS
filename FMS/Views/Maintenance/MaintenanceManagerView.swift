@@ -1,6 +1,7 @@
 import SwiftUI
 
 public struct MaintenanceManagerView: View {
+    @Bindable private var settingsStore = MaintenanceSettingsStore.shared
     @State private var fleetViewModel = FleetViewModel()
     @State private var showingSettings = false
     @State private var selectedVehicle: Vehicle? = nil
@@ -51,6 +52,25 @@ public struct MaintenanceManagerView: View {
                 await woStore.fetchWorkOrders()
                 await refreshBudgetStatuses()
             }
+            .onChange(of: settingsStore.globalMonthlyBudget) {
+                recalculateBudgets()
+            }
+            .onChange(of: settingsStore.globalIntervalKm) {
+                // Interval changes affect the counts in the header/chips, 
+                // which are already reactive because they use computed properties.
+            }
+        }
+    }
+    
+    private func recalculateBudgets() {
+        let globalLimit = settingsStore.monthlyBudgetDouble
+        for (vehicleID, status) in budgetStatuses {
+            guard let vehicle = fleetViewModel.vehicles.first(where: { $0.id == vehicleID }) else { continue }
+            let effectiveLimit = vehicle.monthlyBudget ?? globalLimit
+            budgetStatuses[vehicleID] = BudgetService.BudgetStatus(
+                currentSpend: status.currentSpend,
+                budgetLimit: effectiveLimit
+            )
         }
     }
     

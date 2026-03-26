@@ -151,11 +151,15 @@ public class FleetViewModel {
             // This is needed because standard JSON encoding omits nil values instead of sending nulls.
             if vehicle.serviceIntervalKm == nil || vehicle.monthlyBudget == nil {
                 struct MaintenanceNullUpdate: Encodable {
+                    let interval: Double?
+                    let budget: Double?
+                    
                     func encode(to encoder: Encoder) throws {
                         var container = encoder.container(keyedBy: CodingKeys.self)
-                        try container.encodeNil(forKey: .service_interval_km)
-                        try container.encodeNil(forKey: .monthly_budget)
+                        if interval == nil { try container.encodeNil(forKey: .service_interval_km) }
+                        if budget == nil { try container.encodeNil(forKey: .monthly_budget) }
                     }
+                    
                     enum CodingKeys: String, CodingKey {
                         case service_interval_km, monthly_budget
                     }
@@ -163,7 +167,7 @@ public class FleetViewModel {
                 
                 _ = try? await SupabaseService.shared.client
                     .from("vehicles")
-                    .update(MaintenanceNullUpdate())
+                    .update(MaintenanceNullUpdate(interval: vehicle.serviceIntervalKm, budget: vehicle.monthlyBudget))
                     .eq("id", value: vehicle.id)
                     .execute()
             }
