@@ -4,7 +4,8 @@ public struct MaintenanceForecastView: View {
     @Bindable private var settingsStore = MaintenanceSettingsStore.shared
     @State private var fleetViewModel = FleetViewModel()
     @State private var forecasts: [String: MaintenancePredictionService.MaintenanceForecast] = [:]
-    @State private var isLoading = true
+    @State private var isLoading = false
+    @State private var loadError: String? = nil
     @State private var searchText = ""
     @State private var showingProfile = false
     
@@ -20,20 +21,24 @@ public struct MaintenanceForecastView: View {
                     Divider().opacity(0.35)
                     
                     ScrollView {
-                        VStack(spacing: 24) {
-                            forecastSummarySection
-                            
-                            searchSection
-                            
-                            dueNowSection
-                            
-                            highUsageSection
-                            
-                            upcomingServicesSection
+                        if let error = loadError {
+                            errorView(error)
+                        } else {
+                            VStack(spacing: 24) {
+                                forecastSummarySection
+                                
+                                searchSection
+                                
+                                dueNowSection
+                                
+                                highUsageSection
+                                
+                                upcomingServicesSection
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
+                            .padding(.bottom, 32)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 20)
-                        .padding(.bottom, 32)
                     }
                 }
             }
@@ -51,60 +56,50 @@ public struct MaintenanceForecastView: View {
     }
     
     private func recalculateForecasts() {
-        let intervalKm = settingsStore.intervalKmDouble
         for (vehicleID, forecast) in forecasts {
             guard let vehicle = fleetViewModel.vehicles.first(where: { $0.id == vehicleID }) else { continue }
+            let effectiveInterval = vehicle.effectiveServiceIntervalKm
             forecasts[vehicleID] = MaintenancePredictionService.projectForecast(
                 for: vehicle,
                 avgDailyKm: forecast.avgDailyKm,
-                intervalKm: intervalKm
+                intervalKm: effectiveInterval
             )
         }
     }
     
     private func refreshData() async {
-        isLoading = true
-        try? await fleetViewModel.fetchVehicles()
+        loadError = nil
         
-        let vehicles = fleetViewModel.vehicles.filter { $0.id != MaintenanceSettingsStore.systemVehicleID }
-        for vehicle in vehicles {
-            forecasts[vehicle.id] = await MaintenancePredictionService.calculateForecast(
-                for: vehicle,
-                defaultKm: MaintenanceSettingsStore.shared.intervalKmDouble
-            )
+        do {
+            try await fleetViewModel.fetchVehicles()
+            
+            let vehicles = fleetViewModel.vehicles.filter { $0.id != MaintenanceSettingsStore.systemVehicleID }
+            for vehicle in vehicles {
+                forecasts[vehicle.id] = await MaintenancePredictionService.calculateForecast(
+                    for: vehicle,
+                    defaultKm: MaintenanceSettingsStore.shared.intervalKmDouble
+                )
+            }
+        } catch {
+            loadError = "Failed to load fleet data. Please try again."
         }
+        
         isLoading = false
     }
     
-    private var loadingPlaceholder: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-                .tint(FMSTheme.amber)
-            Text("Analyzing fleet usage patterns...")
-                .font(.system(size: 14))
-                .foregroundColor(FMSTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
-    }
+    private var loadingPlaceholder: some View { EmptyView() }
     
     private var forecastSummarySection: some View {
         let highUsageCount = forecasts.values.filter { $0.isHighUsage }.count
         let dueCount = fleetViewModel.vehicles.filter { $0.id != MaintenanceSettingsStore.systemVehicleID }.filter { 
-            MaintenancePredictionService.calculateStatus(
-                for: $0, 
-                defaultKm: MaintenanceSettingsStore.shared.intervalKmDouble
-            ) == .due 
+            MaintenancePredictionService.calculateStatus(for: $0) == .due 
         }.count
         
         var subItems: [FMSMaintenanceSummaryCard.SummarySubItemData] = []
         subItems.append(.init(icon: "gauge.with.dots.needle.50percent", count: highUsageCount, label: "High Usage"))
         
         let upcomingCount = fleetViewModel.vehicles.filter { $0.id != MaintenanceSettingsStore.systemVehicleID }.filter { 
-            MaintenancePredictionService.calculateStatus(
-                for: $0, 
-                defaultKm: MaintenanceSettingsStore.shared.intervalKmDouble
-            ) == .upcoming 
+            MaintenancePredictionService.calculateStatus(for: $0) == .upcoming 
         }.count
         subItems.append(.init(icon: "clock.fill", count: upcomingCount, label: "Upcoming"))
 
@@ -116,6 +111,25 @@ public struct MaintenanceForecastView: View {
             showWarning: dueCount > 0,
             subItems: subItems
         )
+    }
+    
+    private func errorView(_ message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 32))
+                .foregroundColor(FMSTheme.alertOrange)
+            Text(message)
+                .font(.system(size: 15))
+                .foregroundColor(FMSTheme.textSecondary)
+                .multilineTextAlignment(.center)
+            Button("Retry") {
+                Task { await refreshData() }
+            }
+            .font(.system(size: 14, weight: .bold))
+            .foregroundColor(FMSTheme.amber)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
     }
     
     private var searchSection: some View {

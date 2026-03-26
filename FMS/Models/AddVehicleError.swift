@@ -4,5 +4,6 @@ public enum AddVehicleError: Error {
     case duplicatePlate
     case duplicateChassis
     case networkError
+    case cancelled
     case unknown
 }

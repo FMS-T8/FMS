@@ -218,9 +218,12 @@ public class FleetViewModel {
             || message.contains("offline")
             || message.contains("timed out")
             || message.contains("timeout")
-            || message.contains("connection")
-            || message.contains("cancelled") {
+            || message.contains("connection") {
             return .networkError
+        }
+        
+        if message.contains("cancelled") {
+            return .cancelled
         }
         
         return .unknown

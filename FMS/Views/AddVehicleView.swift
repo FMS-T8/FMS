@@ -418,6 +418,7 @@ public struct AddVehicleView: View {
                     case .duplicatePlate:   showValidationError("Plate Number already exists.")
                     case .duplicateChassis: showValidationError("Chassis Number already exists.")
                     case .networkError:     showValidationError("Network error. Please try again.")
+                    case .cancelled:        isSubmitting = false // Silently handle cancellation
                     case .unknown:          showValidationError(submitFailureMessage)
                     }
                 }

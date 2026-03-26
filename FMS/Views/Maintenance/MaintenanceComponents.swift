@@ -419,6 +419,8 @@ public struct VehicleServiceCard: View {
     
     private func calculateProgress(_ vehicle: Vehicle, settingsStore: MaintenanceSettingsStore) -> Double {
         let intervalKm = vehicle.effectiveServiceIntervalKm
+        guard intervalKm > 0 else { return 0.0 }
+        
         let currentOdo = vehicle.odometer ?? 0
         let lastOdo = vehicle.lastServiceOdometer ?? 0
         let distanceSinceLast = currentOdo - lastOdo
