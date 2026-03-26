@@ -29,7 +29,7 @@ struct MFAEnrollmentView: View {
                 }
                 .padding(24)
             }
-            .background(FMSTheme.backgroundPrimary)
+            .presentationBackground(FMSTheme.backgroundPrimary)
             .navigationTitle("2FA Setup")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

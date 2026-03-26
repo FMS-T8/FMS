@@ -279,7 +279,7 @@ struct DriverProfileTab: View {
                 Spacer()
             }
             .padding(20)
-            .background(FMSTheme.backgroundPrimary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle("Upload Document")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -296,6 +296,7 @@ struct DriverProfileTab: View {
             }
         }
         .presentationDetents([.medium])
+        .presentationBackground(FMSTheme.backgroundPrimary)
         .alert("Unable to Upload Document", isPresented: documentLoadErrorPresented) {
             Button("OK", role: .cancel) {
                 documentLoadErrorMessage = nil
@@ -367,8 +368,8 @@ struct DriverProfileTab: View {
             }
             .padding(20)
             .padding(.top, 8)
+            .frame(maxWidth: .infinity)
             }
-            .background(FMSTheme.backgroundPrimary)
             .navigationTitle(doc.type.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -379,6 +380,7 @@ struct DriverProfileTab: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(FMSTheme.backgroundPrimary)
     }
 
     private func documentDetails(for type: DocumentType) -> [(label: String, value: String)] {

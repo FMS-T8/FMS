@@ -42,6 +42,7 @@ public final class DriverDashboardViewModel {
     public var activeTrip: Trip?
     public var upcomingTrips: [Trip] = []
     public var completedTrips: [Trip] = []
+    public var alerts: [Notification] = []
 
     // MARK: - Stats
     public var todayStats: DriverDayStats
@@ -196,6 +197,10 @@ public final class DriverDashboardViewModel {
             }
 
             self.todayStats.tripsCompleted = self.completedTrips.count
+            
+            if let jobId = self.currentJob?.id {
+                await fetchAlerts(tripId: jobId)
+            }
 
         } catch {
             print("Failed to fetch driver dashboard: \(error)")
@@ -331,5 +336,22 @@ public final class DriverDashboardViewModel {
         // issueReports holds IssueReport (the domain model), not DefectCreatePayload,
         // so the types remain consistent with all existing call sites.
         self.issueReports.append(report)
+    }
+
+    // MARK: - Alerts
+    public func fetchAlerts(tripId: String) async {
+        do {
+            let results: [Notification] = try await SupabaseService.shared.client
+                .from("notifications")
+                .select("*")
+                .eq("trip_id", value: tripId)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+
+            self.alerts = results
+        } catch {
+            print("[DriverDashboard] Failed to fetch alerts: \(error)")
+        }
     }
 }
