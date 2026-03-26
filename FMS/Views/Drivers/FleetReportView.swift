@@ -12,6 +12,7 @@ public struct FleetReportView: View {
   // Temporary draft dates for the custom date range sheet
   @State private var draftStartDate: Date = Date()
   @State private var draftEndDate: Date = Date()
+  @State private var csvExportURL: URL?
   public init() {}
 
   public var body: some View {
@@ -67,6 +68,7 @@ public struct FleetReportView: View {
         {
           Button("Clear Filters") {
             viewModel.selectedPreset = .thisWeek
+            viewModel.selectedWeekStart = FleetReportViewModel.monday(for: Date())
             viewModel.selectedVehicleId = nil
             viewModel.selectedDriverId = nil
             Task { await loadData() }
@@ -81,6 +83,9 @@ public struct FleetReportView: View {
       await viewModel.loadFilters()
       await loadData()
       await viewModel.fetchSubscriptionStatus()
+    }
+    .onDisappear {
+      cleanupCSVExportFile()
     }
     .sheet(isPresented: $showDatePicker) {
       NavigationStack {
@@ -103,8 +108,8 @@ public struct FleetReportView: View {
           }
           ToolbarItem(placement: .topBarTrailing) {
             Button("Apply") {
-              viewModel.startDate = draftStartDate
               viewModel.endDate = draftEndDate
+              viewModel.startDate = draftStartDate
               showDatePicker = false
               viewModel.selectedPreset = .custom
               Task { await loadData() }
@@ -123,6 +128,28 @@ public struct FleetReportView: View {
       bannerManager.show(type: .error, message: error)
       viewModel.errorMessage = nil  // clear it after showing banner
     }
+
+    do {
+      csvExportURL = try createCSVExportFile(from: viewModel.weeklyCSVReport())
+    } catch {
+      csvExportURL = nil
+      bannerManager.show(type: .error, message: "Could not prepare CSV export.")
+    }
+  }
+
+  private func createCSVExportFile(from csvContent: String) throws -> URL {
+    cleanupCSVExportFile()
+
+    let fileName = "fleet-report-\(UUID().uuidString).csv"
+    let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+    let data = Data(csvContent.utf8)
+    try data.write(to: fileURL, options: .atomic)
+    return fileURL
+  }
+
+  private func cleanupCSVExportFile() {
+    guard let csvExportURL else { return }
+    try? FileManager.default.removeItem(at: csvExportURL)
   }
 
   // MARK: - Filters
@@ -435,6 +462,7 @@ public struct FleetReportView: View {
           )
         )
         .labelsHidden()
+        .accessibilityLabel("Email subscription")
         .tint(FMSTheme.amber)
         .disabled(viewModel.isTogglingSubscription)
       }

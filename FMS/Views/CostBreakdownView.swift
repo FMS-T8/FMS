@@ -70,6 +70,8 @@ public struct CostBreakdownView: View {
         .onChange(of: viewModel.selectedRange) { _, newValue in
           if newValue == .custom {
             showCustomRangeSheet = true
+          } else {
+            Task { await viewModel.fetchCosts() }
           }
         }
         .padding(.horizontal, 20)

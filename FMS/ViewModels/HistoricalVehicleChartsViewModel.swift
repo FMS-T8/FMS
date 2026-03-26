@@ -115,13 +115,15 @@ public final class HistoricalVehicleChartsViewModel {
 
   public func applyDateWindow() {
     let now = Date()
-    customEndDate = now
     switch selectedWindow {
     case .days7:
+      customEndDate = now
       customStartDate = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now
     case .days30:
+      customEndDate = now
       customStartDate = Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now
     case .days90:
+      customEndDate = now
       customStartDate = Calendar.current.date(byAdding: .day, value: -90, to: now) ?? now
     case .custom:
       break
@@ -162,7 +164,11 @@ public final class HistoricalVehicleChartsViewModel {
 
     isLoading = true
     errorMessage = nil
-    defer { isLoading = false }
+    defer {
+      if generation == fetchGeneration {
+        isLoading = false
+      }
+    }
 
     do {
       let iso = ISO8601DateFormatter()
@@ -187,6 +193,8 @@ public final class HistoricalVehicleChartsViewModel {
           .from("trip_gps_logs")
           .select("trip_id, speed, recorded_at")
           .in("trip_id", values: tripIds)
+          .gte("recorded_at", value: from)
+          .lte("recorded_at", value: to)
           .execute().value
       }
 
@@ -194,6 +202,7 @@ public final class HistoricalVehicleChartsViewModel {
 
       points = buildSeries(metric: metric, trips: trips, gpsRows: gpsRows)
     } catch {
+      guard generation == fetchGeneration else { return }
       errorMessage = error.localizedDescription
     }
   }

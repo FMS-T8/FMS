@@ -7,16 +7,28 @@ import Supabase
 public final class FuelEfficiencyViewModel {
 
   private struct TripEfficiencySample: Decodable {
+    let id: String
     let vehicleId: String?
     let distanceKm: Double?
     let fuelUsedLiters: Double?
     let startTime: Date?
 
     enum CodingKeys: String, CodingKey {
+      case id
       case vehicleId = "vehicle_id"
       case distanceKm = "distance_km"
       case fuelUsedLiters = "fuel_used_liters"
       case startTime = "start_time"
+    }
+  }
+
+  private struct FuelLogSample: Decodable {
+    let tripId: String?
+    let fuelVolume: Double?
+
+    enum CodingKeys: String, CodingKey {
+      case tripId = "trip_id"
+      case fuelVolume = "fuel_volume"
     }
   }
 
@@ -82,7 +94,7 @@ public final class FuelEfficiencyViewModel {
   {
     let idsNeedingBaseline =
       list
-      .filter { $0.baselineKmPerLiter == $0.kmPerLiter }
+      .filter { $0.baselineKmPerLiter == nil }
       .map(\.vehicleId)
     guard !idsNeedingBaseline.isEmpty else { return list }
 
@@ -97,12 +109,29 @@ public final class FuelEfficiencyViewModel {
     let iso = ISO8601DateFormatter()
     let rows: [TripEfficiencySample] = try await SupabaseService.shared.client
       .from("trips")
-      .select("vehicle_id, distance_km, fuel_used_liters, start_time")
+      .select("id, vehicle_id, distance_km, fuel_used_liters, start_time")
       .in("vehicle_id", values: idsNeedingBaseline)
       .gte("start_time", value: iso.string(from: windowStart))
       .lte("start_time", value: iso.string(from: now))
       .execute()
       .value
+
+    let relevantTripIDs = Array(Set(rows.map(\.id)))
+    let fuelLogRows: [FuelLogSample]
+    if relevantTripIDs.isEmpty {
+      fuelLogRows = []
+    } else {
+      fuelLogRows = try await SupabaseService.shared.client
+        .from("fuel_logs")
+        .select("trip_id, fuel_volume")
+        .in("trip_id", values: relevantTripIDs)
+        .gte("logged_at", value: iso.string(from: windowStart))
+        .lte("logged_at", value: iso.string(from: now))
+        .execute()
+        .value
+    }
+
+    let manualFuelByTripId = Self.buildManualFuelByTripId(fuelLogRows)
 
     typealias Acc = (distance: Double, fuel: Double)
     var previous: [String: Acc] = [:]
@@ -111,16 +140,24 @@ public final class FuelEfficiencyViewModel {
       guard
         let vehicleId = row.vehicleId,
         let distance = row.distanceKm,
-        let fuel = row.fuelUsedLiters,
-        fuel > 0,
         let tripDate = row.startTime
+      else {
+        continue
+      }
+
+      guard
+        let verifiedFuelLiters = Self.computeVerifiedFuelSample(
+          trip: row,
+          manualFuelLiters: manualFuelByTripId[row.id]
+        ),
+        verifiedFuelLiters > 0
       else {
         continue
       }
 
       if tripDate < currentStart {
         let existing = previous[vehicleId] ?? (0, 0)
-        previous[vehicleId] = (existing.distance + distance, existing.fuel + fuel)
+        previous[vehicleId] = (existing.distance + distance, existing.fuel + verifiedFuelLiters)
       }
     }
 
@@ -145,5 +182,77 @@ public final class FuelEfficiencyViewModel {
       .execute()
       .value
     return rows.map(\.id)
+  }
+
+  private static func buildManualFuelByTripId(_ rows: [FuelLogSample]) -> [String: Double] {
+    var manualFuelByTripId: [String: Double] = [:]
+    for row in rows {
+      guard let tripId = row.tripId else { continue }
+      manualFuelByTripId[tripId, default: 0] += row.fuelVolume ?? 0
+    }
+    return manualFuelByTripId
+  }
+
+  private static func computeVerifiedFuelSample(
+    trip: TripEfficiencySample,
+    manualFuelLiters: Double?
+  ) -> Double? {
+    guard let distance = trip.distanceKm, distance > 0 else { return nil }
+
+    let calibratedKmPerLiter = 9.0
+    let relativeTolerance = 0.15
+
+    // Three-step Fuel Intelligence verification inputs:
+    // 1) Manual fuel entry from fuel_logs for this trip
+    // 2) GPS-distance-derived fuel estimate
+    // 3) Trip fuel field as slider/operator telemetry proxy
+    let manual = sanitizedFuel(manualFuelLiters)
+    let gpsDerived = sanitizedFuel(distance / calibratedKmPerLiter)
+    let sliderTelemetry = sanitizedFuel(trip.fuelUsedLiters)
+
+    let candidates = [manual, gpsDerived, sliderTelemetry].compactMap { $0 }
+    guard candidates.count >= 2 else { return nil }
+
+    func agrees(_ lhs: Double, _ rhs: Double) -> Bool {
+      let denominator = max(lhs, rhs)
+      guard denominator > 0 else { return false }
+      return abs(lhs - rhs) / denominator <= relativeTolerance
+    }
+
+    if candidates.count == 2 {
+      return agrees(candidates[0], candidates[1]) ? (candidates[0] + candidates[1]) / 2.0 : nil
+    }
+
+    guard
+      let manual,
+      let gpsDerived,
+      let sliderTelemetry
+    else {
+      return nil
+    }
+
+    let manualGpsAgree = agrees(manual, gpsDerived)
+    let manualSliderAgree = agrees(manual, sliderTelemetry)
+    let gpsSliderAgree = agrees(gpsDerived, sliderTelemetry)
+
+    if manualGpsAgree && manualSliderAgree && gpsSliderAgree {
+      return [manual, gpsDerived, sliderTelemetry].sorted()[1]
+    }
+    if manualGpsAgree {
+      return (manual + gpsDerived) / 2.0
+    }
+    if manualSliderAgree {
+      return (manual + sliderTelemetry) / 2.0
+    }
+    if gpsSliderAgree {
+      return (gpsDerived + sliderTelemetry) / 2.0
+    }
+
+    return nil
+  }
+
+  private static func sanitizedFuel(_ liters: Double?) -> Double? {
+    guard let liters, liters.isFinite, liters > 0 else { return nil }
+    return liters
   }
 }

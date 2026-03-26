@@ -7,7 +7,7 @@ public struct VehicleFuelEfficiency: Codable, Identifiable {
   public let plateNumber: String
   public let totalTrips: Int
   public let kmPerLiter: Double
-  public let baselineKmPerLiter: Double
+  public let baselineKmPerLiter: Double?
 
   enum CodingKeys: String, CodingKey {
     case vehicleId = "vehicle_id"
@@ -22,7 +22,7 @@ public struct VehicleFuelEfficiency: Codable, Identifiable {
     plateNumber: String,
     totalTrips: Int,
     kmPerLiter: Double,
-    baselineKmPerLiter: Double
+    baselineKmPerLiter: Double?
   ) {
     self.vehicleId = vehicleId
     self.plateNumber = plateNumber
@@ -37,8 +37,7 @@ public struct VehicleFuelEfficiency: Codable, Identifiable {
     plateNumber = try container.decode(String.self, forKey: .plateNumber)
     totalTrips = try container.decodeIfPresent(Int.self, forKey: .totalTrips) ?? 0
     kmPerLiter = try container.decodeIfPresent(Double.self, forKey: .kmPerLiter) ?? 0
-    baselineKmPerLiter =
-      try container.decodeIfPresent(Double.self, forKey: .baselineKmPerLiter) ?? kmPerLiter
+    baselineKmPerLiter = try container.decodeIfPresent(Double.self, forKey: .baselineKmPerLiter)
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -47,7 +46,7 @@ public struct VehicleFuelEfficiency: Codable, Identifiable {
     try container.encode(plateNumber, forKey: .plateNumber)
     try container.encode(totalTrips, forKey: .totalTrips)
     try container.encode(kmPerLiter, forKey: .kmPerLiter)
-    try container.encode(baselineKmPerLiter, forKey: .baselineKmPerLiter)
+    try container.encodeIfPresent(baselineKmPerLiter, forKey: .baselineKmPerLiter)
   }
 
   /// Color tier based on efficiency value.
@@ -68,7 +67,7 @@ public struct VehicleFuelEfficiency: Codable, Identifiable {
   public var tier: EfficiencyTier { .init(kmPerLiter: kmPerLiter) }
 
   public var percentDifference: Double {
-    guard baselineKmPerLiter > 0 else { return 0 }
+    guard let baselineKmPerLiter, baselineKmPerLiter > 0 else { return 0 }
     return ((kmPerLiter - baselineKmPerLiter) / baselineKmPerLiter) * 100
   }
 }

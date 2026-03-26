@@ -104,7 +104,7 @@ public struct FuelDeviationAlertsView: View {
       HStack(spacing: 10) {
         Button("Acknowledge") {
           Task {
-            await viewModel.updateStatus(alertId: alert.id, status: .acknowledged)
+            await viewModel.updateStatus(vehicleId: alert.vehicleId, status: .acknowledged)
           }
         }
         .buttonStyle(.bordered)
@@ -112,7 +112,7 @@ public struct FuelDeviationAlertsView: View {
 
         Button("Resolve") {
           Task {
-            await viewModel.updateStatus(alertId: alert.id, status: .resolved)
+            await viewModel.updateStatus(vehicleId: alert.vehicleId, status: .resolved)
           }
         }
         .buttonStyle(.borderedProminent)

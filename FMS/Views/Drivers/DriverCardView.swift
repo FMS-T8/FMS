@@ -259,8 +259,36 @@ private struct CallButton: View {
   let phoneNumber: String?
   @Environment(\.openURL) var openURL
 
+  private var validatedPhoneNumber: String? {
+    guard let raw = phoneNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty
+    else {
+      return nil
+    }
+
+    let lower = raw.lowercased()
+    let placeholders = ["n/a", "na", "none", "null", "not available", "unknown", "-", "—"]
+    guard !placeholders.contains(lower) else { return nil }
+
+    let digitsCount = raw.filter(\.isNumber).count
+    guard digitsCount >= 7 else { return nil }
+
+    let allowed = CharacterSet(charactersIn: "+-(). 0123456789")
+    guard raw.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return nil }
+
+    return raw
+  }
+
+  private var dialablePhoneNumber: String? {
+    guard let validatedPhoneNumber else { return nil }
+    let trimmed = validatedPhoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+    let hasLeadingPlus = trimmed.hasPrefix("+")
+    let digitsOnly = trimmed.filter(\.isNumber)
+    guard !digitsOnly.isEmpty else { return nil }
+    return hasLeadingPlus ? "+\(digitsOnly)" : digitsOnly
+  }
+
   private var hasPhone: Bool {
-    !(phoneNumber?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    validatedPhoneNumber != nil
   }
 
   private var canTrigger: Bool {
@@ -269,12 +297,9 @@ private struct CallButton: View {
 
   var body: some View {
     Button {
-      if hasPhone, let phone = phoneNumber {
-        let cleanedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let url = URL(string: "tel:\(cleanedPhone)") {
-          openURL(url)
-          return
-        }
+      if let dialablePhoneNumber, let url = URL(string: "tel:\(dialablePhoneNumber)") {
+        openURL(url)
+        return
       }
       action?()
     } label: {

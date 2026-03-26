@@ -5,8 +5,29 @@ import Supabase
 @Observable
 @MainActor
 public final class FleetManagerHomeViewModel {
+  public struct RecentAlert: Identifiable {
+    public let id: String
+    public let type: String
+    public let message: String
+    public let timestamp: Date
+  }
+
   private struct IDRow: Decodable {
     let id: String
+  }
+
+  private struct NotificationRow: Decodable {
+    let id: String
+    let type: String?
+    let message: String?
+    let createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+      case id
+      case type
+      case message
+      case createdAt = "created_at"
+    }
   }
 
   public var managerName: String = "Manager"
@@ -39,7 +60,7 @@ public final class FleetManagerHomeViewModel {
       async let pendingOrdersTask: [IDRow] = SupabaseService.shared.client
         .from("orders")
         .select("id")
-        .in("status", values: ["pending", "confirmed", "dispatched"])
+        .eq("status", value: "pending")
         .execute()
         .value
 
