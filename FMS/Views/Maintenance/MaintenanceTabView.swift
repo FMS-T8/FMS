@@ -32,11 +32,6 @@ public struct MaintenanceTabView: View {
                 }
                 .tag(2)
 
-            ProfileTabView()
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
-                .tag(3)
         }
         .tint(FMSTheme.amberDark)
     }
