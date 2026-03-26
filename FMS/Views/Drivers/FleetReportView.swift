@@ -14,6 +14,11 @@ public struct FleetReportView: View {
   @State private var draftEndDate: Date = Date()
   @State private var csvExportURL: URL?
   
+  // PDF Export
+  @State private var isGeneratingPDF = false
+  @State private var pdfExportURL: URL?
+  @State private var showPDFShareSheet = false
+  
   // Sheet Metric
   @State private var sheetMetric: FleetReportMetricDetail? = nil
   
@@ -38,8 +43,8 @@ public struct FleetReportView: View {
           metricsGrid
             .padding(.horizontal)
 
-          // 3. Email Subscription Toggle
-          emailSubscriptionSection
+          // 3. PDF Export Section
+          pdfExportSection
             .padding(.horizontal)
             .padding(.bottom, 40)
         }
@@ -83,7 +88,6 @@ public struct FleetReportView: View {
       // Initial load
       await viewModel.loadFilters()
       await loadData()
-      await viewModel.fetchSubscriptionStatus()
     }
     .onChange(of: viewModel.errorMessage) { _, msg in
       if let error = msg {
@@ -93,6 +97,13 @@ public struct FleetReportView: View {
     }
     .onDisappear {
       cleanupCSVExportFile()
+      cleanupPDFExportFile()
+    }
+    .sheet(isPresented: $showPDFShareSheet) {
+        if let url = pdfExportURL {
+            ActivityView(activityItems: [url])
+                .presentationDetents([.medium, .large])
+        }
     }
     .sheet(isPresented: $showDatePicker) {
       NavigationStack {
@@ -164,6 +175,11 @@ public struct FleetReportView: View {
   private func cleanupCSVExportFile() {
     guard let csvExportURL else { return }
     try? FileManager.default.removeItem(at: csvExportURL)
+  }
+
+  private func cleanupPDFExportFile() {
+    guard let pdfExportURL else { return }
+    try? FileManager.default.removeItem(at: pdfExportURL)
   }
 
   // MARK: - Filters
@@ -399,26 +415,26 @@ public struct FleetReportView: View {
     }
   }
 
-  // MARK: - Email Subscription
+  // MARK: - PDF Generation
 
-  private var emailSubscriptionSection: some View {
+  private var pdfExportSection: some View {
     VStack(spacing: 0) {
       HStack(spacing: 16) {
         ZStack {
           Circle()
             .fill(FMSTheme.amber.opacity(0.15))
             .frame(width: 48, height: 48)
-          Image(systemName: "envelope.fill")
+          Image(systemName: "doc.richtext.fill")
             .font(.system(size: 20))
             .foregroundStyle(FMSTheme.amber)
         }
 
         VStack(alignment: .leading, spacing: 4) {
-          Text("Automated Reports")
+          Text("Generate PDF Report")
             .font(.headline.weight(.bold))
             .foregroundStyle(FMSTheme.textPrimary)
 
-          Text("Receive this summary via email every Monday morning.")
+          Text("Create a printable A4 PDF summary of the current filters.")
             .font(.subheadline)
             .foregroundStyle(FMSTheme.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -426,15 +442,24 @@ public struct FleetReportView: View {
 
         Spacer()
 
-        Toggle("", isOn: Bindable(viewModel).isSubscribedToEmail)
-          .labelsHidden()
-          .accessibilityLabel("Email subscription")
-          .tint(FMSTheme.amber)
-          .disabled(viewModel.isTogglingSubscription)
-          .onChange(of: viewModel.isSubscribedToEmail) { oldValue, newValue in
-            guard oldValue != newValue else { return }
-            Task { await viewModel.syncEmailSubscription(newValue) }
-          }
+        Button {
+            Task { await handlePDFGeneration() }
+        } label: {
+            if isGeneratingPDF {
+                ProgressView()
+                    .tint(FMSTheme.amber)
+                    .frame(width: 60)
+            } else {
+                Text("Export")
+                    .font(.subheadline.bold())
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(FMSTheme.amber)
+                    .foregroundStyle(.black)
+                    .cornerRadius(8)
+            }
+        }
+        .disabled(isGeneratingPDF)
       }
       .padding(16)
     }
@@ -445,6 +470,46 @@ public struct FleetReportView: View {
         .stroke(FMSTheme.borderLight, lineWidth: 1)
     )
   }
+
+  @MainActor
+  private func handlePDFGeneration() async {
+      isGeneratingPDF = true
+      defer { isGeneratingPDF = false }
+      
+      // Clear old
+      cleanupPDFExportFile()
+      
+      let renderer = ImageRenderer(content: FleetPDFReportTemplate(viewModel: viewModel))
+      let paperSize = CGSize(width: 595.2, height: 841.8)
+      renderer.proposedSize = .init(paperSize)
+      
+      let fileName = "fleet-report-\(UUID().uuidString).pdf"
+      let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+      
+      renderer.render { size, context in
+          var pdfBox = CGRect(origin: .zero, size: paperSize)
+          guard let pdfContext = CGContext(fileURL as CFURL, mediaBox: &pdfBox, nil) else { return }
+          pdfContext.beginPDFPage(nil)
+          context(pdfContext)
+          pdfContext.endPDFPage()
+          pdfContext.closePDF()
+      }
+      
+      self.pdfExportURL = fileURL
+      self.showPDFShareSheet = true
+  }
+}
+
+fileprivate struct ActivityView: UIViewControllerRepresentable {
+    var activityItems: [Any]
+    var applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 fileprivate enum FleetReportMetricDetail: String, Identifiable {

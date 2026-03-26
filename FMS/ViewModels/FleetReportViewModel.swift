@@ -38,11 +38,6 @@ public final class FleetReportViewModel {
   public var isLoading: Bool = false
   public var errorMessage: String? = nil
 
-  // Email Subscription State
-  public var isSubscribedToEmail: Bool = false
-  public var isTogglingSubscription: Bool = false
-  private var subscriptionId: String? = nil
-
   // MARK: - Detailed Arrays (for expanding views)
   public var tripsData: [TripRow] = []
   public var fuelData: [FuelRow] = []
@@ -315,24 +310,6 @@ public final class FleetReportViewModel {
       escaped.contains(",") || escaped.contains("\n") || escaped.contains("\r")
       || escaped.contains("\"")
     return requiresQuotes ? "\"\(escaped)\"" : escaped
-  }
-
-  // MARK: - Email Subscription
-
-  public func fetchSubscriptionStatus() async {
-    // Email functionality natively mocked.
-    self.subscriptionId = nil
-    self.isSubscribedToEmail = false
-  }
-
-  public func syncEmailSubscription(_ newValue: Bool) async {
-    guard !isTogglingSubscription else { return }
-    isTogglingSubscription = true
-    defer { isTogglingSubscription = false }
-
-    // Mocked for now, bypasses Supabase DB sync.
-    self.isSubscribedToEmail = newValue
-    self.errorMessage = nil
   }
 
   private static func endOfDay(for date: Date) -> Date {
