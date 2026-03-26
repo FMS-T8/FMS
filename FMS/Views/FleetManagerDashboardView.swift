@@ -52,7 +52,6 @@ struct FleetManagerHomeTab: View {
     @State private var activeSOSAlerts: [SOSAlert] = []
     @State private var sosPollingTimer: Timer?
     @State private var sosExpanded: Bool = false
-    @State private var deletedAlertIDs: Set<String> = []
 
     // Mock data
     private let managerName = "Manager"
@@ -218,8 +217,9 @@ struct FleetManagerHomeTab: View {
                     .select()
                     .in("event_type", values: ["trip_start", "trip_end"])
                 
-                if !deletedAlertIDs.isEmpty {
-                    let formattedIDs = "(\(Array(deletedAlertIDs).joined(separator: ",")))"
+                let currentDeleted = Set(UserDefaults.standard.stringArray(forKey: "deletedTripAlertIDs") ?? [])
+                if !currentDeleted.isEmpty {
+                    let formattedIDs = "(\(Array(currentDeleted).joined(separator: ",")))"
                     query = query.not("id", operator: .in, value: formattedIDs)
                 }
                 
@@ -261,7 +261,8 @@ struct FleetManagerHomeTab: View {
                 }
                 
                 await MainActor.run {
-                    fetchedAlerts.removeAll { self.deletedAlertIDs.contains($0.id) }
+                    let currentDeleted = Set(UserDefaults.standard.stringArray(forKey: "deletedTripAlertIDs") ?? [])
+                    fetchedAlerts.removeAll { currentDeleted.contains($0.id) }
                     self.recentAlerts = fetchedAlerts
                 }
             } catch {
@@ -315,26 +316,21 @@ struct FleetManagerHomeTab: View {
                     .padding(.vertical, 10)
             } else {
                 ForEach(recentAlerts) { alert in
-                    let deleteAction = {
-                        deletedAlertIDs.insert(alert.id)
+                    SwipeToDeleteWrapper(onDelete: {
+                        var currentDeleted = Set(UserDefaults.standard.stringArray(forKey: "deletedTripAlertIDs") ?? [])
+                        currentDeleted.insert(alert.id)
+                        UserDefaults.standard.set(Array(currentDeleted), forKey: "deletedTripAlertIDs")
+                        
                         withAnimation {
                             recentAlerts.removeAll { $0.id == alert.id }
                         }
-                    }
-                    
-                    SwipeToDeleteWrapper(onDelete: deleteAction) {
+                    }) {
                         AlertRow(
                             title: alert.title,
                             subtitle: alert.subtitle,
                             timeAgo: alert.timeAgo,
                             type: alert.type
                         )
-                    }
-                    .accessibilityAction(.delete, deleteAction)
-                    .contextMenu {
-                        Button(role: .destructive, action: deleteAction) {
-                            Label("Delete Alert", systemImage: "trash")
-                        }
                     }
                 }
             }
@@ -518,3 +514,4 @@ private struct SOSAlertCard: View {
         return "\(seconds / 3600)h ago"
     }
 }
+
