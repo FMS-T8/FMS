@@ -216,8 +216,8 @@ public final class TripExecutionViewModel {
         )
         samplesReadyForSync.append(sample)
         
-        Task { @MainActor in
-            await syncSamplesToSupabase()
+        Task { @MainActor [weak self] in
+            await self?.syncSamplesToSupabase()
         }
     }
 
@@ -258,12 +258,12 @@ public final class TripExecutionViewModel {
             let delay = min(Double(pow(2.0, Double(syncRetryCount))), 300.0) // Max 5 min delay
             print("[TripSync] Sync failed: \(error.localizedDescription). Retry count: \(syncRetryCount). Backing off for \(Int(delay))s")
             
-            // Schedule retry with exponential backoff using a single Task token
+            // Added [weak self] to prevent exponential backoff from retaining the ViewModel for up to 5 minutes
             syncRetryTask?.cancel()
-            syncRetryTask = Task {
+            syncRetryTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 if !Task.isCancelled {
-                    await syncSamplesToSupabase()
+                    await self?.syncSamplesToSupabase()
                 }
             }
         }
