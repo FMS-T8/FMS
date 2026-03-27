@@ -7,9 +7,23 @@ public struct ReportsHubView: View {
 
     public var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    reportCard(
+            ZStack {
+                FMSTheme.backgroundPrimary.ignoresSafeArea()
+                
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        HStack {
+                            Text("Reports")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundStyle(FMSTheme.textPrimary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(.bottom, 16)
+                        
+                        VStack(spacing: 14) {
+                            reportCard(
                         icon: "chart.bar.fill",
                         title: "Spend Dashboard",
                         subtitle: "Fuel + maintenance + tolls consolidated by date range",
@@ -64,6 +78,10 @@ public struct ReportsHubView: View {
                         color: FMSTheme.alertOrange,
                         destination: BreakComplianceDashboardView()
                     )
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 20)
+                    }
                 }
             }
             .navigationTitle("")

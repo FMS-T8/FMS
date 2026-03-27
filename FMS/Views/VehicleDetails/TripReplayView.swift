@@ -90,66 +90,71 @@ public struct TripReplayView: View {
 
     // MARK: - Map Layer
 
-    private var mapLayer: some View {
-        Map(position: $mapCameraPosition) {
-            // Ghost path (full route, dimmed)
-            if vm.allCoordinates.count > 1 {
-                MapPolyline(coordinates: vm.allCoordinates)
-                    .stroke(FMSTheme.textTertiary.opacity(0.35), lineWidth: 3)
-            }
-
-            // Played-back path (amber)
-            if vm.playedCoordinates.count > 1 {
-                MapPolyline(coordinates: vm.playedCoordinates)
-                    .stroke(FMSTheme.amber, lineWidth: 4)
-            }
-
-            // Start marker
-            if let first = vm.allCoordinates.first {
-                Annotation("Start", coordinate: first, anchor: .bottom) {
-                    routeEndpointMarker(color: .blue, icon: "flag.fill")
+        private var mapLayer: some View {
+            Map(position: $mapCameraPosition) {
+                // Ghost path (full route, dimmed)
+                if vm.allCoordinates.count > 1 {
+                    // Wrapper forces clean memory allocation based on count
+                    ForEach([vm.allCoordinates], id: \.count) { coords in
+                        MapPolyline(coordinates: coords)
+                            .stroke(FMSTheme.textTertiary.opacity(0.35), lineWidth: 3)
+                    }
                 }
-            }
 
-            // End marker
-            if let last = vm.allCoordinates.last, vm.allCoordinates.count > 1 {
-                Annotation("End", coordinate: last, anchor: .bottom) {
-                    routeEndpointMarker(color: FMSTheme.alertGreen, icon: "flag.checkered")
+                // Played-back path (amber)
+                if vm.playedCoordinates.count > 1 {
+                    // Wrapper forces clean memory allocation during playback updates
+                    ForEach([vm.playedCoordinates], id: \.count) { coords in
+                        MapPolyline(coordinates: coords)
+                            .stroke(FMSTheme.amber, lineWidth: 4)
+                    }
                 }
-            }
 
-            // Incident pins
-            ForEach(vm.incidents) { incident in
-                if let lat = incident.lat, let lng = incident.lng {
+                // Start marker
+                if let first = vm.allCoordinates.first {
+                    Annotation("Start", coordinate: first, anchor: .bottom) {
+                        routeEndpointMarker(color: .blue, icon: "flag.fill")
+                    }
+                }
+
+                // End marker
+                if let last = vm.allCoordinates.last, vm.allCoordinates.count > 1 {
+                    Annotation("End", coordinate: last, anchor: .bottom) {
+                        routeEndpointMarker(color: FMSTheme.alertGreen, icon: "flag.checkered")
+                    }
+                }
+
+                // Incident pins
+                ForEach(vm.incidents) { incident in
+                    if let lat = incident.lat, let lng = incident.lng {
+                        let coord = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+                        Annotation("", coordinate: coord, anchor: .center) {
+                            incidentPin(incident)
+                        }
+                    }
+                }
+
+                // Break pins
+                ForEach(vm.breakLogs) { breakLog in
+                    if let lat = breakLog.lat, let lng = breakLog.lng {
+                        let coord = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+                        Annotation("Break", coordinate: coord, anchor: .center) {
+                            breakPin(breakLog)
+                        }
+                    }
+                }
+
+                // Current position (animated truck dot)
+                if let current = vm.currentPoint,
+                   let lat = current.lat, let lng = current.lng {
                     let coord = CLLocationCoordinate2D(latitude: lat, longitude: lng)
-                    Annotation("", coordinate: coord, anchor: .center) {
-                        incidentPin(incident)
+                    Annotation("Vehicle", coordinate: coord, anchor: .center) {
+                        currentPositionMarker
                     }
                 }
             }
-
-            // Break pins
-            ForEach(vm.breakLogs) { breakLog in
-                if let lat = breakLog.lat, let lng = breakLog.lng {
-                    let coord = CLLocationCoordinate2D(latitude: lat, longitude: lng)
-                    Annotation("Break", coordinate: coord, anchor: .center) {
-                        breakPin(breakLog)
-                    }
-                }
-            }
-
-            // Current position (animated truck dot)
-            if let current = vm.currentPoint,
-               let lat = current.lat, let lng = current.lng {
-                let coord = CLLocationCoordinate2D(latitude: lat, longitude: lng)
-                Annotation("Vehicle", coordinate: coord, anchor: .center) {
-                    currentPositionMarker
-                }
-            }
+            .mapStyle(.standard(elevation: .realistic))
         }
-        .mapStyle(.standard(elevation: .realistic))
-    }
-
     // MARK: - Map Annotations
 
     private var currentPositionMarker: some View {

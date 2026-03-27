@@ -82,7 +82,10 @@ public final class SafetyViewModel {
     public func driverNeedsHelp() {
         cancelConfirmationTimer()
         showSafetyConfirmation = false
-        triggerSOSFromImpact()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            self.triggerSOSFromImpact()
+        }
     }
 
     /// Called when an impact-driven SOS has been sent successfully.
@@ -196,7 +199,10 @@ public final class SafetyViewModel {
 
     private func confirmationTimedOut() {
         showSafetyConfirmation = false
-        triggerSOSFromImpact()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            self.triggerSOSFromImpact()
+        }
     }
 
     private func cancelConfirmationTimer() {
