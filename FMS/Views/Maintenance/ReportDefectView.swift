@@ -185,7 +185,7 @@ struct ReportDefectView: View {
                                     }
                                 }
 
-                                PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 5, matching: .images) {
+                                PhotosPicker(selection: $selectedPhotos, maxSelectionCount: max(0, 5 - photoData.count), matching: .images) {
                                     Label(photoData.isEmpty ? "Add Photos" : "Add More Photos", systemImage: "camera.fill")
                                         .font(.system(size: 13, weight: .semibold))
                                         .foregroundColor(FMSTheme.amberDark)
@@ -200,7 +200,8 @@ struct ReportDefectView: View {
                                 }
                                 .onChange(of: selectedPhotos) { _, newItems in
                                     Task {
-                                        for item in newItems {
+                                        let remaining = max(0, 5 - photoData.count)
+                                        for item in newItems.prefix(remaining) {
                                             if let data = try? await item.loadTransferable(type: Data.self) {
                                                 photoData.append(data)
                                             }
