@@ -68,7 +68,7 @@ public struct MapCard: View {
     public var body: some View {
         ZStack {
             Map(position: $position) {
-                ForEach(Array(routes.enumerated()), id: \.offset) { _, route in
+                ForEach(Array(routes.enumerated()), id: \.offset) { index, route in
                     MapPolyline(route.polyline)
                         .stroke(FMSTheme.amber, lineWidth: 5)
                 }
