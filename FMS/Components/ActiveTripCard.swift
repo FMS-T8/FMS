@@ -6,9 +6,11 @@ public struct CurrentJobCard: View {
     public let trip: Trip
     public let vehiclePlate: String?
     public let isActive: Bool
+    public var isOnBreak: Bool = false
     public let onStartJob: () -> Void
     public let onDetails: () -> Void
     public let onEndTrip: () -> Void
+    public var onLogBreak: (() -> Void)? = nil
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -93,6 +95,11 @@ public struct CurrentJobCard: View {
                 }
 
                 // Action buttons
+                if isActive, onLogBreak != nil {
+                    // Break row: Start Break / End Break toggle
+                    breakActionButton
+                }
+
                 HStack(spacing: 10) {
                     if isActive {
                         Button(action: onEndTrip) {
@@ -142,6 +149,49 @@ public struct CurrentJobCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(FMSTheme.borderLight, lineWidth: 1)
         )
+    }
+
+    // MARK: - Break Button
+
+    @State private var breakPulse = false
+
+    private var breakActionButton: some View {
+        Button {
+            onLogBreak?()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isOnBreak ? "stop.circle.fill" : "cup.and.saucer.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                Text(isOnBreak ? "End Break" : "Start Break")
+                    .font(.system(size: 15, weight: .bold))
+            }
+            .foregroundStyle(isOnBreak ? .white : FMSTheme.textPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                isOnBreak
+                    ? FMSTheme.alertRed
+                    : FMSTheme.cardBackground
+            )
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isOnBreak ? Color.clear : FMSTheme.borderLight,
+                        lineWidth: 1.5
+                    )
+            )
+            .scaleEffect(isOnBreak && breakPulse ? 1.015 : 1.0)
+            .animation(
+                isOnBreak
+                    ? .easeInOut(duration: 0.9).repeatForever(autoreverses: true)
+                    : .default,
+                value: breakPulse
+            )
+        }
+        .buttonStyle(.plain)
+        .onAppear { if isOnBreak { breakPulse = true } }
+        .onChange(of: isOnBreak) { _, on in breakPulse = on }
     }
 
     // MARK: - Helpers

@@ -33,6 +33,9 @@ public struct InspectionSummaryView: View {
                         .foregroundStyle(FMSTheme.amber)
                 }
             }
+            .task {
+                await viewModel.fetchMetadata()
+            }
             .sheet(isPresented: exportSheetPresented) {
                 if let url = viewModel.exportURL {
                     ShareSheet(items: [url])
@@ -62,8 +65,8 @@ public struct InspectionSummaryView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                detailRow(label: "Vehicle", value: viewModel.checklist.vehicleId)
-                detailRow(label: "Driver", value: viewModel.checklist.driverId)
+                detailRow(label: "Vehicle", value: viewModel.plate_number)
+                detailRow(label: "Driver", value: viewModel.name)
                 detailRow(label: "Date", value: viewModel.formattedDate(viewModel.checklist.createdAt))
                 if let completed = viewModel.checklist.completedAt {
                     detailRow(label: "Completed", value: viewModel.formattedDate(completed))

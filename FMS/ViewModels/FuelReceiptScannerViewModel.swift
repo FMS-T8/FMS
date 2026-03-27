@@ -152,18 +152,27 @@ final class FuelReceiptScannerViewModel: ObservableObject {
 
         showReview = true
       } catch {
+        self.handleError(error)
+      }
+      isProcessing = false
+    }
+  }
+
+  public func handleError(_ error: Error) {
+    let nsError = error as NSError
+    if nsError.domain == "AVFoundationErrorDomain" && nsError.code == -11800 {
+        errorMessage = "Camera Error: The scanner could not be started. If you are using a simulator, please note that the document scanner requires a physical device with a camera."
+    } else if nsError.domain == "VNDocumentCameraErrorDomain" {
+        errorMessage = "Scanner Error: There was a problem with the document camera. Please try again or enter details manually."
+    } else {
         let description = error.localizedDescription.lowercased()
         if description.contains("row-level security") {
-          errorMessage =
-            "Upload blocked by Supabase RLS. Add INSERT/SELECT policies for bucket 'fuel-logs' in Storage > Policies."
+          errorMessage = "Upload blocked by Supabase RLS. Add INSERT/SELECT policies for bucket 'fuel-logs' in Storage > Policies."
         } else {
           errorMessage = error.localizedDescription
         }
-        showError = true
-      }
-
-      isProcessing = false
     }
+    showError = true
   }
 
   func submitReviewedReceipt(tripId: String?) async {
@@ -196,8 +205,7 @@ final class FuelReceiptScannerViewModel: ObservableObject {
       submittedPayload = payload
       showReview = false
     } catch {
-      errorMessage = error.localizedDescription
-      showError = true
+      handleError(error)
     }
   }
 }

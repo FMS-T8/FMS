@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DriverHomeTab: View {
     @Bindable var viewModel: DriverDashboardViewModel
+    @Environment(BannerManager.self) private var bannerManager
     @State private var showPreTripInspection = false
     @State private var showPostTripInspection = false
     @State private var preTripInspectionCompleted = false
@@ -18,19 +19,25 @@ struct DriverHomeTab: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    headerSection
-                    currentJobSection
-                    upcomingJobsSection
-                    geofenceAlertsSection
-                    quickActionsSection
+            ZStack {
+                FMSTheme.backgroundPrimary.ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        headerSection
+                        currentJobSection
+                        upcomingJobsSection
+                        geofenceAlertsSection
+                        quickActionsSection
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 32)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 32)
             }
-            .background(FMSTheme.backgroundPrimary)
+            .refreshable {
+                await viewModel.fetchLiveDashboardData()
+            }
             .fullScreenCover(isPresented: $showPreTripInspection) {
                 InspectionChecklistView(
                     type: .preTrip,
@@ -94,6 +101,18 @@ struct DriverHomeTab: View {
                     postTripInspectionCompleted = false
                 }
             }
+            .onChange(of: viewModel.breakLogViewModel.errorMessage) { _, msg in
+                if let msg {
+                    bannerManager.show(type: .error, message: msg)
+                    viewModel.breakLogViewModel.errorMessage = nil
+                }
+            }
+            .onChange(of: viewModel.errorMessage) { _, msg in
+                if let msg {
+                    bannerManager.show(type: .error, message: msg)
+                    viewModel.errorMessage = nil
+                }
+            }
         }
     }
 
@@ -146,6 +165,7 @@ struct DriverHomeTab: View {
                     trip: job,
                     vehiclePlate: viewModel.assignedVehicle?.plateNumber,
                     isActive: viewModel.currentJobIsActive,
+                    isOnBreak: viewModel.breakLogViewModel.isOnBreak,
                     onStartJob: {
                         // Show pre-trip inspection first, then start trip
                         pendingStartTrip = job
@@ -157,7 +177,8 @@ struct DriverHomeTab: View {
                         // Show post-trip inspection first, then end trip
                         postTripInspectionCompleted = false
                         showPostTripInspection = true
-                    }
+                    },
+                    onLogBreak: nil
                 )
             } else {
                 NoActiveTripCard()
@@ -193,21 +214,24 @@ struct DriverHomeTab: View {
                 .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(FMSTheme.textPrimary)
 
-            ForEach(Array(geofenceAlerts.enumerated()), id: \.offset) { _, alert in
-                AlertRow(
-                    title: alert.title,
-                    subtitle: alert.subtitle,
-                    timeAgo: alert.timeAgo,
-                    type: alert.type
-                )
+            if viewModel.alerts.isEmpty {
+                Text("No active alerts for this trip")
+                    .font(.system(size: 14))
+                    .foregroundStyle(FMSTheme.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+            } else {
+                ForEach(viewModel.alerts) { alert in
+                    AlertRow(
+                        title: titleFor(alert),
+                        subtitle: alert.message ?? "No details available",
+                        timeAgo: timeAgoFor(alert.createdAt),
+                        type: typeFor(alert)
+                    )
+                }
             }
         }
     }
-
-    private let geofenceAlerts: [(title: String, subtitle: String, timeAgo: String, type: AlertType)] = [
-        ("Geofence deviation", "You exited the designated route area near NH-48 junction.", "12m ago", .critical),
-        ("Geofence re-entry", "Back on designated route corridor.", "8m ago", .info),
-    ]
 
     // MARK: - Quick Actions
 
@@ -239,5 +263,32 @@ struct DriverHomeTab: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d, yyyy"
         return formatter.string(from: Date())
+    }
+
+    private func titleFor(_ alert: Notification) -> String {
+        switch alert.type {
+        case "geofence_entry": return "Geofence re-entry"
+        case "geofence_exit": return "Geofence deviation"
+        case "document_expiry": return "Document Expiring"
+        case "maintenance_due": return "Maintenance Due"
+        case "crash_alert": return "Impact Detected"
+        case "break_violation": return "Break Violation"
+        default: return "Trip Alert"
+        }
+    }
+
+    private func typeFor(_ alert: Notification) -> AlertType {
+        switch alert.type {
+        case "geofence_exit", "crash_alert", "break_violation": return .critical
+        case "maintenance_due", "document_expiry": return .warning
+        default: return .info
+        }
+    }
+
+    private func timeAgoFor(_ date: Date?) -> String {
+        guard let date = date else { return "Just now" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }

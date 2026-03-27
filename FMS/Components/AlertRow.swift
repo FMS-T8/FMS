@@ -27,12 +27,14 @@ public struct AlertRow: View {
     public let subtitle: String
     public let timeAgo: String
     public let type: AlertType
+    public let vehiclePlate: String?
     
-    public init(title: String, subtitle: String, timeAgo: String, type: AlertType) {
+    public init(title: String, subtitle: String, timeAgo: String, type: AlertType, vehiclePlate: String? = nil) {
         self.title = title
         self.subtitle = subtitle
         self.timeAgo = timeAgo
         self.type = type
+        self.vehiclePlate = vehiclePlate
     }
     
     public var body: some View {
@@ -55,6 +57,16 @@ public struct AlertRow: View {
                     Text(title)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(FMSTheme.textPrimary)
+                    
+                    if let plate = vehiclePlate {
+                            Text("\(plate)")
+                            .font(.system(size: 10, weight: .black))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(type.color.opacity(0.12))
+                            .foregroundColor(type.color)
+                            .clipShape(Capsule())
+                    }
                     
                     Text(subtitle)
                         .font(.system(size: 13))

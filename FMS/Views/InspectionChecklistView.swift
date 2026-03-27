@@ -56,6 +56,9 @@ public struct InspectionChecklistView: View {
                 }
             }
         }
+        .task {
+            await viewModel.fetchMetadata()
+        }
     }
 
     // MARK: - Progress Header

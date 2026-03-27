@@ -38,7 +38,7 @@ public final class SafetyViewModel {
     // MARK: - Private
 
     private var confirmationTargetDate: Date?
-    private var confirmationTimer: Timer?
+    private var confirmationTask: Task<Void, Never>?
     private var delayTask: Task<Void, Never>?
     private var lastFatigueLevel: FatigueWarningLevel = .none
 
@@ -64,7 +64,7 @@ public final class SafetyViewModel {
         isImpactDrivenSOS = true
 
         delayTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(impactDelaySeconds))
+            try? await Task.sleep(nanoseconds: UInt64(impactDelaySeconds * 1_000_000_000))
             guard !Task.isCancelled else { return }
             showSafetyConfirmation = true
             startConfirmationTimeout()
@@ -171,25 +171,25 @@ public final class SafetyViewModel {
     }
 
     /// Uses target-date approach so countdown survives app backgrounding.
+    /// Fix: Uses Task.sleep instead of Timer to comply with Swift 6 Concurrency Sendable tracking.
     private func startConfirmationTimeout() {
         let target = Date().addingTimeInterval(TimeInterval(confirmationTimeoutSeconds))
         confirmationTargetDate = target
         flowState = .awaitingConfirmation(secondsRemaining: confirmationTimeoutSeconds)
 
-        confirmationTimer?.invalidate()
-        confirmationTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
-            Task { @MainActor [weak self] in
-                guard let self, let target = self.confirmationTargetDate else {
-                    timer.invalidate()
-                    return
-                }
+        confirmationTask?.cancel()
+        confirmationTask = Task { @MainActor [weak self] in
+            while let self = self {
+                if Task.isCancelled { break }
+                guard let target = self.confirmationTargetDate else { break }
                 let remaining = Int(ceil(target.timeIntervalSinceNow))
                 if remaining <= 0 {
-                    timer.invalidate()
                     self.confirmationTimedOut()
+                    break
                 } else {
                     self.flowState = .awaitingConfirmation(secondsRemaining: remaining)
                 }
+                try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
     }
@@ -200,8 +200,8 @@ public final class SafetyViewModel {
     }
 
     private func cancelConfirmationTimer() {
-        confirmationTimer?.invalidate()
-        confirmationTimer = nil
+        confirmationTask?.cancel()
+        confirmationTask = nil
         confirmationTargetDate = nil
         delayTask?.cancel()
         delayTask = nil

@@ -9,8 +9,6 @@ import UIKit
 @Observable
 public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
 
-    // MARK: - State
-
     public enum SOSState: Equatable {
         case idle
         case countdown(secondsRemaining: Int)
@@ -22,43 +20,39 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
     public var state: SOSState = .idle
     public var isSOSActive: Bool { if case .active = state { return true } else { return false } }
     public var sendFailed: Bool = false
-
-    /// Tracks fleet manager acknowledgment/resolution
     public var alertStatus: SOSAlertStatus = .active
     public var isAcknowledged: Bool { alertStatus == .acknowledged }
     public var isResolved: Bool { alertStatus == .resolved }
-
-    // MARK: - Configuration
+    
+    // MARK: - Error Handling State
+    public var errorMessage: String? = nil
+    public var showError: Bool = false
 
     public let countdownDuration = 10
 
-    // MARK: - Private
-
     private var countdownTargetDate: Date?
-    private var countdownTimer: Timer?
+    private var countdownTask: Task<Void, Never>?
     private var locationManager: CLLocationManager?
     private var currentLocation: CLLocation?
-    private var pingTimer: Timer?
+    private var pingTask: Task<Void, Never>?
     private var pingCount = 0
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
     private var sosAlertId: String?
-    private var statusPollTimer: Timer?
+    private var statusPollTask: Task<Void, Never>?
 
     private let driverId: String
     private let vehicleId: String
+    private let driverPhoneNumber: String?
     private let tripId: String?
 
-    // MARK: - Init
-
-    public init(driverId: String, vehicleId: String, tripId: String? = nil) {
+    public init(driverId: String, vehicleId: String, driverPhoneNumber: String? = nil, tripId: String? = nil) {
         self.driverId = driverId
         self.vehicleId = vehicleId
+        self.driverPhoneNumber = driverPhoneNumber
         self.tripId = tripId
         super.init()
         setupLocationManager()
     }
-
-    // MARK: - Public API
 
     public func startCountdown() {
         guard case .idle = state else { return }
@@ -66,37 +60,40 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         countdownTargetDate = target
         state = .countdown(secondsRemaining: countdownDuration)
 
-        countdownTimer?.invalidate()
-        countdownTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
-            Task { @MainActor [weak self] in
-                guard let self, let target = self.countdownTargetDate else {
-                    timer.invalidate()
-                    return
-                }
+        countdownTask?.cancel()
+        countdownTask = Task { @MainActor [weak self] in
+            while let self = self {
+                if Task.isCancelled { break }
+                guard let target = self.countdownTargetDate else { break }
+                
                 let remaining = Int(ceil(target.timeIntervalSinceNow))
                 if remaining <= 0 {
-                    timer.invalidate()
                     self.sendSOS()
+                    break
                 } else {
                     self.state = .countdown(secondsRemaining: remaining)
                 }
+                
+                try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
     }
 
     public func cancelCountdown() {
-        countdownTimer?.invalidate()
-        countdownTimer = nil
+        countdownTask?.cancel()
+        countdownTask = nil
         countdownTargetDate = nil
         state = .idle
     }
 
     public func sendSOS() {
-        countdownTimer?.invalidate()
-        countdownTimer = nil
+        countdownTask?.cancel()
+        countdownTask = nil
         countdownTargetDate = nil
         state = .sending
         sendFailed = false
+        errorMessage = nil
+        showError = false
 
         beginBackgroundTask()
 
@@ -121,11 +118,8 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
 
         Task {
             let success = await OfflineQueueService.shared.insertOrQueue(
-                table: "sos_alerts",
-                payload: alert,
-                payloadType: .sosAlert
+                table: "sos_alerts", payload: alert, payloadType: .sosAlert
             )
-
             if success {
                 state = .active
                 sendFailed = false
@@ -143,16 +137,15 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
                     body: "No network. Alert will be sent when connection is restored."
                 )
             }
-
             startLocationPings()
         }
     }
 
     public func deactivateSOS() {
-        pingTimer?.invalidate()
-        pingTimer = nil
-        statusPollTimer?.invalidate()
-        statusPollTimer = nil
+        pingTask?.cancel()
+        pingTask = nil
+        statusPollTask?.cancel()
+        statusPollTask = nil
         pingCount = 0
         sosAlertId = nil
         alertStatus = .active
@@ -160,13 +153,8 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         state = .idle
     }
 
-    /// Driver cancels own SOS — updates status to cancelled in Supabase.
     public func cancelSOS() {
-        guard let alertId = sosAlertId else {
-            deactivateSOS()
-            return
-        }
-
+        guard let alertId = sosAlertId else { deactivateSOS(); return }
         Task {
             do {
                 try await SupabaseService.shared.client
@@ -174,14 +162,20 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
                     .update(["status": SOSAlertStatus.cancelled.rawValue])
                     .eq("id", value: alertId)
                     .execute()
+                deactivateSOS()
             } catch {
-                // Best-effort
+                #if DEBUG
+                print("[SOSViewModel] cancelSOS error: \(error)")
+                #endif
+                
+                self.errorMessage = "Failed to cancel SOS alert. Please try again or contact dispatch directly."
+                self.showError = true
+                
+                // Fallback to deactivate locally anyway to clear the screen
+                deactivateSOS()
             }
-            deactivateSOS()
         }
     }
-
-    // MARK: - Location
 
     private func setupLocationManager() {
         locationManager = CLLocationManager()
@@ -191,36 +185,36 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         locationManager?.startUpdatingLocation()
     }
 
-    // CLLocationManagerDelegate
     nonisolated public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
-        Task { @MainActor in
-            self.currentLocation = location
-        }
+        Task { @MainActor in self.currentLocation = location }
     }
 
     private func startLocationPings() {
         pingCount = 0
-        pingTimer?.invalidate()
-
-        // First ping immediately
+        pingTask?.cancel()
         sendLocationPing()
 
-        pingTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] timer in
-            Task { @MainActor [weak self] in
-                guard let self else { timer.invalidate(); return }
+        pingTask = Task { @MainActor [weak self] in
+            while let self = self {
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                if Task.isCancelled { break }
+                
                 self.pingCount += 1
                 self.sendLocationPing()
 
-                // After 5 minutes (30 pings at 10s), switch to 30s interval
                 if self.pingCount >= 30 {
-                    timer.invalidate()
-                    self.pingTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] t in
-                        Task { @MainActor [weak self] in
-                            guard let self else { t.invalidate(); return }
-                            self.sendLocationPing()
-                        }
-                    }
+                    break // exit 10 sec loop to switch logic
+                }
+            }
+            
+            guard let self = self, !Task.isCancelled else { return }
+            
+            self.pingTask = Task { @MainActor [weak self] in
+                while let self = self {
+                    try? await Task.sleep(nanoseconds: 30_000_000_000)
+                    if Task.isCancelled { break }
+                    self.sendLocationPing()
                 }
             }
         }
@@ -238,17 +232,12 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
             speed: max(0, location.speed * 3.6),
             timestamp: Date()
         )
-
         Task {
             _ = await OfflineQueueService.shared.insertOrQueue(
-                table: "sos_location_pings",
-                payload: ping,
-                payloadType: .sosAlert
+                table: "sos_location_pings", payload: ping, payloadType: .sosAlert
             )
         }
     }
-
-    // MARK: - Background Task
 
     private func beginBackgroundTask() {
         backgroundTaskID = UIApplication.shared.beginBackgroundTask { [weak self] in
@@ -263,16 +252,15 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    // MARK: - Status Polling
-
     private func startStatusPolling() {
-        statusPollTimer?.invalidate()
-        statusPollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] timer in
-            Task { @MainActor [weak self] in
-                guard let self, let alertId = self.sosAlertId else {
-                    timer.invalidate()
-                    return
-                }
+        statusPollTask?.cancel()
+        
+        statusPollTask = Task { @MainActor [weak self] in
+            while let self = self {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                if Task.isCancelled { break }
+                
+                guard let alertId = self.sosAlertId else { break }
                 self.pollAlertStatus(alertId: alertId)
             }
         }
@@ -282,14 +270,8 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
         Task {
             do {
                 let response = try await SupabaseService.shared.client
-                    .from("sos_alerts")
-                    .select()
-                    .eq("id", value: alertId)
-                    .single()
-                    .execute()
-
+                    .from("sos_alerts").select().eq("id", value: alertId).single().execute()
                 let alert = try JSONDecoder.supabase().decode(SOSAlert.self, from: response.data)
-
                 let previousStatus = alertStatus
                 alertStatus = alert.status
 
@@ -299,35 +281,31 @@ public final class SOSViewModel: NSObject, CLLocationManagerDelegate {
                         body: "Your fleet manager has acknowledged your emergency."
                     )
                 }
-
                 if alert.status == .resolved {
                     sendLocalNotification(
                         title: "SOS Resolved",
                         body: "Your fleet manager has resolved the emergency alert."
                     )
-                    statusPollTimer?.invalidate()
-                    statusPollTimer = nil
+                    statusPollTask?.cancel()
+                    statusPollTask = nil
                 }
             } catch {
-                // Will retry on next poll
+                #if DEBUG
+                print("[SOSViewModel] pollAlertStatus error: \(error)")
+                #endif
             }
         }
     }
-
-    // MARK: - Notifications
 
     private func sendLocalNotification(title: String, body: String) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
-
         let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
     }
 }
-
-// MARK: - SOS Location Ping Model
 
 public struct SOSLocationPing: Codable {
     public var sosAlertId: String?

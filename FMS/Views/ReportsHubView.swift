@@ -7,47 +7,71 @@ public struct ReportsHubView: View {
 
     public var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    reportCard(
-                        icon: "chart.bar.fill",
-                        title: "Cost Breakdown",
-                        subtitle: "Monthly fuel & maintenance costs with trend analysis",
-                        color: FMSTheme.alertOrange,
-                        destination: CostBreakdownView()
-                    )
-
-                    reportCard(
-                        icon: "fuelpump.fill",
-                        title: "Fuel Efficiency",
-                        subtitle: "Vehicle km/L ratings and efficiency rankings",
-                        color: FMSTheme.alertGreen,
-                        destination: FuelEfficiencyView()
-                    )
-
-                    reportCard(
-                        icon: "doc.text.fill",
-                        title: "Historical Reports",
-                        subtitle: "Trip history with date filtering and CSV export",
-                        color: FMSTheme.amber,
-                        destination: HistoricalReportsView()
-                    )
-
-                    reportCard(
-                        icon: "gauge.with.dots.needle.67percent",
-                        title: "Fleet Utilization",
-                        subtitle: "Active hours, idle time, and utilization rates",
-                        color: FMSTheme.alertRed,
-                        destination: FleetUtilizationView()
-                    )
+            ZStack {
+                FMSTheme.backgroundPrimary.ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Reports")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(FMSTheme.textPrimary)
+                        
+                        reportCard(
+                            icon: "chart.bar.fill",
+                            title: "Spend Dashboard",
+                            subtitle: "Fuel + maintenance + tolls consolidated by date range",
+                            color: FMSTheme.alertOrange,
+                            destination: CostBreakdownView()
+                        )
+                        
+                        reportCard(
+                            icon: "fuelpump.fill",
+                            title: "Fuel Efficiency",
+                            subtitle: "Vehicle km/L vs baseline with variance indicators",
+                            color: FMSTheme.alertGreen,
+                            destination: FuelEfficiencyView()
+                        )
+                        
+                        reportCard(
+                            icon: "doc.text.fill",
+                            title: "Weekly Performance",
+                            subtitle: "Mon-Sun summaries, driver scores, and export",
+                            color: FMSTheme.amber,
+                            destination: FleetReportView()
+                        )
+                        
+                        reportCard(
+                            icon: "banknote",
+                            title: "Fuel Cost Report",
+                            subtitle: "Per-vehicle fuel spend vs budget variance",
+                            color: FMSTheme.alertRed,
+                            destination: FuelCostReportView()
+                        )
+                        
+                        reportCard(
+                            icon: "exclamationmark.octagon.fill",
+                            title: "Fuel Deviation Alerts",
+                            subtitle: "Track baseline consumption deviations and resolve alerts",
+                            color: FMSTheme.alertOrange,
+                            destination: FuelDeviationAlertsView()
+                        )
+                        
+                        reportCard(
+                            icon: "chart.line.uptrend.xyaxis",
+                            title: "Historical Charts",
+                            subtitle: "Vehicle trends with anomaly spike annotations",
+                            color: FMSTheme.amber,
+                            destination: HistoricalVehicleChartsView()
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 32)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 32)
             }
-            .background(FMSTheme.backgroundPrimary)
-            .navigationTitle("Reports")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 

@@ -23,8 +23,9 @@ public struct TrackingShipmentView: View {
     
     // MARK: - Local theme properties have been removed since FMSTheme is now globally adaptive.
 
-    
-    public init() {}
+    public init(trip: Trip? = nil, vehicle: Vehicle? = nil) {
+        self._viewModel = State(initialValue: TrackingShipmentViewModel(trip: trip, vehicle: vehicle))
+    }
     
     public var body: some View {
         ZStack(alignment: .bottom) {
@@ -86,6 +87,12 @@ public struct TrackingShipmentView: View {
         // Hide the harsh flat background to let our custom gradient shine
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
+        .task {
+            while !Task.isCancelled {
+                await viewModel.fetchDetails()
+                try? await Task.sleep(nanoseconds: 70_000_000_000)
+            }
+        }
     }
     
     // MARK: - Bottom Sheet Components
@@ -175,7 +182,7 @@ public struct TrackingShipmentView: View {
                 Text("Trip Number")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(FMSTheme.textSecondary)
-                Text(viewModel.trip?.id ?? "N/A")
+                Text(viewModel.formattedTripId)
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(FMSTheme.textPrimary)
             }

@@ -53,7 +53,7 @@ public struct TripHistoryCard: View {
                             .foregroundStyle(FMSTheme.textSecondary)
                     }
 
-                    if let duration = trip.actualDurationMin ?? trip.estimatedDurationMin {
+                    if let duration = trip.actualDurationMinutes ?? trip.estimatedDurationMinutes {
                         Label(duration.formattedDuration, systemImage: "clock")
                             .font(.system(size: 12))
                             .foregroundStyle(FMSTheme.textSecondary)

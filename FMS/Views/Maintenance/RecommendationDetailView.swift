@@ -183,7 +183,7 @@ struct RecommendationDetailView: View {
                     completedAt: nil
                 )
                 
-                try await store.add(wo)
+                _ = try await store.add(wo)
                 
                 await MainActor.run {
                     isCreating = false

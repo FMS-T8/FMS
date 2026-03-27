@@ -27,6 +27,9 @@ public class InspectionViewModel {
     public var exportURL: URL?
     public var exportErrorMessage: String?
 
+    public var plate_number: String = "Loading..."
+    public var name: String = "Loading..."
+
     public init(vehicleId: String = "VH-001", driverId: String = "DR-001", type: InspectionType = .preTrip) {
         self.checklist = InspectionChecklist(vehicleId: vehicleId, driverId: driverId, type: type)
     }
@@ -158,6 +161,60 @@ public class InspectionViewModel {
     public var defectsCreatedCount: Int = 0
     public var defectsQueuedCount: Int = 0
 
+    // MARK: - Metadata Fetching
+    
+    public func fetchMetadata() async {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.fetchVehicleName() }
+            group.addTask { await self.fetchDriverName() }
+        }
+    }
+
+    private func fetchVehicleName() async {
+        print("[Inspection] fetchVehicleName() called with vehicleId: \(checklist.vehicleId)")
+        do {
+            let vehicles: [Vehicle] = try await SupabaseService.shared.client
+                .from("vehicles")
+                .select("id, plate_number, manufacturer, model")
+                .eq("id", value: checklist.vehicleId)
+                .execute()
+                .value
+            print("[Inspection] vehicles fetched: \(vehicles.count)")
+            if let v = vehicles.first {
+                let fullName = [v.manufacturer, v.model].compactMap { $0 }.joined(separator: " ")
+                self.plate_number = fullName.isEmpty ? v.plateNumber : "\(fullName) (\(v.plateNumber))"
+                print("[Inspection] plate_number set to: \(self.plate_number)")
+            } else {
+                self.plate_number = checklist.vehicleId
+            }
+        } catch {
+            print("[Inspection] fetchVehicleName error: \(error)")
+            self.plate_number = checklist.vehicleId
+        }
+    }
+
+    private func fetchDriverName() async {
+        print("[Inspection] fetchDriverName() called with driverId: \(checklist.driverId)")
+        do {
+            let users: [User] = try await SupabaseService.shared.client
+                .from("users")
+                .select("id, name, role")
+                .eq("id", value: checklist.driverId)
+                .execute()
+                .value
+            print("[Inspection] users fetched: \(users.count)")
+            if let user = users.first {
+                self.name = user.name
+                print("[Inspection] name set to: \(self.name)")
+            } else {
+                self.name = checklist.driverId
+            }
+        } catch {
+            print("[Inspection] fetchDriverName error: \(error)")
+            self.name = checklist.driverId
+        }
+    }
+
     public var vehicleStatus: String {
         checklist.allPassed ? "Ready" : "Needs Attention"
     }
@@ -198,8 +255,8 @@ public class InspectionViewModel {
         ══════════════════════════════════════════════
 
         Type:           \(checklist.inspectionType.rawValue) Inspection
-        Vehicle ID:     \(checklist.vehicleId)
-        Driver ID:      \(checklist.driverId)
+        Vehicle:        \(plate_number)
+        Driver:         \(name)
         Date:           \(formattedDate(checklist.createdAt))
         Completed:      \(checklist.completedAt.map { formattedDate($0) } ?? "In Progress")
         Status:         \(vehicleStatus)
@@ -269,7 +326,8 @@ public class InspectionViewModel {
     }
 
     private func saveReportToTemp(data: Data, checklist: InspectionChecklist, includeTimestamp: Bool) -> URL? {
-        var components = ["FMS_Inspection", checklist.inspectionType.rawValue, checklist.vehicleId]
+        let vehicleIdentifier = plate_number == "Loading..." ? checklist.vehicleId : plate_number
+        var components = ["FMS_Inspection", checklist.inspectionType.rawValue, vehicleIdentifier]
         if includeTimestamp {
             components.append(formatFileDate())
         }

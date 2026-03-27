@@ -25,9 +25,14 @@ public struct OrderDetailView: View {
     @State private var isMapExpanded: Bool = false
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var showingAssignmentSheet = false
+    @State private var showLiveTrack = false
 
+    @State private var currentOrderStatus: String? = nil
     @State private var assignmentDetails: OrderAssignmentDetails? = nil
     @State private var isFetchingAssignment = false
+    @State private var currentTrip: Trip? = nil // Full trip object for replay
+    
+    // Live tracking legacy states removed.
     
     private let markerLabels = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
     
@@ -76,30 +81,38 @@ public struct OrderDetailView: View {
             VStack(spacing: 20) {
                 // MARK: - Map Preview
                 if allCoordinates.count >= 2 {
-                    Button(action: { isMapExpanded = true }) {
+                    ZStack(alignment: .topTrailing) {
                         mapContent
                             .frame(height: 220)
-                            .cornerRadius(16)
-                            .padding(.horizontal, 16)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
                             .overlay(
-                                VStack {
-                                    Spacer()
-                                    HStack {
-                                        Spacer()
-                                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(.black)
-                                            .padding(8)
-                                            .background(Color.white.opacity(0.9))
-                                            .clipShape(Circle())
-                                            .shadow(color: .black.opacity(0.15), radius: 4)
-                                            .padding(24)
-                                    }
-                                }
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(FMSTheme.borderLight, lineWidth: 1)
                             )
+                            .padding(.horizontal, 16)
                             .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
+
+                        // Live Badge Overlay removed as historical Replay View is now primary.
+
+                        Button(action: { isMapExpanded = true }) {
+                            VStack {
+                                Spacer()
+                                HStack {
+                                    Spacer()
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.black)
+                                        .padding(8)
+                                        .background(Color.white.opacity(0.9))
+                                        .clipShape(Circle())
+                                        .shadow(color: .black.opacity(0.15), radius: 4)
+                                        .padding(24)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16) // Apply padding to the button's interactive area
                     }
-                    .buttonStyle(.plain)
                 }
                 
                 // MARK: - Estimates
@@ -279,7 +292,8 @@ public struct OrderDetailView: View {
                 .background(FMSTheme.cardBackground)
                 .cornerRadius(16)
                 .padding(.horizontal, 16)
-                
+
+
                 // MARK: - Customer & Cargo Info
                 VStack(spacing: 0) {
                     detailRow(title: "Customer", value: order.customerName, icon: "person.fill")
@@ -327,24 +341,13 @@ public struct OrderDetailView: View {
                 .cornerRadius(16)
                 .padding(.horizontal, 16)
                 
-                // MARK: - Action Button
-                if order.isPending && assignmentDetails == nil {
-                    Button(action: { showingAssignmentSheet = true }) {
-                        Text("Assign Trip to Driver")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(FMSTheme.backgroundPrimary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(FMSTheme.amber)
-                            .cornerRadius(12)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-                }
             }
             .padding(.vertical, 20)
         }
         .background(FMSTheme.backgroundPrimary.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            bottomStickyButton
+        }
         .navigationTitle(order.orderNumber ?? "Order Details")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
@@ -374,6 +377,69 @@ public struct OrderDetailView: View {
                 targetDate: order.requestedPickupAt,
                 viewModel: viewModel
             )
+        }
+    }
+    
+    @ViewBuilder
+    private var bottomStickyButton: some View {
+        let status = currentOrderStatus?.lowercased() ?? order.status?.lowercased()
+        let isOngoing = (status == "dispatched" || status == "in_transit")
+        let isPending = (status == "pending" && assignmentDetails == nil)
+        
+        if (isOngoing && currentTrip != nil) || isPending {
+            VStack(spacing: 0) {
+                Divider()
+                    .background(FMSTheme.borderLight)
+                
+                VStack(spacing: 12) {
+                    if let trip = currentTrip {
+                        let tripStatus = trip.status?.lowercased() ?? ""
+                        let isTripOngoing = ["active", "in_progress", "in_transit", "ongoing"].contains(tripStatus)
+                        let isTripCompleted = ["completed", "delivered", "finished"].contains(tripStatus) || trip.endTime != nil
+                        
+                        NavigationLink {
+                            if isTripOngoing {
+                                TrackingShipmentView(trip: trip, vehicle: nil)
+                            } else {
+                                TripReplayView(trip: trip)
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: isTripOngoing ? "location.fill" : (isTripCompleted ? "play.circle.fill" : "calendar"))
+                                    .font(.system(size: 16, weight: .bold))
+                                Text(isTripOngoing ? "Track Driver Live" : (isTripCompleted ? "Replay Trip Route" : "View Scheduled Route"))
+                                    .font(.system(size: 16, weight: .bold))
+                            }
+                            .foregroundColor(FMSTheme.obsidian)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(FMSTheme.amber)
+                            .cornerRadius(14)
+                            .shadow(color: FMSTheme.amber.opacity(0.3), radius: 8, y: 4)
+                        }
+                        .buttonStyle(.plain)
+                    } else if isPending {
+                        Button(action: { showingAssignmentSheet = true }) {
+                            Text("Assign Trip to Driver")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(FMSTheme.backgroundPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(FMSTheme.amber)
+                                .cornerRadius(14)
+                                .shadow(color: FMSTheme.amber.opacity(0.3), radius: 8, y: 4)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 12) // Plus safe area
+                .background(
+                    Rectangle()
+                        .fill(.thinMaterial)
+                        .ignoresSafeArea(edges: .bottom)
+                )
+            }
         }
     }
     
@@ -465,10 +531,12 @@ public struct OrderDetailView: View {
             let request = MKDirections.Request()
 
             request.source = MKMapItem(
-                placemark: MKPlacemark(coordinate: coords[i])
+                location: CLLocation(latitude: coords[i].latitude, longitude: coords[i].longitude),
+                address: nil
             )
             request.destination = MKMapItem(
-                placemark: MKPlacemark(coordinate: coords[i + 1])
+                location: CLLocation(latitude: coords[i + 1].latitude, longitude: coords[i + 1].longitude),
+                address: nil
             )
             request.transportType = .automobile
 
@@ -488,15 +556,33 @@ public struct OrderDetailView: View {
     private func fetchAssignmentDetails() async {
         await MainActor.run { isFetchingAssignment = true }
         do {
-            struct TripQuery: Decodable { let driver_id: String?; let vehicle_id: String? }
-            let trips: [TripQuery] = try await SupabaseService.shared.client
-                .from("trips")
-                .select("driver_id, vehicle_id")
-                .eq("order_id", value: order.id)
+            // Refresh order status to handle staleness
+            struct OrderStatusQuery: Decodable { let status: String? }
+            let orderResult: [OrderStatusQuery] = try await SupabaseService.shared.client
+                .from("orders")
+                .select("status")
+                .eq("id", value: order.id)
                 .execute()
                 .value
             
-            if let trip = trips.first, let dId = trip.driver_id, let vId = trip.vehicle_id {
+            await MainActor.run { self.currentOrderStatus = orderResult.first?.status ?? order.status }
+
+            // Fetch the most relevant trip (ongoing first, then most recent completed)
+            let relevantStatuses = ["active", "in_progress", "in_transit", "ongoing", "completed", "delivered"]
+            let trips: [Trip] = try await SupabaseService.shared.client
+                .from("trips")
+                .select()
+                .eq("order_id", value: order.id)
+                .in("status", values: relevantStatuses)
+                .order("start_time", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+            
+            if let trip = trips.first, let dId = trip.driverId, let vId = trip.vehicleId {
+                await MainActor.run { self.currentTrip = trip }
+                print("[OrderDetail] Found trip=\(trip.id) for order \(order.id), status=\(self.currentOrderStatus ?? "nil")")
+
                 struct DriverQuery: Decodable { let name: String }
                 let drivers: [DriverQuery] = try await SupabaseService.shared.client
                     .from("users")
@@ -521,9 +607,14 @@ public struct OrderDetailView: View {
                         )
                     }
                 }
+            } else {
+                await MainActor.run {
+                    self.currentTrip = nil
+                    self.assignmentDetails = nil
+                }
             }
         } catch {
-            print("Failed to fetch assignment details: \(error)")
+            print("Error fetching assignment details: \(error)")
         }
         await MainActor.run { isFetchingAssignment = false }
     }

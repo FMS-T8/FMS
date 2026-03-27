@@ -12,7 +12,23 @@ public class FleetViewModel {
     public var selectedStatus: String = "All"
     public var searchText: String = ""
     
+    // Context for derived status
+    private var activeTrips: [Trip] = []
+    private var openWorkOrders: [MaintenanceWorkOrder] = []
+    
     public let statusOptions = ["All", "Active", "Inactive", "Maintenance"]
+    
+    public var activeCount: Int {
+        vehicles.filter { derivedStatus(for: $0) == "active" }.count
+    }
+    
+    public var maintenanceCount: Int {
+        vehicles.filter { derivedStatus(for: $0) == "maintenance" }.count
+    }
+    
+    public var inactiveCount: Int {
+        vehicles.filter { derivedStatus(for: $0) == "inactive" }.count
+    }
     
     public var filteredVehicles: [Vehicle] {
         var result = vehicles
@@ -20,8 +36,8 @@ public class FleetViewModel {
         // Filter by status
         if selectedStatus != "All" {
             let normalizedSelected = VehicleStatus.normalize(selectedStatus)
-            result = result.filter {
-                VehicleStatus.normalize($0.status ?? "") == normalizedSelected
+            result = result.filter { vehicle in
+                VehicleStatus.normalize(derivedStatus(for: vehicle)) == normalizedSelected
             }
         }
         
@@ -49,14 +65,32 @@ public class FleetViewModel {
         defer { isLoading = false }
         
         do {
-            let fetchedVehicles: [Vehicle] = try await SupabaseService.shared.client
+            async let vehiclesFetch: [Vehicle] = SupabaseService.shared.client
                 .from("vehicles")
                 .select()
                 .order("created_at", ascending: false)
                 .execute()
                 .value
                 
-            self.vehicles = fetchedVehicles
+            async let tripsFetch: [Trip] = SupabaseService.shared.client
+                .from("trips")
+                .select()
+                .is("end_time", value: nil)
+                .execute()
+                .value
+            
+            async let workOrdersFetch: [MaintenanceWorkOrder] = SupabaseService.shared.client
+                .from("maintenance_work_orders")
+                .select()
+                .not("status", operator: .in, value: "('completed', 'cancelled')")
+                .execute()
+                .value
+
+            let (v, t, w) = try await (vehiclesFetch, tripsFetch, workOrdersFetch)
+            
+            self.vehicles = v
+            self.activeTrips = t
+            self.openWorkOrders = w
             self.errorMessage = nil
             self.loadErrorMessage = nil
         } catch {
@@ -65,6 +99,21 @@ public class FleetViewModel {
             print("CRITICAL FLEET DECODING ERROR: \(error)")
             throw error
         }
+    }
+
+    public func derivedStatus(for vehicle: Vehicle) -> String {
+        if activeTrips.contains(where: { trip in
+            guard trip.vehicleId == vehicle.id else { return false }
+            let s = trip.status?.lowercased() ?? ""
+            // Only truly ongoing trips count as "active" for the dashboard label
+            return (s == "in_progress" || s == "ongoing" || s == "active" || s == "in_transit") && trip.endTime == nil
+        }) {
+            return "active"
+        }
+        if openWorkOrders.contains(where: { $0.vehicleId == vehicle.id }) {
+            return "maintenance"
+        }
+        return "inactive"
     }
     
     @MainActor

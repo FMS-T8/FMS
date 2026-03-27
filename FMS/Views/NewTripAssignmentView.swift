@@ -15,7 +15,6 @@ public struct NewTripAssignmentView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
-    @State private var showIssueReport = false
     @State private var showPreTripInspection = false
     @State private var showPostTripInspection = false
     @State private var preTripInspectionCompleted = false
@@ -28,15 +27,23 @@ public struct NewTripAssignmentView: View {
     @State private var requestedDeliveryAt: Date? = nil
     @State private var fetchError: String? = nil
 
+    @State private var showTripExecution = false
+    
+    // Always use the latest trip state from the dashboard if it's the active one
+    private var currentTrip: Trip {
+        if let active = viewModel.activeTrip, active.id == trip.id {
+            return active
+        }
+        return trip
+    }
+
     private var activeStops: [MockStop] {
         var stops: [MockStop] = []
-        if let startLat = trip.startLat, let startLng = trip.startLng {
+        if let startLat = currentTrip.startLat, let startLng = currentTrip.startLng {
             stops.append(MockStop(
-                title: trip.startName ?? "Origin",
+                title: currentTrip.startName ?? "Origin",
                 address: "",
-                expectedTime: trip.startTime.map { formatDateTime($0) }
-                           ?? requestedPickupAt.map { "Requested: \(formatDateTime($0))" }
-                           ?? "Scheduled",
+                expectedTime: currentTrip.startTime.map { formatDateTime($0) } ?? "Scheduled",
                 stopType: .pickup,
                 coordinate: CLLocationCoordinate2D(latitude: startLat, longitude: startLng)
             ))
@@ -50,13 +57,11 @@ public struct NewTripAssignmentView: View {
                 coordinate: CLLocationCoordinate2D(latitude: wp.lat, longitude: wp.lng)
             ))
         }
-        if let endLat = trip.endLat, let endLng = trip.endLng {
+        if let endLat = currentTrip.endLat, let endLng = currentTrip.endLng {
             stops.append(MockStop(
-                title: trip.endName ?? "Destination",
+                title: currentTrip.endName ?? "Destination",
                 address: "",
-                expectedTime: trip.endTime.map { formatDateTime($0) }
-                           ?? requestedDeliveryAt.map { "Requested: \(formatDateTime($0))" }
-                           ?? "Estimated",
+                expectedTime: currentTrip.endTime.map { formatDateTime($0) } ?? "Estimated",
                 stopType: .dropOff,
                 coordinate: CLLocationCoordinate2D(latitude: endLat, longitude: endLng)
             ))
@@ -116,9 +121,12 @@ public struct NewTripAssignmentView: View {
                     shipmentCard
                 }
 
-                Spacer().frame(height: 40)
+                Spacer().frame(height: 140)
             }
             .padding(16)
+        }
+        .overlay(alignment: .bottom) {
+            bottomStickyButton
         }
         .background(FMSTheme.backgroundPrimary.ignoresSafeArea())
         .navigationTitle("Trip Assignment")
@@ -127,14 +135,8 @@ public struct NewTripAssignmentView: View {
         .task {
             await fetchTripVehicle()
         }
-        .safeAreaInset(edge: .bottom) {
-            bottomStickyButton
-        }
-        .sheet(isPresented: $showIssueReport) {
-            IssueReportView(viewModel: viewModel)
-        }
         .fullScreenCover(isPresented: $showPreTripInspection) {
-            if let vehicle = viewModel.assignedVehicle {
+            if let vehicle = tripVehicle ?? viewModel.assignedVehicle {
                 InspectionChecklistView(
                     type: .preTrip,
                     vehicleId: vehicle.id,
@@ -154,7 +156,7 @@ public struct NewTripAssignmentView: View {
             }
         }
         .fullScreenCover(isPresented: $showPostTripInspection) {
-            if let vehicle = viewModel.assignedVehicle {
+            if let vehicle = tripVehicle ?? viewModel.assignedVehicle {
                 InspectionChecklistView(
                     type: .postTrip,
                     vehicleId: vehicle.id,
@@ -173,22 +175,23 @@ public struct NewTripAssignmentView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $showLocationConfirmation) {
+            LocationTrackingConfirmationView(trip: currentTrip)
+        }
+        .onChange(of: showLocationConfirmation) { _, isShowing in
+            if !isShowing {
+                dismiss() // Drop down to dashboard when splash finishes
+                preTripInspectionCompleted = false
+            }
+        }
         .onChange(of: showPreTripInspection) { _, isShowing in
             if !isShowing {
                 if preTripInspectionCompleted {
                     viewModel.startTrip(trip)
-                    openAppleMaps()
-                    dismiss()
                     showLocationConfirmation = true
                 }
                 preTripInspectionCompleted = false
             }
-        }
-        .fullScreenCover(isPresented: $showLocationConfirmation) {
-            LocationTrackingConfirmationView(trip: trip)
-        }
-        .onChange(of: showLocationConfirmation) { _, isShowing in
-            if !isShowing { dismiss() }
         }
         .onChange(of: showPostTripInspection) { _, isShowing in
             if !isShowing {
@@ -203,78 +206,68 @@ public struct NewTripAssignmentView: View {
 
     // MARK: - Bottom Sticky Button
     @ViewBuilder
-    private var bottomStickyButton: some View {
-        let hasDestination = trip.endLat != nil && trip.endLng != nil
-        let buttonContent = VStack(spacing: 10) {
-            if trip.status?.lowercased() == "scheduled" {
-                Button {
-                    if viewModel.assignedVehicle != nil {
-                        preTripInspectionCompleted = false
-                        showPreTripInspection = true
+        private var bottomStickyButton: some View {
+            let hasDestination = trip.endLat != nil && trip.endLng != nil
+            VStack(spacing: 10) {
+                if trip.status?.lowercased() == "scheduled" {
+                    Button {
+                        if tripVehicle ?? viewModel.assignedVehicle != nil {
+                            preTripInspectionCompleted = false
+                            showPreTripInspection = true
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "play.fill").font(.system(size: 14, weight: .bold))
+                            Text((tripVehicle ?? viewModel.assignedVehicle) == nil ? "Waiting for Vehicle" : "Start Trip")
+                                .font(.headline.weight(.bold))
+                        }
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "play.fill").font(.system(size: 14, weight: .bold))
-                        Text(viewModel.assignedVehicle == nil ? "Waiting for Vehicle" : "Start Trip")
-                            .font(.headline.weight(.bold))
-                    }
-                }
-                .buttonStyle(.fmsPrimary)
-                .disabled(viewModel.assignedVehicle == nil)
+                    .buttonStyle(.fmsPrimary)
+                    .disabled(viewModel.assignedVehicle == nil || viewModel.hasActiveTrip)
 
-                if hasDestination {
-                    navigateButton
-                }
-            } else if trip.status?.lowercased() == "active" {
-                Button {
-                    if viewModel.assignedVehicle != nil {
-                        postTripInspectionCompleted = false
-                        showPostTripInspection = true
+                    if viewModel.hasActiveTrip {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                            Text("You already have a trip in progress.")
+                        }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(FMSTheme.alertOrange)
+                        .padding(.top, 4)
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "flag.checkered").font(.system(size: 14, weight: .bold))
-                        Text(viewModel.assignedVehicle == nil ? "Missing Vehicle" : "End Trip")
-                            .font(.headline.weight(.bold))
-                    }
-                }
-                .buttonStyle(.fmsPrimary)
-                .disabled(viewModel.assignedVehicle == nil)
 
-                if hasDestination {
-                    navigateButton
-                }
+                    if hasDestination { navigateButton }
 
-                Button {
-                    showIssueReport = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.bubble.fill").font(.system(size: 14, weight: .semibold))
-                        Text("Report Issue").font(.system(size: 16, weight: .semibold))
+                } else if trip.status?.lowercased() == "active" {
+                    Button {
+                        if tripVehicle ?? viewModel.assignedVehicle != nil {
+                            postTripInspectionCompleted = false
+                            showPostTripInspection = true
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "flag.checkered").font(.system(size: 14, weight: .bold))
+                            Text((tripVehicle ?? viewModel.assignedVehicle) == nil ? "Missing Vehicle" : "End Trip")
+                                .font(.headline.weight(.bold))
+                        }
                     }
-                    .foregroundStyle(FMSTheme.amber)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background { FMSTheme.amber.opacity(0.12).cornerRadius(14) }
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(FMSTheme.amber.opacity(0.3), lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            } else {
-                Button(action: {}) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "checkmark.seal.fill")
-                        Text("Trip Completed")
+                    .buttonStyle(.fmsPrimary)
+                    .disabled((tripVehicle ?? viewModel.assignedVehicle) == nil)
+
+                    if hasDestination { navigateButton }
+                } else {
+                    Button(action: {}) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.seal.fill")
+                            Text("Trip Completed")
+                        }
                     }
+                    .buttonStyle(.fmsPrimary)
+                    .disabled(true)
                 }
-                .buttonStyle(.fmsPrimary)
-                .disabled(true)
             }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
-
-        buttonContent
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
             .background(
                 Rectangle()
                     .fill(.ultraThinMaterial)
@@ -284,19 +277,18 @@ public struct NewTripAssignmentView: View {
                     ))
                     .ignoresSafeArea(edges: .bottom)
             )
-    }
-
+        }
     private var statsSection: some View {
         HStack(spacing: 12) {
             TripStatCard(
                 iconName: "point.topleft.down.curvedto.point.bottomright.up",
                 title: "DISTANCE",
-                value: trip.distanceKm.map { String(format: "%.0f km", $0) } ?? "--"
+                value: currentTrip.distanceKm.map { String(format: "%.0f km", $0) } ?? "--"
             )
             TripStatCard(
                 iconName: "clock",
                 title: "DURATION",
-                value: (trip.actualDurationMin ?? trip.estimatedDurationMin)?.formattedDuration ?? "--"
+                value: (currentTrip.actualDurationMinutes ?? currentTrip.estimatedDurationMinutes)?.formattedDuration ?? "--"
             )
             TripStatCard(
                 iconName: "123.rectangle",
@@ -403,9 +395,12 @@ public struct NewTripAssignmentView: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(FMSTheme.textPrimary)
             infoRow(label: "Order #", value: orderNumber ?? String(trip.id.prefix(8)).uppercased())
-            infoRow(label: "Status", value: trip.statusLabel, valueColor: FMSTheme.statusColor(for: trip.status ?? ""))
-            if let start = trip.startTime { infoRow(label: "Start Time", value: formatDateTime(start)) }
-            if let end   = trip.endTime   { infoRow(label: "End Time",   value: formatDateTime(end))   }
+            infoRow(label: "Status", value: currentTrip.statusLabel, valueColor: FMSTheme.statusColor(for: currentTrip.status ?? ""))
+            if let start = currentTrip.startTime { infoRow(label: "Start Time", value: formatDateTime(start)) }
+            if let end   = currentTrip.endTime   { infoRow(label: "End Time",   value: formatDateTime(end))   }
+            if let duration = currentTrip.actualDurationMinutes {
+                infoRow(label: "Duration", value: "\(duration) mins")
+            }
         }
         .padding(16)
         .background(FMSTheme.cardBackground)
@@ -471,9 +466,9 @@ public struct NewTripAssignmentView: View {
     // MARK: - Apple Maps (multi-stop)
     private func openAppleMaps() {
         var coords: [(lat: Double, lng: Double, name: String)] = []
-        if let lat = trip.startLat, let lng = trip.startLng { coords.append((lat, lng, trip.startName ?? "Origin")) }
+        if let lat = currentTrip.startLat, let lng = currentTrip.startLng { coords.append((lat, lng, currentTrip.startName ?? "Origin")) }
         for wp in orderWaypoints { coords.append((wp.lat, wp.lng, wp.name)) }
-        if let lat = trip.endLat, let lng = trip.endLng { coords.append((lat, lng, trip.endName ?? "Destination")) }
+        if let lat = currentTrip.endLat, let lng = currentTrip.endLng { coords.append((lat, lng, currentTrip.endName ?? "Destination")) }
         guard coords.count >= 2 else { return }
 
         var items: [URLQueryItem] = [URLQueryItem(name: "saddr", value: "\(coords[0].lat),\(coords[0].lng)")]
@@ -497,6 +492,20 @@ public struct NewTripAssignmentView: View {
 
     private func formatDateTime(_ date: Date) -> String { Self.dateTimeFormatter.string(from: date) }
 
+    private struct OrderFetchResult: Codable {
+        let orderNumber: String?
+        let waypoints: [Waypoint]?
+        let requestedPickupAt: Date?
+        let requestedDeliveryAt: Date?
+
+        enum CodingKeys: String, CodingKey {
+            case orderNumber = "order_number"
+            case waypoints
+            case requestedPickupAt = "requested_pickup_at"
+            case requestedDeliveryAt = "requested_delivery_at"
+        }
+    }
+
     // MARK: - Fetch vehicle, order info & waypoints
     private func fetchTripVehicle() async {
         if let vehicleId = trip.vehicleId {
@@ -515,20 +524,15 @@ public struct NewTripAssignmentView: View {
 
         if let orderId = trip.orderId {
             do {
-                struct OrderSubset: Decodable {
-                    let order_number: String?
-                    let waypoints: [Waypoint]?
-                    let requested_pickup_at: Date?
-                    let requested_delivery_at: Date?
-                }
-                let rows: [OrderSubset] = try await SupabaseService.shared.client
-                    .from("orders").select("order_number, waypoints, requested_pickup_at, requested_delivery_at").eq("id", value: orderId).execute().value
+                let response = try await SupabaseService.shared.client
+                    .from("orders").select("order_number, waypoints, requested_pickup_at, requested_delivery_at").eq("id", value: orderId).execute()
+                let rows = try JSONDecoder.supabase().decode([OrderFetchResult].self, from: response.data)
                 if let order = rows.first {
                     await MainActor.run {
-                        orderNumber    = order.order_number
+                        orderNumber    = order.orderNumber
                         orderWaypoints = order.waypoints ?? []
-                        requestedPickupAt = order.requested_pickup_at
-                        requestedDeliveryAt = order.requested_delivery_at
+                        requestedPickupAt = order.requestedPickupAt
+                        requestedDeliveryAt = order.requestedDeliveryAt
                     }
                 }
             } catch {

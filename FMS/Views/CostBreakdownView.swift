@@ -1,9 +1,10 @@
 import Charts
 import SwiftUI
 
-/// User Story 1: Monthly Cost Breakdown view with stacked bar chart, line overlay, and variance badges.
+/// Consolidated spend dashboard for fuel, maintenance, and toll costs.
 public struct CostBreakdownView: View {
   @State private var viewModel = CostBreakdownViewModel()
+  @State private var showCustomRangeSheet = false
 
   public init() {}
 
@@ -14,7 +15,7 @@ public struct CostBreakdownView: View {
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if let error = viewModel.errorMessage {
         errorState(error)
-      } else if viewModel.filteredSummaries.isEmpty {
+      } else if viewModel.grandTotal <= 0 {
         ContentUnavailableView(
           "No Cost Data",
           systemImage: "chart.bar.xaxis",
@@ -24,9 +25,34 @@ public struct CostBreakdownView: View {
         contentView
       }
     }
-    .navigationTitle("Cost Breakdown")
+    .navigationTitle("Spend Dashboard")
     .navigationBarTitleDisplayMode(.inline)
     .background(FMSTheme.backgroundPrimary)
+    .sheet(isPresented: $showCustomRangeSheet) {
+      NavigationStack {
+        Form {
+          DatePicker("From", selection: $viewModel.customStartDate, displayedComponents: .date)
+          DatePicker(
+            "To", selection: $viewModel.customEndDate, in: viewModel.customStartDate...,
+            displayedComponents: .date)
+        }
+        .navigationTitle("Custom Range")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+          ToolbarItem(placement: .topBarLeading) {
+            Button("Close") { showCustomRangeSheet = false }
+          }
+          ToolbarItem(placement: .topBarTrailing) {
+            Button("Apply") {
+              showCustomRangeSheet = false
+              Task { await viewModel.fetchCosts() }
+            }
+            .fontWeight(.bold)
+          }
+        }
+      }
+      .presentationDetents([.medium])
+    }
     .task { await viewModel.fetchCosts() }
   }
 
@@ -35,25 +61,29 @@ public struct CostBreakdownView: View {
   private var contentView: some View {
     ScrollView {
       VStack(spacing: 20) {
-        // Month range picker
         Picker("Range", selection: $viewModel.selectedRange) {
-          ForEach(CostBreakdownViewModel.MonthRange.allCases) { range in
-            Text(range.label).tag(range)
+          ForEach(CostBreakdownViewModel.DateRange.allCases) { range in
+            Text(range.rawValue).tag(range)
           }
         }
         .pickerStyle(.segmented)
+        .onChange(of: viewModel.selectedRange) { _, newValue in
+          if newValue == .custom {
+            showCustomRangeSheet = true
+          } else {
+            Task { await viewModel.fetchCosts() }
+          }
+        }
         .padding(.horizontal, 20)
 
-        // Stacked bar chart + line overlay
+        Text(viewModel.dateRangeLabel)
+          .font(.system(size: 12, weight: .medium))
+          .foregroundStyle(FMSTheme.textSecondary)
+
+        summaryCards
+          .padding(.horizontal, 20)
+
         chartSection
-          .padding(.horizontal, 20)
-
-        // Variance badges
-        varianceSection
-          .padding(.horizontal, 20)
-
-        // Legend
-        legendSection
           .padding(.horizontal, 20)
       }
       .padding(.top, 16)
@@ -61,117 +91,63 @@ public struct CostBreakdownView: View {
     }
   }
 
+  // MARK: - Summary Cards
+
+  private var summaryCards: some View {
+    VStack(spacing: 12) {
+      HStack(spacing: 12) {
+        spendCard(title: "Fuel", value: viewModel.fuelSpend, color: FMSTheme.alertOrange)
+        spendCard(title: "Maintenance", value: viewModel.maintenanceSpend, color: FMSTheme.alertRed)
+      }
+      HStack(spacing: 12) {
+        spendCard(title: "Tolls", value: viewModel.tollSpend, color: FMSTheme.alertGreen)
+        spendCard(title: "Grand Total", value: viewModel.grandTotal, color: FMSTheme.amber)
+      }
+    }
+  }
+
+  private func spendCard(title: String, value: Double, color: Color) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(title)
+        .font(.system(size: 12, weight: .semibold))
+        .foregroundStyle(FMSTheme.textSecondary)
+      Text(String(format: "₹%.0f", value))
+        .font(.system(size: 18, weight: .bold, design: .rounded))
+        .foregroundStyle(color)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(14)
+    .background(FMSTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
+  }
+
   // MARK: - Chart
 
   private var chartSection: some View {
-    let items = viewModel.filteredSummaries
+    let items = viewModel.spendBreakdown.filter { $0.amount > 0 }
 
     return Chart {
       ForEach(items) { item in
         BarMark(
-          x: .value("Month", item.displayMonth),
-          y: .value("Cost", item.fuelCost)
+          x: .value("Category", item.label),
+          y: .value("Amount", item.amount)
         )
-        .foregroundStyle(by: .value("Type", "Fuel"))
-
-        BarMark(
-          x: .value("Month", item.displayMonth),
-          y: .value("Cost", item.maintenanceCost)
-        )
-        .foregroundStyle(by: .value("Type", "Maintenance"))
-      }
-
-      // Total cost line overlay
-      ForEach(items) { item in
-        LineMark(
-          x: .value("Month", item.displayMonth),
-          y: .value("Total", item.totalCost)
-        )
-        .foregroundStyle(FMSTheme.amber)
-        .lineStyle(StrokeStyle(lineWidth: 2.5))
-        .symbol {
-          Circle()
-            .fill(FMSTheme.amber)
-            .frame(width: 7, height: 7)
+        .foregroundStyle(by: .value("Category", item.label))
+        .annotation(position: .top) {
+          Text("₹\(Int(item.amount))")
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(FMSTheme.textSecondary)
         }
       }
     }
     .chartForegroundStyleScale([
       "Fuel": FMSTheme.alertOrange,
       "Maintenance": FMSTheme.alertRed,
+      "Tolls": FMSTheme.alertGreen,
     ])
-    .chartYAxis {
-      AxisMarks(position: .leading) { value in
-        AxisValueLabel {
-          if let v = value.as(Double.self) {
-            Text("₹\(v, specifier: "%.0f")")
-              .font(.system(size: 10))
-              .foregroundStyle(FMSTheme.textSecondary)
-          }
-        }
-        AxisGridLine()
-      }
-    }
-    .chartXAxis {
-      AxisMarks { value in
-        AxisValueLabel()
-          .font(.system(size: 10))
-          .foregroundStyle(FMSTheme.textSecondary)
-      }
-    }
+    .chartLegend(position: .bottom)
     .frame(height: 260)
     .padding(16)
     .background(FMSTheme.cardBackground, in: RoundedRectangle(cornerRadius: 14))
-  }
-
-  // MARK: - Variance Badges Row
-
-  private var varianceSection: some View {
-    let items = viewModel.filteredSummaries
-    let variances = viewModel.variancePercentages
-
-    return VStack(alignment: .leading, spacing: 8) {
-      Text("Month-over-Month Variance")
-        .font(.system(size: 14, weight: .semibold))
-        .foregroundStyle(FMSTheme.textPrimary)
-
-      ScrollView(.horizontal, showsIndicators: false) {
-        HStack(spacing: 12) {
-          ForEach(Array(zip(items.indices, items)), id: \.1.id) { idx, item in
-            let safeVariance = variances.indices.contains(idx) ? variances[idx] : nil
-            VStack(spacing: 4) {
-              Text(item.displayMonth)
-                .font(.system(size: 11))
-                .foregroundStyle(FMSTheme.textSecondary)
-              VarianceBadge(percent: safeVariance)
-            }
-          }
-        }
-      }
-    }
-    .padding(14)
-    .background(FMSTheme.cardBackground, in: RoundedRectangle(cornerRadius: 14))
-  }
-
-  // MARK: - Legend
-
-  private var legendSection: some View {
-    HStack(spacing: 20) {
-      legendItem(color: FMSTheme.alertOrange, label: "Fuel Cost")
-      legendItem(color: FMSTheme.alertRed, label: "Maintenance")
-      legendItem(color: FMSTheme.amber, label: "Total Trend")
-    }
-    .padding(12)
-    .background(FMSTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-  }
-
-  private func legendItem(color: Color, label: String) -> some View {
-    HStack(spacing: 6) {
-      Circle().fill(color).frame(width: 8, height: 8)
-      Text(label)
-        .font(.system(size: 12))
-        .foregroundStyle(FMSTheme.textSecondary)
-    }
   }
 
   // MARK: - Error

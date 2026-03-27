@@ -112,7 +112,7 @@ public final class ShiftAssignmentViewModel {
           self.availableVehicles = vehicles.map {
               let make = $0.manufacturer ?? "Unknown"
               let model = $0.model ?? "Vehicle"
-              let plate = $0.plateNumber ?? "No Plate"
+              let plate = $0.plateNumber
               return (id: $0.id, display: "\(make) \(model) · \(plate)")
           }
       } catch {

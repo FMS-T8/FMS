@@ -34,13 +34,13 @@ public struct FMSMaintenanceSummaryCard: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(title)
-                    .font(.system(size: 12, weight: .black))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundColor(Color.black.opacity(0.4))
                     .kerning(1)
                 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("\(mainCount) \(mainLabel)")
-                        .font(.system(size: 34, weight: .black))
+                        .font(.system(size: 34, weight: .bold))
                         .foregroundColor(.black)
                     
                     if showWarning && mainCount > 0 {

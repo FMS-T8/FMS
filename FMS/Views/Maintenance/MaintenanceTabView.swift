@@ -32,11 +32,6 @@ public struct MaintenanceTabView: View {
                 }
                 .tag(2)
 
-            ProfileTabView()
-                .tabItem {
-                    Label("Profile", systemImage: "person")
-                }
-                .tag(3)
         }
         .tint(FMSTheme.amberDark)
     }
@@ -45,8 +40,12 @@ public struct MaintenanceTabView: View {
 // MARK: - Profile Tab
 public struct ProfileTabView: View {
     @Environment(AuthViewModel.self) private var authViewModel
+    @Environment(BannerManager.self) private var bannerManager
     @Environment(\.colorScheme) private var colorScheme
     @State private var notificationsEnabled = true
+    
+    @State private var securityVM = SecuritySettingsViewModel()
+    @State private var showMFAEnrollment = false
 
     public var body: some View {
         NavigationStack {
@@ -61,6 +60,7 @@ public struct ProfileTabView: View {
                         VStack(spacing: 20) {
                             profileHeaderCard
                             basicInfoCard
+                            securityCard
                             preferencesCard
                             logoutButton
                         }
@@ -71,6 +71,12 @@ public struct ProfileTabView: View {
                 }
             }
             .navigationBarHidden(true)
+            .task {
+                await securityVM.loadSecurityState()
+            }
+            .sheet(isPresented: $showMFAEnrollment) {
+                MFAEnrollmentView(vm: securityVM, bannerManager: bannerManager)
+            }
         }
     }
 
@@ -123,6 +129,46 @@ public struct ProfileTabView: View {
         }
     }
 
+    private var securityCard: some View {
+        MaintProfileCard {
+            VStack(alignment: .leading, spacing: 14) {
+                MaintProfileSectionHeader(title: "Security")
+                Divider().background(FMSTheme.borderLight)
+                
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Two-Factor Authentication")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(FMSTheme.textPrimary)
+                        Text(securityVM.isTwoFactorEnabled ? "Active" : "Secure your account")
+                            .font(.system(size: 12))
+                            .foregroundStyle(securityVM.isTwoFactorEnabled ? FMSTheme.amber : FMSTheme.textTertiary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { securityVM.isTwoFactorEnabled },
+                        set: { newValue in
+                            if newValue {
+                                Task {
+                                    await securityVM.initiateMFAEnrollment()
+                                    if securityVM.mfaEnrollmentResponse != nil {
+                                        showMFAEnrollment = true
+                                    } else {
+                                        bannerManager.show(type: .error, message: securityVM.errorMessage ?? "Failed to start 2FA setup.")
+                                    }
+                                }
+                            } else {
+                                Task { await securityVM.unenrollAllMFAFactors(bannerManager: bannerManager) }
+                            }
+                        }
+                    ))
+                    .tint(FMSTheme.amber)
+                    .accessibilityLabel("Two-Factor Authentication")
+                }
+            }
+        }
+    }
+
     private var preferencesCard: some View {
         MaintProfileCard {
             VStack(alignment: .leading, spacing: 14) {
@@ -156,11 +202,7 @@ public struct ProfileTabView: View {
     private var logoutButton: some View {
         Button {
             Task {
-                do {
-                    try await authViewModel.logout()
-                } catch {
-                    print("Logout error: \(error)")
-                }
+                await authViewModel.logout()
             }
         } label: {
             HStack(spacing: 8) {
@@ -239,4 +281,5 @@ private struct MaintProfileInfoRow: View {
 #Preview {
     MaintenanceTabView()
         .environment(AuthViewModel())
+        .environment(BannerManager())
 }

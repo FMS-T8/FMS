@@ -17,11 +17,37 @@ public struct MaintenanceManagerView: View {
                 FMSTheme.backgroundPrimary.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    headerSection
-                    
                     ScrollView {
-                        VStack(spacing: 24) {
-                            searchSection
+                        VStack(alignment: .leading, spacing: 24) {
+                            HStack {
+                                Text("Maintenance")
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundStyle(FMSTheme.textPrimary)
+                                
+                                Spacer()
+                                
+                                HStack(spacing: 12) {
+                                    Button {
+                                        showingHistory = true
+                                    } label: {
+                                        Image(systemName: "clock.arrow.circlepath")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundStyle(FMSTheme.amber)
+                                    }
+                                    
+                                    Button {
+                                        showingSettings = true
+                                    } label: {
+                                        Image(systemName: "gearshape.fill")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .padding(8)
+                                            .background(FMSTheme.amber.opacity(0.12))
+                                            .clipShape(Circle())
+                                            .foregroundStyle(FMSTheme.amber)
+                                    }
+                                }
+                            }
+                            
                             statusSummarySection
                             statusFilterSection
                             vehicleListSection
@@ -31,7 +57,10 @@ public struct MaintenanceManagerView: View {
                     }
                 }
             }
-            .toolbar(.hidden) // Hiding standard toolbar to use custom header row
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $searchText, prompt: "Search vehicle...")
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showingSettings, onDismiss: {
                 Task { try? await fleetViewModel.fetchVehicles() }
             }) {
@@ -49,60 +78,6 @@ public struct MaintenanceManagerView: View {
                 await woStore.fetchWorkOrders()
             }
         }
-    }
-    
-    private var headerSection: some View {
-        HStack(alignment: .center) {
-            Text("Maintenance")
-                .font(.system(size: 32, weight: .bold))
-                .foregroundColor(FMSTheme.textPrimary)
-            
-            Spacer()
-            
-            HStack(spacing: 12) {
-                Button {
-                    showingHistory = true
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 18))
-                        .foregroundColor(FMSTheme.amber)
-                        .padding(10)
-                        .background(FMSTheme.cardBackground)
-                        .clipShape(Circle())
-                        .shadow(color: .black.opacity(0.1), radius: 4)
-                }
-                
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(FMSTheme.amber)
-                        .padding(10)
-                        .background(FMSTheme.cardBackground)
-                        .clipShape(Circle())
-                        .shadow(color: .black.opacity(0.1), radius: 4)
-                }
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 20)
-    }
-    
-    private var searchSection: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(FMSTheme.textTertiary)
-                .font(.system(size: 14))
-            TextField("Search vehicle...", text: $searchText)
-                .font(.system(size: 14))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(FMSTheme.cardBackground.opacity(0.5))
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(FMSTheme.borderLight.opacity(0.5), lineWidth: 1))
     }
     
     private var statusFilterSection: some View {

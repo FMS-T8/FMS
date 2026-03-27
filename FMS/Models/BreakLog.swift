@@ -12,6 +12,7 @@ public struct BreakLog: Codable, Identifiable {
     public var lng: Double?
     public var endLat: Double?
     public var endLng: Double?
+    public var notes: String?
 
     public init(
         id: String = UUID().uuidString,
@@ -24,7 +25,8 @@ public struct BreakLog: Codable, Identifiable {
         lat: Double? = nil,
         lng: Double? = nil,
         endLat: Double? = nil,
-        endLng: Double? = nil
+        endLng: Double? = nil,
+        notes: String? = nil
     ) {
         self.id = id
         self.tripId = tripId
@@ -37,6 +39,7 @@ public struct BreakLog: Codable, Identifiable {
         self.lng = lng
         self.endLat = endLat
         self.endLng = endLng
+        self.notes = notes
     }
 
     enum CodingKeys: String, CodingKey {
@@ -51,6 +54,23 @@ public struct BreakLog: Codable, Identifiable {
         case lng
         case endLat = "end_lat"
         case endLng = "end_lng"
+        case notes
+    }
+
+    /// True when the break has been started but not yet ended.
+    public var isOngoing: Bool {
+        startTime != nil && endTime == nil
+    }
+
+    /// Human-readable duration, e.g. "12 min" or "1h 05m".
+    public var formattedDuration: String {
+        guard let minutes = durationMinutes else {
+            // Compute live duration if still ongoing
+            guard let start = startTime else { return "—" }
+            let mins = Int(Date().timeIntervalSince(start) / 60)
+            return mins < 60 ? "\(mins) min" : "\(mins / 60)h \(String(format: "%02d", mins % 60))m"
+        }
+        return minutes < 60 ? "\(minutes) min" : "\(minutes / 60)h \(String(format: "%02d", minutes % 60))m"
     }
 }
 
@@ -64,8 +84,7 @@ public struct BreakLogInsert: Codable {
     public var durationMinutes: Int?
     public var lat: Double?
     public var lng: Double?
-    public var endLat: Double?
-    public var endLng: Double?
+    public var notes: String?
 
     public init(
         id: String = UUID().uuidString,
@@ -77,8 +96,7 @@ public struct BreakLogInsert: Codable {
         durationMinutes: Int? = nil,
         lat: Double? = nil,
         lng: Double? = nil,
-        endLat: Double? = nil,
-        endLng: Double? = nil
+        notes: String? = nil
     ) {
         self.id = id
         self.tripId = tripId
@@ -89,8 +107,7 @@ public struct BreakLogInsert: Codable {
         self.durationMinutes = durationMinutes
         self.lat = lat
         self.lng = lng
-        self.endLat = endLat
-        self.endLng = endLng
+        self.notes = notes
     }
 
     enum CodingKeys: String, CodingKey {
@@ -103,7 +120,6 @@ public struct BreakLogInsert: Codable {
         case durationMinutes = "duration_minutes"
         case lat
         case lng
-        case endLat = "end_lat"
-        case endLng = "end_lng"
+        case notes
     }
 }

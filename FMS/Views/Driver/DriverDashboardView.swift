@@ -4,123 +4,111 @@ import UserNotifications
 public struct DriverDashboardView: View {
     @State private var viewModel = DriverDashboardViewModel()
     @State private var safetyViewModel = SafetyViewModel()
-    @State private var breakLogViewModel: BreakLogViewModel?
 
     public init() {}
 
     public var body: some View {
-        ZStack {
-            FMSTabShell {
-                FMSTabItem(id: "home", title: "Home", icon: "house.fill") {
-                    DriverHomeTab(viewModel: viewModel)
-                }
-
-                FMSTabItem(id: "safety", title: "Safety", icon: "checkmark.shield.fill") {
-                    DriverSafetyTab(
-                        safetyViewModel: safetyViewModel,
-                        breakLogViewModel: currentBreakLogViewModel,
-                        hasActiveTrip: viewModel.hasActiveTrip
-                    )
-                }
-
-                FMSTabItem(id: "trips", title: "Trips", icon: "map.fill") {
-                    DriverTripsTab(viewModel: viewModel)
-                }
+        FMSTabShell {
+            FMSTabItem(id: "home", title: "Home", icon: "house.fill") {
+                DriverHomeTab(viewModel: viewModel)
             }
 
-            // Floating SOS Button
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    SOSFloatingButton {
-                        safetyViewModel.triggerManualSOS()
-                    }
-                    .padding(.trailing, 20)
-                }
-                .padding(.bottom, 90)
+            FMSTabItem(id: "safety", title: "Safety", icon: "checkmark.shield.fill") {
+                DriverSafetyTab(
+                    safetyViewModel: safetyViewModel,
+                    breakLogViewModel: currentBreakLogViewModel,
+                    hasActiveTrip: viewModel.hasActiveTrip,
+                    driverId: viewModel.driver.id,
+                    tripId: viewModel.activeTrip?.id ?? ""
+                )
             }
 
-            // Break Reminder Banner (top)
+            FMSTabItem(id: "trips", title: "Trips", icon: "map.fill") {
+                DriverTripsTab(viewModel: viewModel)
+            }
+        }
+        // Floating SOS Button — overlay so no spacers eat scroll gestures
+        .overlay(alignment: .bottomTrailing) {
+            SOSFloatingButton {
+                safetyViewModel.triggerManualSOS()
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 90)
+        }
+        // Break Reminder Banner (top)
+        .overlay(alignment: .top) {
             if safetyViewModel.drivingTimer.breakReminderLevel != .none
-                && !safetyViewModel.drivingTimer.breakReminderDismissed {
-                VStack {
-                    BreakReminderBannerView(
-                        level: safetyViewModel.drivingTimer.breakReminderLevel,
-                        drivingTime: safetyViewModel.drivingTimer.formattedDrivingTime,
-                        onDismiss: {
-                            withAnimation(.easeOut(duration: 0.25)) {
+                && !safetyViewModel.drivingTimer.breakReminderDismissed
+                && !safetyViewModel.drivingTimer.allRemindersHidden {
+                BreakReminderBannerView(
+                    level: safetyViewModel.drivingTimer.breakReminderLevel,
+                    drivingTime: safetyViewModel.drivingTimer.formattedDrivingTime,
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            if safetyViewModel.drivingTimer.breakReminderLevel == .gentle {
+                                // Gentle has no bottom sheet, so hide all
+                                safetyViewModel.drivingTimer.hideAllReminders()
+                            } else {
+                                // Escalate to bottom sheet for Warning/Critical
                                 safetyViewModel.drivingTimer.dismissBreakReminder()
                             }
-                            // If warning or critical, show bottom sheet after dismiss
-                        },
-                        onStartBreak: {
-                            startBreakFromReminder()
                         }
-                    )
-                    .padding(.top, 8)
-                    Spacer()
-                }
+                    },
+                    onStartBreak: {
+                        startBreakFromReminder()
+                    }
+                )
+                .padding(.top, 8)
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: safetyViewModel.drivingTimer.breakReminderLevel)
             }
-
-            // Break Reminder Bottom Sheet (escalated)
+        }
+        // Break Reminder Bottom Sheet (escalated)
+        .overlay(alignment: .bottom) {
             if safetyViewModel.drivingTimer.breakReminderDismissed
+                && !safetyViewModel.drivingTimer.allRemindersHidden
                 && safetyViewModel.drivingTimer.breakReminderLevel >= .warning {
-                VStack {
-                    Spacer()
-                    BreakReminderBottomSheet(
-                        level: safetyViewModel.drivingTimer.breakReminderLevel,
-                        drivingTime: safetyViewModel.drivingTimer.formattedDrivingTime,
-                        onStartBreak: {
-                            startBreakFromReminder()
-                        },
-                        onDismiss: {
-                            // Log as ignored but keep bottom sheet for critical
-                            if safetyViewModel.drivingTimer.breakReminderLevel == .critical {
-                                // Critical stays persistent
-                            } else {
-                                withAnimation(.easeOut(duration: 0.25)) {
-                                    safetyViewModel.drivingTimer.breakReminderDismissed = false
-                                }
-                            }
+                BreakReminderBottomSheet(
+                    level: safetyViewModel.drivingTimer.breakReminderLevel,
+                    drivingTime: safetyViewModel.drivingTimer.formattedDrivingTime,
+                    onStartBreak: {
+                        startBreakFromReminder()
+                    },
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            safetyViewModel.drivingTimer.hideAllReminders()
                         }
-                    )
-                    .padding(.bottom, 100)
-                }
+                    }
+                )
+                .padding(.bottom, 100)
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: safetyViewModel.drivingTimer.breakReminderDismissed)
             }
-
-            // Fatigue Warning Banner
+        }
+        // Fatigue Warning Banner
+        .overlay(alignment: .top) {
             if safetyViewModel.showFatigueBanner {
-                VStack {
-                    FatigueBanner(
-                        message: safetyViewModel.fatigueBannerMessage,
-                        isCritical: safetyViewModel.fatigueBannerIsCritical,
-                        onDismiss: {
-                            withAnimation(.easeOut(duration: 0.25)) {
-                                safetyViewModel.dismissFatigueBanner()
-                            }
+                FatigueBanner(
+                    message: safetyViewModel.fatigueBannerMessage,
+                    isCritical: safetyViewModel.fatigueBannerIsCritical,
+                    onDismiss: {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            safetyViewModel.dismissFatigueBanner()
                         }
-                    )
-                    .padding(.top, 8)
-                    Spacer()
-                }
+                    }
+                )
+                .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: safetyViewModel.showFatigueBanner)
             }
-
-            // SOS Sent Banner
+        }
+        // SOS Sent Banner
+        .overlay(alignment: .top) {
             if safetyViewModel.showSOSSentBanner {
-                VStack {
-                    SOSSentBanner {
-                        withAnimation {
-                            safetyViewModel.showSOSSentBanner = false
-                        }
+                SOSSentBanner {
+                    withAnimation {
+                        safetyViewModel.showSOSSentBanner = false
                     }
-                    .padding(.top, 8)
-                    Spacer()
                 }
+                .padding(.top, 8)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
@@ -129,7 +117,8 @@ public struct DriverDashboardView: View {
             SOSCountdownView(
                 viewModel: SOSViewModel(
                     driverId: viewModel.driver.id,
-                    vehicleId: viewModel.assignedVehicle?.id ?? "",
+                    vehicleId: viewModel.activeTrip?.vehicleId ?? viewModel.assignedVehicle?.id ?? "",
+                    driverPhoneNumber: viewModel.driver.phone,
                     tripId: viewModel.activeTrip?.id
                 ),
                 onSOSSent: {
@@ -160,18 +149,15 @@ public struct DriverDashboardView: View {
         .onChange(of: viewModel.hasActiveTrip) { _, hasTrip in
             if hasTrip {
                 safetyViewModel.startDriving()
-                updateBreakLogViewModel()
             } else {
                 safetyViewModel.stopDriving()
-                breakLogViewModel?.stopLocationUpdates()
-                breakLogViewModel = nil
+                viewModel.breakLogViewModel.stopLocationUpdates()
             }
         }
         .onAppear {
             requestNotificationPermission()
             if viewModel.hasActiveTrip {
                 safetyViewModel.startDriving()
-                updateBreakLogViewModel()
             }
         }
         .task {
@@ -182,35 +168,12 @@ public struct DriverDashboardView: View {
     // MARK: - Helpers
 
     private var currentBreakLogViewModel: BreakLogViewModel {
-        if let existing = breakLogViewModel { return existing }
-        let vm = BreakLogViewModel(
-            driverId: viewModel.driver.id,
-            tripId: viewModel.activeTrip?.id ?? "",
-            vehicleId: viewModel.assignedVehicle?.id ?? ""
-        )
-        return vm
+        viewModel.breakLogViewModel
     }
 
-    private func updateBreakLogViewModel() {
-        breakLogViewModel = BreakLogViewModel(
-            driverId: viewModel.driver.id,
-            tripId: viewModel.activeTrip?.id ?? "",
-            vehicleId: viewModel.assignedVehicle?.id ?? ""
-        )
-    }
 
     private func startBreakFromReminder() {
-        // Use existing VM or create one — call startBreak on the same reference
-        let vm = breakLogViewModel ?? {
-            let new = BreakLogViewModel(
-                driverId: viewModel.driver.id,
-                tripId: viewModel.activeTrip?.id ?? "",
-                vehicleId: viewModel.assignedVehicle?.id ?? ""
-            )
-            breakLogViewModel = new
-            return new
-        }()
-        vm.startBreak()
+        viewModel.breakLogViewModel.startBreak()
         safetyViewModel.drivingTimer.startBreak()
     }
 

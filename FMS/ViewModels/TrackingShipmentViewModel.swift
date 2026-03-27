@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import CoreLocation
+import Supabase
 
 @Observable
 public class TrackingShipmentViewModel {
@@ -31,8 +32,13 @@ public class TrackingShipmentViewModel {
     }
     
     // Formatting helpers for the UI
+    public var formattedTripId: String {
+        guard let id = trip?.id else { return "N/A" }
+        return "TRP-\(id.prefix(6).uppercased())"
+    }
+    
     public var formattedEstimatedDate: String {
-        guard let durationMin = trip?.estimatedDurationMin,
+        guard let durationMin = trip?.estimatedDurationMinutes,
               let startTime = trip?.startTime else { return "Calculating..." }
         
         let estimatedEnd = startTime.addingTimeInterval(TimeInterval(durationMin * 60))
@@ -41,22 +47,61 @@ public class TrackingShipmentViewModel {
         return formatter.string(from: estimatedEnd)
     }
     
-    // Temporary initializer with mock data mapped to your REAL models for UI testing
-    public init() {
-        self.trip = Trip(
-            id: "TRP-8492-MH",
-            shipmentDescription: "Electronics",
-            startLat: 12.35,
-            startLng: 76.65,
-            startName: "Warehouse A, Industrial Layout, Mysuru",
-            endLat: 12.84,
-            endLng: 77.66,
-            endName: "Tech Park Phase 2, Electronic City, Bengaluru",
-            estimatedDurationMin: 180,
-            startTime: Date()
-        )
-        self.driver = Driver(companyID: "CMP-01", name: "David Reynolds", employeeID: "EMP-492")
-        self.vehicle = Vehicle(id: "V-01", plateNumber: "MH02H0942", chassisNumber: "CHS123", fuelType: "Diesel", fuelTankCapacity: 200, createdAt: Date())
-        self.latestGPSLog = TripGPSLog(id: "LOG-1", tripId: "TRP-8492-MH", lat: 12.35, lng: 76.65, speed: 45, recordedAt: Date())
+    // Initializer for live data
+    public init(trip: Trip? = nil, vehicle: Vehicle? = nil, driver: Driver? = nil, latestGPSLog: TripGPSLog? = nil) {
+        self.trip = trip
+        self.vehicle = vehicle
+        self.driver = driver
+        self.latestGPSLog = latestGPSLog
+        
+        // If no GPS log provided, use trip's start coordinates as a fallback for the map
+        if latestGPSLog == nil {
+            if let lat = trip?.startLat, let lng = trip?.startLng {
+                self.latestGPSLog = TripGPSLog(id: "fallback", tripId: trip?.id ?? "", lat: lat, lng: lng, speed: 0, recordedAt: Date())
+            }
+        }
+    }
+    
+    @MainActor
+    public func fetchDetails() async {
+        guard let trip = trip, let driverId = trip.driverId else { return }
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            // Fetch Driver Details from users table
+            let userResponse: [User] = try await SupabaseService.shared.client
+                .from("users")
+                .select("id, name, phone, role, employee_id")
+                .eq("id", value: driverId)
+                .execute()
+                .value
+            
+            if let user = userResponse.first {
+                self.driver = Driver(
+                    id: user.id,
+                    companyID: "", // We don't have company ID easily available here, but name/phone are more critical for this view
+                    name: user.name,
+                    employeeID: user.employeeId ?? "N/A",
+                    phone: user.phone
+                )
+            }
+            
+            // Fetch Latest GPS Log
+            let gpsResponse: [TripGPSLog] = try await SupabaseService.shared.client
+                .from("trip_gps_logs")
+                .select("*")
+                .eq("trip_id", value: trip.id)
+                .order("recorded_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+            
+            if let latest = gpsResponse.first {
+                self.latestGPSLog = latest
+            }
+        } catch {
+            print("🚨 TrackingShipmentViewModel Error: \(error)")
+        }
     }
 }

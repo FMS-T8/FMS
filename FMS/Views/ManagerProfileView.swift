@@ -13,7 +13,9 @@ struct ManagerProfileView: View {
     @Environment(BannerManager.self) private var bannerManager
     @Environment(AuthViewModel.self) private var authViewModel
     @State private var vm = ManagerProfileViewModel()
+    @State private var securityVM = SecuritySettingsViewModel()
     @State private var showChangePassword = false
+    @State private var showMFAEnrollment = false
 
     var body: some View {
         ScrollView {
@@ -32,7 +34,10 @@ struct ManagerProfileView: View {
         .background(FMSTheme.backgroundPrimary)
         .navigationTitle("My Profile")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await vm.loadAll() }
+        .task { 
+            await vm.loadAll()
+            await securityVM.loadSecurityState()
+        }
         .overlay {
             if vm.isLoading {
                 loadingOverlay
@@ -40,6 +45,9 @@ struct ManagerProfileView: View {
         }
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet(vm: vm, bannerManager: bannerManager)
+        }
+        .sheet(isPresented: $showMFAEnrollment) {
+            MFAEnrollmentView(vm: securityVM, bannerManager: bannerManager)
         }
     }
 
@@ -126,16 +134,30 @@ struct ManagerProfileView: View {
                         Text("Two-Factor Authentication")
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(FMSTheme.textPrimary)
-                        Text("Coming soon!")
+                        Text(securityVM.isTwoFactorEnabled ? "Active" : "Secure your account")
                             .font(.system(size: 12))
-                            .foregroundStyle(FMSTheme.textTertiary)
+                            .foregroundStyle(securityVM.isTwoFactorEnabled ? FMSTheme.amber : FMSTheme.textTertiary)
                     }
                     Spacer()
-                    Toggle("", isOn: $vm.isTwoFactorEnabled)
-                        .tint(FMSTheme.amber)
-                        .onChange(of: vm.isTwoFactorEnabled) {
-                            Task { await vm.savePreferences() }
+                    Toggle("", isOn: Binding(
+                        get: { securityVM.isTwoFactorEnabled },
+                        set: { newValue in
+                            if newValue {
+                                Task {
+                                    await securityVM.initiateMFAEnrollment()
+                                    if securityVM.mfaEnrollmentResponse != nil {
+                                        showMFAEnrollment = true
+                                    } else {
+                                        // Enrollment initiation failed — revert toggle
+                                        bannerManager.show(type: .error, message: securityVM.errorMessage ?? "Failed to start 2FA setup.")
+                                    }
+                                }
+                            } else {
+                                Task { await securityVM.unenrollAllMFAFactors(bannerManager: bannerManager) }
+                            }
                         }
+                    ))
+                    .tint(FMSTheme.amber)
                 }
             }
         }

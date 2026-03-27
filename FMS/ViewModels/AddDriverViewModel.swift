@@ -13,7 +13,8 @@ import Supabase
 class AddDriverViewModel {
   var name = ""
   var email = ""
-  var phone = ""
+  var phone = "" // Full E.164 (e.g. +911234567890)
+  var localPhone = "" // Just the 10 digits
   var licenseNumber = ""
   var dateOfBirth: Date?
   // Default to tomorrow so the field is valid out-of-the-box and the
@@ -40,13 +41,17 @@ class AddDriverViewModel {
 
     let isLicenseValid = !licenseNumber.trimmingCharacters(in: .whitespaces).isEmpty
 
-    // Expiry must be today or in the future (compare date components only,
-    // ignoring time, so "today" itself counts as valid).
+    // Expiry must be today or in the future
     let today = Calendar.current.startOfDay(for: Date())
     let expiryDay = Calendar.current.startOfDay(for: licenseExpiry)
     let isExpiryValid = expiryDay >= today
 
     return isNameValid && isEmailValid && isLicenseValid && isExpiryValid
+  }
+
+  var isPhoneValid: Bool {
+    let digits = localPhone.filter { $0.isNumber }
+    return digits.count == 10
   }
 
   func applyScannedLicense(_ result: DriverLicenseReviewData) {

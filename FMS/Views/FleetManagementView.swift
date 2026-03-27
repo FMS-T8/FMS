@@ -1,10 +1,14 @@
 import SwiftUI
+import Supabase
 
 public struct FleetManagementView: View {
     @Environment(BannerManager.self) private var bannerManager
     @State private var viewModel = FleetViewModel()
     @State private var showingAddVehicle = false
     @State private var selectedVehicle: Vehicle? = nil
+    @State private var trackingTrip: Trip? = nil
+    @State private var isFetchingTrip = false
+    @State private var showingBulkImport = false
     
     public init() {}
     
@@ -14,63 +18,48 @@ public struct FleetManagementView: View {
                 FMSTheme.backgroundPrimary.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Header
-                    headerSection
-                    
-                    // Search Bar
-                    searchBarSection
-                    
-                    // Filters
-                    filterSection
-                    
-                    // Vehicle List
-                    if viewModel.isLoading && viewModel.vehicles.isEmpty {
-                        Spacer()
-                        ProgressView("Loading vehicles...")
-                            .progressViewStyle(CircularProgressViewStyle(tint: FMSTheme.textSecondary))
-                            .foregroundColor(FMSTheme.textSecondary)
-                        Spacer()
-                    } else if let loadError = viewModel.loadErrorMessage, viewModel.vehicles.isEmpty {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Text("Unable to load vehicles")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(FMSTheme.textPrimary)
-                            Text(loadError)
-                                .font(.system(size: 13))
-                                .foregroundColor(FMSTheme.textTertiary)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(3)
-                        }
-                        Spacer()
-                    } else if viewModel.vehicles.isEmpty {
-                        Spacer()
-                        Text("No vehicles found.")
-                            .font(.system(size: 16))
-                            .foregroundColor(FMSTheme.textTertiary)
-                        Spacer()
-                    } else if viewModel.filteredVehicles.isEmpty {
-                        Spacer()
-                        Text("No results match your filters.")
-                            .font(.system(size: 16))
-                            .foregroundColor(FMSTheme.textTertiary)
-                        Spacer()
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(viewModel.filteredVehicles) { vehicle in
-                                    VehicleListCard(vehicle: vehicle)
-                                        .contentShape(RoundedRectangle(cornerRadius: 14))
-                                        .onTapGesture {
-                                            selectedVehicle = vehicle
-                                        }
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 20) {
+                            HStack {
+                                Text("Fleet Management")
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundStyle(FMSTheme.textPrimary)
+                                
+                                Spacer()
+                                
+                                HStack(spacing: 12) {
+                                    Button {
+                                        showingBulkImport = true
+                                    } label: {
+                                        Image(systemName: "doc.badge.plus")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundStyle(FMSTheme.textPrimary)
+                                    }
+                                    
+                                    Button {
+                                        showingAddVehicle = true
+                                    } label: {
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 20, weight: .bold))
+                                            .padding(8)
+                                            .background(FMSTheme.amber.opacity(0.12))
+                                            .clipShape(Circle())
+                                            .foregroundStyle(FMSTheme.amber)
+                                    }
                                 }
                             }
-                            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.filteredVehicles)
                             .padding(.horizontal, 20)
-                            .padding(.top, 16)
-                            .padding(.bottom, 100)
+                            
+                            summaryCardSection
+                            
+                            VStack(spacing: 16) {
+                                filterSection
+                            }
+                            
+                            // Vehicle List
+                            vehicleListSection
                         }
+                        .padding(.top, 16)
                     }
                 }
             }
@@ -78,7 +67,6 @@ public struct FleetManagementView: View {
                 do {
                     try await viewModel.fetchVehicles()
                 } catch {
-                    // Error state already captured in view model.
                 }
             }
             .onChange(of: viewModel.errorMessage) { _, newValue in
@@ -89,6 +77,19 @@ public struct FleetManagementView: View {
             .sheet(isPresented: $showingAddVehicle) {
                 AddVehicleView { newVehicle in
                     try await viewModel.addVehicle(newVehicle)
+                }
+            }
+            // MARK: - Bulk Import Sheet
+            .sheet(isPresented: $showingBulkImport) {
+                VehicleBulkImportView {
+                    // Refresh the list after successful import
+                    Task {
+                        do {
+                            try await viewModel.fetchVehicles()
+                        } catch {
+                            bannerManager.show(type: .error, message: "Failed to refresh vehicles after import.")
+                        }
+                    }
                 }
             }
             .navigationDestination(item: $selectedVehicle) { vehicle in
@@ -102,70 +103,15 @@ public struct FleetManagementView: View {
                     }
                 )
             }
-        }
-    }
-    
-    private var headerSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Fleet Management")
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundColor(FMSTheme.textPrimary)
-                
-                Text("\(viewModel.vehicles.count) Total Vehicles")
-                    .font(.system(size: 14))
-                    .foregroundColor(FMSTheme.textSecondary)
+            .navigationDestination(item: $trackingTrip) { trip in
+                TripReplayView(trip: trip)
             }
-            
-            Spacer()
-            
-            Button {
-                showingAddVehicle = true
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(FMSTheme.amber)
-                        .frame(width: 44, height: 44)
-                        .shadow(color: FMSTheme.amber.opacity(0.3), radius: 8, x: 0, y: 4)
-                    
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(FMSTheme.obsidian)
-                }
-            }
+            .searchable(text: $viewModel.searchText, prompt: "Search plate, make, or model")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 12)
     }
-    
-    private var searchBarSection: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 16))
-                .foregroundColor(FMSTheme.textTertiary)
-            
-            TextField("Search plate, make, or model", text: $viewModel.searchText)
-                .font(.system(size: 15))
-                .foregroundColor(FMSTheme.textPrimary)
-                .autocorrectionDisabled()
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.searchText)
-            
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(FMSTheme.cardBackground.opacity(0.5))
-        .fmsGlassEffect(cornerRadius: 12)
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(FMSTheme.textPrimary.opacity(0.1), lineWidth: 1)
-        )
-        .shadow(color: FMSTheme.shadowSmall, radius: 4, x: 0, y: 2)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 12)
-    }
-    
     
     private var filterSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -188,14 +134,121 @@ public struct FleetManagementView: View {
             .padding(.horizontal, 20)
         }
     }
+    
+    @ViewBuilder
+    private var vehicleListSection: some View {
+        if viewModel.isLoading && viewModel.vehicles.isEmpty {
+            VStack {
+                Spacer(minLength: 100)
+                ProgressView("Loading vehicles...")
+                    .progressViewStyle(CircularProgressViewStyle(tint: FMSTheme.textSecondary))
+                    .foregroundColor(FMSTheme.textSecondary)
+                Spacer()
+            }
+        } else if let loadError = viewModel.loadErrorMessage, viewModel.vehicles.isEmpty {
+            VStack {
+                Spacer(minLength: 100)
+                VStack(spacing: 8) {
+                    Text("Unable to load vehicles")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(FMSTheme.textPrimary)
+                    Text(loadError)
+                        .font(.system(size: 13))
+                        .foregroundColor(FMSTheme.textTertiary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                }
+                Spacer()
+            }
+        } else if viewModel.vehicles.isEmpty {
+            VStack {
+                Spacer(minLength: 100)
+                Text("No vehicles found.")
+                    .font(.system(size: 16))
+                    .foregroundColor(FMSTheme.textTertiary)
+                Spacer()
+            }
+        } else if viewModel.filteredVehicles.isEmpty {
+            VStack {
+                Spacer(minLength: 100)
+                Text("No results match your filters.")
+                    .font(.system(size: 16))
+                    .foregroundColor(FMSTheme.textTertiary)
+                Spacer()
+            }
+        } else {
+            LazyVStack(spacing: 12) {
+                ForEach(viewModel.filteredVehicles) { vehicle in
+                    VehicleListCard(
+                        vehicle: vehicle,
+                        onTrack: { v in
+                            Task { await fetchActiveTrip(for: v) }
+                        },
+                        derivedStatus: viewModel.derivedStatus(for: vehicle)
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 14))
+                    .onTapGesture {
+                        selectedVehicle = vehicle
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 120)
+        }
+    }
+    
+    private var summaryCardSection: some View {
+        FMSMaintenanceSummaryCard(
+            title: "FLEET STATUS",
+            mainCount: viewModel.activeCount,
+            mainLabel: "Active",
+            subtitle: "Tracking \(viewModel.vehicles.count) vehicles across all regions.",
+            showWarning: false,
+            subItems: [
+                .init(icon: "wrench.and.screwdriver.fill", count: viewModel.maintenanceCount, label: "Under Maintenance"),
+                .init(icon: "truck.box.fill", count: viewModel.inactiveCount, label: "At Yard")
+            ]
+        )
+        .padding(.horizontal, 20)
+    }
 }
 
 // MARK: - Summary Helpers
 private extension FleetManagementView {
+    
+    @MainActor
+    func fetchActiveTrip(for vehicle: Vehicle) async {
+        guard !isFetchingTrip else { return }
+        isFetchingTrip = true
+        defer { isFetchingTrip = false }
+        do {
+            let activeStatuses = ["active", "in_progress", "in_transit"]
+            let trips: [Trip] = try await SupabaseService.shared.client
+                .from("trips")
+                .select()
+                .eq("vehicle_id", value: vehicle.id)
+                .in("status", values: activeStatuses)
+                .order("created_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+            if let trip = trips.first {
+                trackingTrip = trip
+            } else {
+                trackingTrip = nil
+                bannerManager.show(type: .warning, message: "No active trip found for \(vehicle.plateNumber).")
+            }
+        } catch {
+            print("[FleetManagementView] Failed to fetch active trip: \(error)")
+            bannerManager.show(type: .error, message: "Failed to fetch active trip for \(vehicle.plateNumber).")
+        }
+    }
+    
     func countForStatus(_ status: String) -> Int {
         let normalizedStatus = normalizeStatus(status)
         return vehiclesMatchingSearch()
-            .filter { normalizeStatus($0.status ?? "") == normalizedStatus }
+            .filter { normalizeStatus(viewModel.derivedStatus(for: $0)) == normalizedStatus }
             .count
     }
     
@@ -250,9 +303,9 @@ struct FilterPill: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 if statusKey.lowercased() != "all" || isSelected {
-                     Circle()
-                         .fill(isSelected && statusKey.lowercased() == "all" ? FMSTheme.obsidian : statusColor)
-                         .frame(width: 8, height: 8)
+                    Circle()
+                        .fill(isSelected && statusKey.lowercased() == "all" ? FMSTheme.obsidian : statusColor)
+                        .frame(width: 8, height: 8)
                 }
                 
                 Text(title)

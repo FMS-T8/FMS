@@ -2,7 +2,7 @@
 //  AuthViewModel.swift
 //  FMS
 //
-//  Created by Anish on 11/03/26.
+//  Created by Devanshi on 20/03/26.
 //
 
 import SwiftUI
@@ -21,6 +21,10 @@ public class AuthViewModel {
     public var selectedRole: Role?
     public var isAuthenticated: Bool = false
     public var currentUser: User?
+    public var isMFARequired: Bool = false
+    public var mfaFactorId: String?
+    public var mfaEmail: String? = nil
+    private var bannerManager: BannerManager?
     
     public init(selectedRole: Role? = nil, isAuthenticated: Bool = false, currentUser: User? = nil) {
         self.selectedRole = selectedRole
@@ -49,11 +53,62 @@ public class AuthViewModel {
                 email: email,
                 password: password
             )
+        } catch {
+            bannerManager.show(type: .error, message: "Invalid email or password. Please try again.")
+            return
+        }
+        
+        self.bannerManager = bannerManager
+        self.mfaEmail = email
+        
+        do {
+            // Check for MFA requirement
+            let mfaStatus = try await SupabaseService.shared.client.auth.mfa.getAuthenticatorAssuranceLevel()
+            if mfaStatus.nextLevel == "aal2" {
+                // MFA is required. Switch to MFA state.
+                let factors = try await SupabaseService.shared.client.auth.mfa.listFactors()
+                let verifiedTotp = factors.totp
+                    .filter { $0.status == .verified }
+                    .sorted { $0.updatedAt > $1.updatedAt }
+                if let firstFactor = verifiedTotp.first {
+                    self.mfaFactorId = firstFactor.id
+                    self.isMFARequired = true
+                    // Do not set isAuthenticated yet
+                    return
+                } else {
+                    self.isMFARequired = true
+                    self.mfaFactorId = nil
+                    bannerManager.show(
+                        type: .error,
+                        message: "MFA required but no verified TOTP factors available. Please contact admin."
+                    )
+                    return
+                }
+            }
             
+            // If no MFA required, proceed to load user record
+            let loginSucceeded = try await completeLogin(bannerManager: bannerManager)
+            if !loginSucceeded {
+                return
+            }
+        } catch {
+            await logout()
+            bannerManager.show(
+                type: .error,
+                message: "An error occurred during post-authentication. Please try again."
+            )
+        }
+    }
+    
+    private func completeLogin(bannerManager: BannerManager, shouldSetAuthenticated: Bool = true) async throws -> Bool {
+        do {
+            let session = try await SupabaseService.shared.client.auth.session
+            let userId = session.user.id.uuidString
             let response = try await SupabaseService.shared.client
                 .from("users")
                 .select()
-                .eq("email", value: email)
+                .eq("id", value: userId)
+                .limit(1)
                 .execute()
                 
             let decoder = JSONDecoder()
@@ -88,21 +143,159 @@ public class AuthViewModel {
                 case "maintenance":
                     self.selectedRole = .maintenance
                 default:
-                    print("Unknown role: \(userRecord.role)")
-                    return
+                    bannerManager.show(type: .error, message: "Unknown role: \(userRecord.role). Please contact admin.")
+                    await logout()
+                    return false
                 }
-                self.isAuthenticated = true
+                if shouldSetAuthenticated {
+                    self.isAuthenticated = true
+                }
+                self.isMFARequired = false
+                return true
             } else {
                 bannerManager.show(type: .error, message: "Account not configured. Please contact admin.")
+                await logout()
+                return false
             }
         } catch {
-            bannerManager.show(type: .error, message: "Invalid email or password. Please try again.")
+            await logout()
+            throw error
+        }
+    }
+
+    public func verifyMFA(code: String) async {
+        guard let factorId = mfaFactorId, let bannerManager = bannerManager else { return }
+        
+        do {
+            try await SupabaseService.shared.client.auth.mfa.challengeAndVerify(
+                params: MFAChallengeAndVerifyParams(factorId: factorId, code: code)
+            )
+        } catch {
+            bannerManager.show(type: .error, message: "Invalid 2FA code. Please try again.")
+            return
+        }
+        
+        do {
+            let loginSucceeded = try await completeLogin(bannerManager: bannerManager)
+            if !loginSucceeded {
+                await logout()
+                bannerManager.show(type: .error, message: "Post-authentication failed. Please log in again.")
+            }
+        } catch {
+            await logout()
+            bannerManager.show(type: .error, message: "Post-authentication failed. Please log in again.")
         }
     }
     
-    public func logout() {
+    public func initiateEmailRecovery() async {
+        guard let bannerManager = bannerManager else { return }
+        guard let email = mfaEmail, !email.isEmpty else {
+            bannerManager.show(type: .error, message: "Missing MFA email context. Please log in again.")
+            return
+        }
+        do {
+            try await MFARecoveryService.shared.sendRecoveryOTP(to: email)
+            bannerManager.show(type: .success, message: "Recovery code sent to your email.")
+        } catch {
+            bannerManager.show(type: .error, message: "Failed to send recovery email: \(error.localizedDescription)")
+        }
+    }
+    
+    public func verifyEmailRecovery(code: String) async {
+        guard let bannerManager = bannerManager else { return }
+        guard let email = mfaEmail, !email.isEmpty else {
+            bannerManager.show(type: .error, message: "Missing MFA email context. Please log in again.")
+            return
+        }
+        do {
+            let success = try await MFARecoveryService.shared.verifyEmailRecoveryAndResetMFA(email: email, code: code)
+            if success {
+                bannerManager.show(type: .success, message: "MFA has been reset. Please log in again.")
+                await logout() // Return to login screen
+            } else {
+                bannerManager.show(type: .error, message: "Invalid recovery code.")
+            }
+        } catch {
+            bannerManager.show(type: .error, message: "Recovery failed: \(error.localizedDescription)")
+        }
+    }
+    
+    public func verifyBackupCode(code: String) async {
+        guard let bannerManager = bannerManager else { return }
+        do {
+            // We need the user ID for backup code verification. 
+            // Since we're partially logged in, we can get it from the session.
+            let session = try await SupabaseService.shared.client.auth.session
+            let userId = session.user.id.uuidString
+            let valid = try await MFARecoveryService.shared.validateBackupCode(userId: userId, code: code)
+            
+            if valid {
+                let loginSucceeded = try await completeLogin(bannerManager: bannerManager, shouldSetAuthenticated: false)
+                if !loginSucceeded {
+                    return
+                }
+                let consumed = try await MFARecoveryService.shared.consumeBackupCode(userId: userId, code: code)
+                if consumed {
+                    self.isAuthenticated = true
+                    bannerManager.show(type: .success, message: "Backup code verified successfully. Logging you in.")
+                } else {
+                    await logout()
+                    bannerManager.show(type: .error, message: "Failed to consume backup code. Please log in again.")
+                }
+            } else {
+                bannerManager.show(type: .error, message: "Invalid or already used backup code.")
+            }
+        } catch {
+            await logout()
+            bannerManager.show(type: .error, message: "Verification failed: \(error.localizedDescription)")
+        }
+    }
+  
+    
+    public func sendPasswordReset(email: String, bannerManager: BannerManager) async -> Bool { // ✅ return Bool
+        
+        // Add email validation (mirrors login)
+        guard !email.trimmingCharacters(in: .whitespaces).isEmpty else {
+            bannerManager.show(type: .error, message: "Please enter your email address.")
+            return false
+        }
+        
+        guard email.contains("@") && email.contains(".") else {
+            bannerManager.show(type: .error, message: "Please enter a valid email address.")
+            return false
+        }
+        
+        // Safe URL unwrap instead of force unwrap
+        guard let redirectURL = URL(string: "com.nirvaan.fms://reset-password") else {
+            bannerManager.show(type: .error, message: "Invalid configuration. Please contact support.")
+            return false
+        }
+        
+        do {
+            try await SupabaseService.shared.client.auth.resetPasswordForEmail(
+                email,
+                redirectTo: redirectURL
+            )
+            bannerManager.show(type: .success, message: "Reset link sent to \(email)")
+            return true  
+        } catch {
+            bannerManager.show(type: .error, message: error.localizedDescription)
+            return false  
+        }
+    }
+    
+    public func logout() async {
+        do {
+            try await SupabaseService.shared.client.auth.signOut()
+        } catch {
+            print("Auth signOut failed: \(error)")
+        }
         selectedRole = nil
         isAuthenticated = false
         currentUser = nil
+        isMFARequired = false
+        mfaFactorId = nil
+        mfaEmail = nil
+        bannerManager = nil
     }
 }

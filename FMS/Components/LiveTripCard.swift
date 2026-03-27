@@ -22,58 +22,101 @@ public struct LiveTripCard: View {
     }
     
     public var body: some View {
-        HStack(spacing: 0) {
-            // Left Column: Details
-            VStack(alignment: .leading, spacing: 12) { // Scaled down from 20
-                // Plate Number Pill
-                Text(plateNumber)
-                    .font(.system(size: 14, weight: .bold)) // Scaled down from 16
-                    .foregroundColor(symbolColor)
-                    .padding(.horizontal, 12) // Scaled down from 16
-                    .padding(.vertical, 6)    // Scaled down from 8
-                    .background(
-                        RoundedRectangle(cornerRadius: 8) // Scaled down from 12
-                            .fill(pillBackground)
-                    )
-                
-                // Route & Progress
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) { // Scaled down from 6
-                        Text(origin)
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 14, weight: .bold)) // Scaled down from 16
-                        Text(destination)
-                    }
-                    .font(.system(size: 18, weight: .bold)) // Scaled down from 22
-                    .foregroundColor(textPrimary)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
+                // Left Column: Route Details
+                VStack(alignment: .leading, spacing: 12) {
+                    // Plate Number Badge
+                    Text(plateNumber)
+                        .font(.system(.caption, design: .monospaced).bold())
+                        .foregroundColor(FMSTheme.obsidian)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(FMSTheme.amber)
+                        .cornerRadius(6)
                     
-                    Text("\(completionPercentage)% complete")
-                        .font(.system(size: 14)) // Scaled down from 17
-                        .foregroundColor(textSecondary) // Changed to secondary for visual hierarchy
+                    // Route with City Truncation
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(alignment: .center, spacing: 8) {
+                            addressView(title: "From", value: origin)
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 12, weight: .black))
+                                .foregroundColor(FMSTheme.textTertiary)
+                            addressView(title: "To", value: destination)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // Right Column: Iconic Truck
+                ZStack {
+                    Circle()
+                        .fill(FMSTheme.pillBackground)
+                        .frame(width: 52, height: 52)
+                    
+                    Image(systemName: "box.truck.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(FMSTheme.amber)
                 }
             }
             
-            Spacer(minLength: 16) // Scaled down from 20
-            
-            // Right Column: Truck Graphic (SF Symbol)
-            Image(systemName: "truck.box.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 80) // Drastically reduced from 140 to fix the massive size
-                .foregroundColor(symbolColor)
-                .padding(.trailing, 4)
+            // Progress Bar Section
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Trip Progress")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(FMSTheme.textSecondary)
+                    Spacer()
+                    Text("\(completionPercentage)%")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(FMSTheme.amber)
+                }
+                
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(FMSTheme.borderLight)
+                            .frame(height: 6)
+                        
+                        Capsule()
+                            .fill(FMSTheme.amber)
+                            .frame(width: geo.size.width * CGFloat(Double(completionPercentage) / 100.0), height: 6)
+                    }
+                }
+                .frame(height: 6)
+            }
         }
-        .padding(.vertical, 16) // Scaled down from 24
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 20) // Scaled down from 32
-                .fill(cardBackground)
-        )
+        .padding(20)
+        .background(FMSTheme.cardBackground)
+        .cornerRadius(24)
         .overlay(
-            RoundedRectangle(cornerRadius: 20) // Scaled down from 32
-                .stroke(borderLight, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(FMSTheme.borderLight, lineWidth: 1)
         )
+        .shadow(color: FMSTheme.shadowSmall, radius: 8, x: 0, y: 4)
+    }
+    
+    // MARK: - Helpers
+    private func addressView(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title.uppercased())
+                .font(.system(size: 9, weight: .black))
+                .foregroundColor(FMSTheme.textTertiary)
+                .tracking(0.5)
+            
+            Text(cityOnly(value))
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(FMSTheme.textPrimary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    private func cityOnly(_ fullName: String) -> String {
+        let parts = fullName.components(separatedBy: ",")
+        guard let first = parts.first else { return fullName }
+        return first.trimmingCharacters(in: .whitespaces)
     }
 }
 
