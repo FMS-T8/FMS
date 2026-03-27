@@ -4,6 +4,7 @@ import UserNotifications
 public struct DriverDashboardView: View {
     @State private var viewModel = DriverDashboardViewModel()
     @State private var safetyViewModel = SafetyViewModel()
+    @State private var crashService = CrashDetectionService.shared
 
     public init() {}
 
@@ -136,7 +137,7 @@ public struct DriverDashboardView: View {
             SafetyConfirmationView(safetyViewModel: safetyViewModel)
         }
         // Monitor crash detection
-        .onChange(of: safetyViewModel.crashService.impactDetected) { _, detected in
+        .onChange(of: crashService.impactDetected) { _, detected in
             if detected {
                 safetyViewModel.onImpactDetected()
             }
